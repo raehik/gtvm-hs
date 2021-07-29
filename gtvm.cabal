@@ -1,0 +1,70 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           gtvm
+version:        0.0.0
+build-type:     Simple
+
+library
+  exposed-modules:
+      GTVM.SCP
+      GTVM.SCP.Examples
+      GTVM.SCP.Parse
+      GTVM.SCP.Tmp
+      Text.Megaparsec.Byte.Binary
+  other-modules:
+      Paths_gtvm
+  hs-source-dirs:
+      src
+  default-extensions:
+      OverloadedStrings
+      LambdaCase
+  build-depends:
+      attoparsec
+    , base
+    , binary
+    , bytestring
+    , containers
+    , data-fix >=0.3.0
+    , free
+    , lens
+    , megaparsec
+    , mtl
+    , recursion-schemes
+    , streaming
+    , streaming-attoparsec
+    , streaming-bytestring >=0.2.0
+    , text
+  default-language: Haskell2010
+
+executable expr-pretty-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_gtvm
+  hs-source-dirs:
+      app
+  default-extensions:
+      OverloadedStrings
+      LambdaCase
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      attoparsec
+    , base
+    , binary
+    , bytestring
+    , containers
+    , data-fix >=0.3.0
+    , free
+    , gtvm
+    , lens
+    , megaparsec
+    , mtl
+    , recursion-schemes
+    , streaming
+    , streaming-attoparsec
+    , streaming-bytestring >=0.2.0
+    , text
+  default-language: Haskell2010

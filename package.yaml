@@ -1,0 +1,37 @@
+name: gtvm
+
+default-extensions:
+- OverloadedStrings
+- LambdaCase
+
+dependencies:
+- base
+- lens
+- mtl
+- bytestring
+- streaming
+- streaming-bytestring >= 0.2.0
+- text
+- containers
+- recursion-schemes
+- data-fix >= 0.3.0 # renames cata -> foldFix etc.
+- free
+- streaming-attoparsec
+- attoparsec
+- megaparsec
+- binary
+
+library:
+  source-dirs: src
+
+executables:
+  expr-pretty-exe:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+    - -Wall
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - gtvm
