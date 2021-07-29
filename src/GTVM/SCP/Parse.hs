@@ -16,12 +16,15 @@ pSCPSeg :: Parser SCPSegment
 pSCPSeg = do
     byte <- anyW8
     case byte of
+      0x01 -> SCPSegBg <$> pNullTermByteString
+      0x02 -> pStringPlusByte SCPSegSFX
       0x05 -> pSCPSegTextbox
-      0x10 -> pSCPSegUnk10
-      0x01 -> pSCPSegBg
       0x08 -> return SCPSegUnk08
+      0x10 -> pSCPSegUnk10
       0x34 -> pSCPSegUnk34
-      0x02 -> pSCPSegSFX
+      0x0A -> SCPSegUnk0A <$> anyW8
+      0x44 -> pStringPlusByte SCPSegUnk44SFX
+      0x45 -> pStringPlusByte SCPSegUnk45SFX
       _    -> unexpected (Tokens (byte :| []))
 
 pSCPSegTextbox :: Parser SCPSegment
@@ -33,19 +36,11 @@ pSCPSegTextbox = do
     unkCounter    <- anyW32LE
     return $ SCPSegTextbox unkHeaderByte speakerId text voicePath unkCounter
 
-pSCPSegBg :: Parser SCPSegment
-pSCPSegBg = do
-    bgPath <- pNullTermByteString
-    b1 <- anyW8
-    b2 <- anyW8
-    b3 <- anyW8
-    return $ SCPSegBg bgPath b1 b2 b3
-
-pSCPSegSFX :: Parser SCPSegment
-pSCPSegSFX = do
+pStringPlusByte :: (BS.ByteString -> Word8 -> SCPSegment) -> Parser SCPSegment
+pStringPlusByte seg = do
     sfxPath <- pNullTermByteString
     byte <- anyW8
-    return $ SCPSegSFX sfxPath byte
+    return $ seg sfxPath byte
 
 pSCPSegUnk34 :: Parser SCPSegment
 pSCPSegUnk34 = do
@@ -73,3 +68,10 @@ pNullTermByteString =
 
 pNullByte :: Parser Word8
 pNullByte = single 0x00 <?> "null byte"
+
+--------------------------------------------------------------------------------
+
+parseSCPFile :: FilePath -> IO ()
+parseSCPFile fp = do
+    scpBytes <- BS.readFile fp
+    parseTest (many pSCPSeg) scpBytes

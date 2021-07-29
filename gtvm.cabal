@@ -13,7 +13,6 @@ library
       GTVM.SCP
       GTVM.SCP.Examples
       GTVM.SCP.Parse
-      GTVM.SCP.Tmp
       Text.Megaparsec.Byte.Binary
   other-modules:
       Paths_gtvm

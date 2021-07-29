@@ -27,15 +27,21 @@ import qualified Data.Binary.Get as Get
 
 import           Control.Monad.Except
 
+{-
 class HasSCPRep a where
     scpBytes :: a -> BS.ByteString
+-}
 
 -- | A standalone segment of an SCP file. Essentially tokens from a byte lexer.
 data SCPSegment
   = SCPSegTextbox Word8 Word32 BS.ByteString BS.ByteString Word32
+  | SCPSegUnk03Sprite Word8 BS.ByteString
   | SCPSegUnk10 Word8 Word8 Word8
   | SCPSegUnk08 -- appears empty
+  | SCPSegUnk0A Word8
   | SCPSegUnk34 Word32
+  | SCPSegUnk44SFX BS.ByteString Word8
+  | SCPSegUnk45SFX BS.ByteString Word8
   | SCPSegSFX BS.ByteString Word8
-  | SCPSegBg BS.ByteString Word8 Word8 Word8
+  | SCPSegBg BS.ByteString
     deriving (Eq, Show)
