@@ -11,8 +11,10 @@ build-type:     Simple
 library
   exposed-modules:
       GTVM.SCP
+      GTVM.SCP.Analyse
       GTVM.SCP.Examples
       GTVM.SCP.Parse
+      GTVM.SCP.Serialize
       Text.Megaparsec.Byte.Binary
   other-modules:
       Paths_gtvm
@@ -26,6 +28,7 @@ library
     , base
     , binary
     , bytestring
+    , bytestring-strict-builder
     , containers
     , data-fix >=0.3.0
     , free
@@ -54,6 +57,7 @@ executable expr-pretty-exe
     , base
     , binary
     , bytestring
+    , bytestring-strict-builder
     , containers
     , data-fix >=0.3.0
     , free

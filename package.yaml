@@ -6,9 +6,10 @@ default-extensions:
 
 dependencies:
 - base
+- bytestring
+- bytestring-strict-builder
 - lens
 - mtl
-- bytestring
 - streaming
 - streaming-bytestring >= 0.2.0
 - text
