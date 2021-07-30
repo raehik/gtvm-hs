@@ -22,6 +22,7 @@ dependencies:
 - streaming-attoparsec
 - attoparsec
 - binary
+- directory
 
 library:
   source-dirs: src
