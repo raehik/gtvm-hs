@@ -31,6 +31,7 @@ library
     , bytestring-strict-builder
     , containers
     , data-fix >=0.3.0
+    , either
     , free
     , lens
     , megaparsec
@@ -60,6 +61,7 @@ executable expr-pretty-exe
     , bytestring-strict-builder
     , containers
     , data-fix >=0.3.0
+    , either
     , free
     , gtvm
     , lens

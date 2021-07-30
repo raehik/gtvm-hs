@@ -7,6 +7,8 @@ default-extensions:
 dependencies:
 - base
 - bytestring
+- megaparsec
+- either
 - bytestring-strict-builder
 - lens
 - mtl
@@ -19,7 +21,6 @@ dependencies:
 - free
 - streaming-attoparsec
 - attoparsec
-- megaparsec
 - binary
 
 library:
