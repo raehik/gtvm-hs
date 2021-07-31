@@ -36,6 +36,12 @@ fcTestFile fp = runReaderT $ do
     bs <- liftIO $ BS.readFile fp
     fcTest bs
 
+fcTestFile' :: (MonadIO m) => FilePath -> BinaryCfg -> m Bool
+fcTestFile' fp = runReaderT $ do
+    bs <- liftIO $ BS.readFile fp
+    bs' <- fcTest bs
+    return $ bs == bs'
+
 fromRight :: Either a b -> b
 fromRight (Left  _) = error "no"
 fromRight (Right b) = b
@@ -46,11 +52,12 @@ pFlowchart = many pFlowchartEntryBlock <* eof
 
 pFlowchartEntryBlock
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m FlowchartEntryBlock
-pFlowchartEntryBlock = FlowchartEntryBlock <$> pBytestringFixed 32 <*> pCount pW32 pFlowchartEntry
+pFlowchartEntryBlock = pNullPadTo p 2116
+  where p = FlowchartEntryBlock <$> pCStringPad 32 <*> pCount pW32 pFlowchartEntry
 
 pFlowchartEntry
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m FlowchartEntry
-pFlowchartEntry = FlowchartEntry <$> pW64 <*> pBytestringFixed 64 <*> pBytestringFixed 32
+pFlowchartEntry = FlowchartEntry <$> pW64 <*> pCStringPad 64 <*> pCStringPad 32
 
 sFlowchart :: MonadReader BinaryCfg m => [FlowchartEntryBlock] -> m Bytes
 sFlowchart = serialize bFlowchart
@@ -59,9 +66,9 @@ bFlowchart :: MonadReader BinaryCfg m => [FlowchartEntryBlock] -> m Builder
 bFlowchart = concatM . fmap bFlowchartEntryBlock
 
 bFlowchartEntryBlock :: MonadReader BinaryCfg m => FlowchartEntryBlock -> m Builder
-bFlowchartEntryBlock (FlowchartEntryBlock bs1 entries) =
-    concatM [bBSFixedNullPadded 32 bs1, bCount bW32 bFlowchartEntry entries]
+bFlowchartEntryBlock (FlowchartEntryBlock bs1 entries) = bNullPadTo b 2116
+  where b = concatM [bBSFixedNullPadded bs1 32, bCount bW32 bFlowchartEntry entries]
 
 bFlowchartEntry :: MonadReader BinaryCfg m => FlowchartEntry -> m Builder
 bFlowchartEntry (FlowchartEntry w64 bs1 bs2) =
-    concatM [bW64 w64, bBSFixedNullPadded 64 bs1, bBSFixedNullPadded 32 bs2]
+    concatM [bW64 w64, bBSFixedNullPadded bs1 64, bBSFixedNullPadded bs2 32]

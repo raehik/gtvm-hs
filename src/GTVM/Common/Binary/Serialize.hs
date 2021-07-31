@@ -11,6 +11,7 @@ module GTVM.Common.Binary.Serialize
   , bW64
   , bBS
   , bBSFixedNullPadded
+  , bNullPadTo
   , bCount
   ) where
 
@@ -53,19 +54,24 @@ bBS bs = reader binCfgStringType >>= \case
         else let lenW8 = fromIntegral len :: Word8
               in return $ BB.word8 lenW8 <> BB.byteString bs
 
-bBSFixedNullPadded :: Monad m => Int -> Bytes -> m Builder
-bBSFixedNullPadded i bs =
-    let reqNulls = i - BS.length bs
-     in if   reqNulls < 0
-        then error $ "bytestring too large for fixed-size field (" <> show (BS.length bs) <> " > " <> show i <> ")"
-        else return $ BB.byteString bs <> BB.byteString (BS.replicate reqNulls 0x00)
+bBSFixedNullPadded :: MonadReader BinaryCfg m => Bytes -> Int -> m Builder
+bBSFixedNullPadded bs = bNullPadTo (bBS bs)
+
+bNullPadTo :: Monad m => m Builder -> Int -> m Builder
+bNullPadTo b i = do
+    b' <- b
+    let bs = execBuilder b'
+        reqNulls = i - BS.length bs
+    if   reqNulls < 0
+    then error $ "oversized field: " <> show (BS.length bs) <> " > " <> show i
+    else return $ BB.byteString bs <> BB.byteString (BS.replicate reqNulls 0x00)
 
 bCount
     :: forall m a b. (Monad m, Bounded a, Integral a, Show a)
     => (a -> m Builder) -> (b -> m Builder) -> [b] -> m Builder
 bCount bl bb parts =
     let len = length parts
-     in if   wellBounded len
+     in if   not (wellBounded len)
         then error $ "length not bounded: " <> show (minBound @a) <> "<=" <> show len <> "<=" <> show (maxBound @a) <> " does not hold"
         else concatM $ bl (fromIntegral len) : (bb <$> parts)
   where
@@ -77,3 +83,13 @@ bCount bl bb parts =
     -- TODO: perhaps ask on #haskell or somewhere, to gain better understanding
     wellBounded :: forall b'. (Integral b') => b' -> Bool
     wellBounded x = fromIntegral (minBound @a) <= x && x <= fromIntegral (maxBound @a)
+
+-- Original, speedy version. But I value composition over speed.
+{-
+bBSCStringFixedNullPadded' :: Monad m => Bytes -> Int -> m Builder
+bBSCStringFixedNullPadded' bs i =
+    let reqNulls = i - BS.length bs
+     in if   reqNulls < 0
+        then error $ "bytestring too large for fixed-size field (" <> show (BS.length bs) <> " > " <> show i <> ")"
+        else return $ BB.byteString bs <> BB.byteString (BS.replicate reqNulls 0x00)
+-}
