@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module GTVM.Common.Serialize
+module GTVM.Common.Binary.Serialize
   ( Builder
   , serialize
   , execBuilder

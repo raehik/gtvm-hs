@@ -5,24 +5,44 @@ module GTVM.Assorted.Flowchart where
 
 import           GTVM.SCP
 import           GTVM.Common.Binary
-import           GTVM.Common.Parse
-import           GTVM.Common.Serialize
+import           GTVM.Common.Binary.Parse
+import           GTVM.Common.Binary.Serialize
+import           GTVM.Common.Binary.Util
 import           Text.Megaparsec
+import qualified Data.ByteString as BS
 import           Data.Void
 import           Data.Word
 import           Control.Monad.Reader
 
 -- | bytestring is 32 bytes
-data FlowchartEntryBlock = FlowchartEntryBlock Bytes [FlowchartEntry]
+data FlowchartEntryBlock = FlowchartEntryBlock Bytes [FlowchartEntry] deriving (Eq, Show)
 
 -- | 1st bytestring is 64 bytes, 2nd is 32 bytes. Null-packed to end.
-data FlowchartEntry = FlowchartEntry Word64 Bytes Bytes
+data FlowchartEntry = FlowchartEntry Word64 Bytes Bytes deriving (Eq, Show)
 
+{-
 parseFlowchartBytes :: Bytes -> Either String [FlowchartEntryBlock]
 parseFlowchartBytes = parseFlowchartBytes' "" binCfgSCP
 
 parseFlowchartBytes' :: String -> BinaryCfg -> Bytes -> Either String [FlowchartEntryBlock]
-parseFlowchartBytes' = parseBin (many pFlowchartEntryBlock)
+parseFlowchartBytes' = _
+-}
+
+fcTest :: MonadReader BinaryCfg m => Bytes -> m Bytes
+fcTest bs = runParserBin pFlowchart bs >>= sFlowchart . fromRight
+
+fcTestFile :: (MonadIO m) => FilePath -> BinaryCfg -> m Bytes
+fcTestFile fp = runReaderT $ do
+    bs <- liftIO $ BS.readFile fp
+    fcTest bs
+
+fromRight :: Either a b -> b
+fromRight (Left  _) = error "no"
+fromRight (Right b) = b
+
+pFlowchart
+    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m [FlowchartEntryBlock]
+pFlowchart = many pFlowchartEntryBlock <* eof
 
 pFlowchartEntryBlock
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m FlowchartEntryBlock

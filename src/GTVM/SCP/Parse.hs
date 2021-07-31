@@ -6,11 +6,12 @@ module GTVM.SCP.Parse
   , parseSCPBytes'
   , parseSCPFile
   , checkSCPDir
+  , pSCP
   , pSCPSeg
   ) where
 
 import           GTVM.SCP
-import           GTVM.Common.Parse
+import           GTVM.Common.Binary.Parse
 import           GTVM.Common.Binary
 import           Text.Megaparsec
 import qualified Data.ByteString as BS
@@ -44,6 +45,9 @@ checkSCPDir dir = do
           Right _ -> return ()
 
 --------------------------------------------------------------------------------
+
+pSCP :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m [SCPSegment]
+pSCP = many pSCPSeg <* eof
 
 pSCPSeg :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m SCPSegment
 pSCPSeg = pW8 >>= \case

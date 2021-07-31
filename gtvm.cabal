@@ -12,8 +12,9 @@ library
   exposed-modules:
       GTVM.Assorted.Flowchart
       GTVM.Common.Binary
-      GTVM.Common.Parse
-      GTVM.Common.Serialize
+      GTVM.Common.Binary.Parse
+      GTVM.Common.Binary.Serialize
+      GTVM.Common.Binary.Util
       GTVM.SCP
       GTVM.SCP.Examples
       GTVM.SCP.Parse

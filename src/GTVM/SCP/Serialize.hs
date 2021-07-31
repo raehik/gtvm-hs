@@ -6,7 +6,7 @@ module GTVM.SCP.Serialize where
 
 import           GTVM.SCP
 import           GTVM.Common.Binary
-import           GTVM.Common.Serialize
+import           GTVM.Common.Binary.Serialize
 import           Data.Word
 import           Control.Monad.Reader
 import           Control.Applicative

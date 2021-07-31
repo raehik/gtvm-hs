@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module GTVM.Common.Parse
+module GTVM.Common.Binary.Parse
   ( pW8
   , pW32
   , pW64
