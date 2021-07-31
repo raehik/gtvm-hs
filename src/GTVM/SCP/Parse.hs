@@ -18,7 +18,6 @@ import           Data.Void
 import           Data.Word
 import           Data.List.NonEmpty ( NonEmpty(..) )
 import           Control.Monad.Reader
-import           Data.Either.Combinators ( mapLeft )
 import           Data.Function ( (&) )
 import qualified Data.List as List
 import qualified System.Directory as Dir
@@ -27,8 +26,7 @@ parseSCPBytes :: Bytes -> Either String [SCPSegment]
 parseSCPBytes = parseSCPBytes' "" binCfgSCP
 
 parseSCPBytes' :: String -> BinaryCfg -> Bytes -> Either String [SCPSegment]
-parseSCPBytes' fp opts bs =
-    mapLeft errorBundlePretty $ parse (runReaderT (many pSCPSeg) opts) fp bs
+parseSCPBytes' = parseBin (many pSCPSeg)
 
 parseSCPFile :: MonadIO m => FilePath -> m (Either String [SCPSegment])
 parseSCPFile fp = do
@@ -58,7 +56,7 @@ pSCPSeg = pW8 >>= \case
   -- no 0x06
   0x07 -> SCPSeg07SCP <$> pBytestring
   0x08 -> SCPSeg08 & return
-  0x09 -> SCPSeg09 <$> pW8 <*> pCount pBSW32
+  0x09 -> SCPSeg09 <$> pW8 <*> pCount pW8 pBSW32
   0x0A -> SCPSeg0A <$> pW8 <*> pW8 <*> pW32 <*> pW32 <*> pW32
   0x0B -> SCPSeg0B <$> pW8 <*> pW8
   0x0C -> SCPSeg0CFlag <$> pW8 <*> pW8
@@ -83,7 +81,7 @@ pSCPSeg = pW8 >>= \case
   0x1F -> SCPSeg1FDelay & return
   0x20 -> SCPSeg20 <$> pW8
   0x21 -> SCPSeg21 & return
-  0x22 -> SCPSeg22 <$> pBytestring <*> pCount pBSW32
+  0x22 -> SCPSeg22 <$> pBytestring <*> pCount pW8 pBSW32
   0x23 -> SCPSeg23SFX & return
   0x24 -> SCPSeg24 <$> pBytestring
   0x25 -> SCPSeg25 & return

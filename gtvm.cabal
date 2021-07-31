@@ -10,10 +10,11 @@ build-type:     Simple
 
 library
   exposed-modules:
+      GTVM.Assorted.Flowchart
       GTVM.Common.Binary
       GTVM.Common.Parse
+      GTVM.Common.Serialize
       GTVM.SCP
-      GTVM.SCP.Analyse
       GTVM.SCP.Examples
       GTVM.SCP.Parse
       GTVM.SCP.Serialize

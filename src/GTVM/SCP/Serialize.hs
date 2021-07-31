@@ -1,61 +1,29 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+-- {-# LANGUAGE TypeApplications    #-}
 
 module GTVM.SCP.Serialize where
 
 import           GTVM.SCP
 import           GTVM.Common.Binary
-import qualified Data.ByteString            as BS
+import           GTVM.Common.Serialize
 import           Data.Word
 import           Control.Monad.Reader
 import           Control.Applicative
-import qualified Data.ByteString.Builder    as BB
-import qualified Data.ByteString.Lazy       as BL
 --import           ByteString.StrictBuilder
+import qualified Data.ByteString.Builder as BB
 
-type Builder = BB.Builder
-
-serializeSCP :: MonadReader BinaryCfg m => [SCPSegment] -> m Bytes
-serializeSCP segs = mapM serializeSCPSeg segs >>= return . mconcat
-
-sW8 :: Word8 -> Bytes
-sW8 = BS.singleton
-
-sBuilder :: Builder -> Bytes
-sBuilder = BL.toStrict . BB.toLazyByteString
-
-bW8 :: Monad m => Word8 -> m Builder
-bW8 = return . BB.word8
-
-bW32 :: MonadReader BinaryCfg m => Word32 -> m Builder
-bW32 w32 = binCfgCaseEndianness (return $ BB.word32LE w32) (return $ BB.word32BE w32)
-
-bBS :: MonadReader BinaryCfg m => Bytes -> m Builder
-bBS bs = reader binCfgStringType >>= \case
-  StrTyCString      -> return $ BB.byteString bs <> BB.word8 0x00
-  StrTyLengthPrefix ->
-    let len = BS.length bs
-     in if   len > 255
-        then error "can't serialize a textbox with text longer than 255 bytes in length prefix mode"
-        else let lenW8 = fromIntegral len :: Word8
-              in return $ BB.word8 lenW8 <> BB.byteString bs
+sSCP :: MonadReader BinaryCfg m => [SCPSegment] -> m Bytes
+sSCP = serialize bSCP
 
 bBSW32 :: MonadReader BinaryCfg m => (Bytes, Word32) -> m Builder
 bBSW32 (bs, u) = liftA2 (<>) (bBS bs) (bW32 u)
 
-bCount :: Monad m => (a -> m Builder) -> [a] -> m Builder
-bCount f parts =
-    let len = length parts
-     in if   len > 255
-        then error "only 255 elements allowed"
-        else let lenW8 = fromIntegral len :: Word8
-              in concatM $ bW8 lenW8 : (f <$> parts)
+bSCP :: MonadReader BinaryCfg m => [SCPSegment] -> m Builder
+bSCP = concatM . fmap bSCPSeg
 
-concatM :: (Monad m, Monoid a) => [m a] -> m a
-concatM as = mconcat <$> sequence as
-
-serializeSCPSeg :: MonadReader BinaryCfg m => SCPSegment -> m Bytes
-serializeSCPSeg = \case
+bSCPSeg :: MonadReader BinaryCfg m => SCPSegment -> m Builder
+bSCPSeg = \case
   SCPSeg00 -> r1 0x00
   SCPSeg01BG bs1 b1 b2 -> rB [bW8 0x01, bBS bs1, bW8 b1, bW8 b2]
   SCPSeg02SFX bs1 b1 -> rB [bW8 0x02, bBS bs1, bW8 b1]
@@ -65,7 +33,7 @@ serializeSCPSeg = \case
   -- no 0x06
   SCPSeg07SCP bs1 -> rB [bW8 0x07, bBS bs1]
   SCPSeg08 -> r1 0x08
-  SCPSeg09 b1 bsW32Pairs -> rB [bW8 0x09, bW8 b1, bCount bBSW32 bsW32Pairs]
+  SCPSeg09 b1 bsW32Pairs -> rB [bW8 0x09, bW8 b1, bCount bW8 bBSW32 bsW32Pairs]
   SCPSeg0A b1 b2 u1 u2 u3 -> rB [bW8 0x0A, bW8 b1, bW8 b2, bW32 u1, bW32 u2, bW32 u3]
   SCPSeg0B b1 b2 -> rB [bW8 0x0B, bW8 b1, bW8 b2]
   SCPSeg0CFlag b1 b2 -> rB [bW8 0x0C, bW8 b1, bW8 b2]
@@ -90,7 +58,7 @@ serializeSCPSeg = \case
   SCPSeg1FDelay -> r1 0x1F
   SCPSeg20 b1 -> rB [bW8 0x20, bW8 b1]
   SCPSeg21 -> r1 0x21
-  SCPSeg22 bs1 bsW32Pairs -> rB [bW8 0x22, bBS bs1, bCount bBSW32 bsW32Pairs]
+  SCPSeg22 bs1 bsW32Pairs -> rB [bW8 0x22, bBS bs1, bCount bW8 bBSW32 bsW32Pairs]
   SCPSeg23SFX -> r1 0x23
   SCPSeg24 bs1 -> rB [bW8 0x24, bBS bs1]
   SCPSeg25 -> r1 0x25
@@ -176,8 +144,8 @@ serializeSCPSeg = \case
   SCPSeg75 b1 -> rB [bW8 0x75, bW8 b1]
   SCPSeg76 -> r1 0x76
   SCPSeg77SCP b1 -> rB [bW8 0x77, bW8 b1]
-  where
-    r1 :: MonadReader BinaryCfg m => Word8 -> m Bytes
-    r1 = return . sW8
-    rB :: MonadReader BinaryCfg m => [m Builder] -> m Bytes
-    rB a = sBuilder <$> concatM a
+
+r1 :: Monad m => Word8 -> m Builder
+r1 = return . BB.word8
+rB :: Monad m => [m Builder] -> m Builder
+rB = concatM

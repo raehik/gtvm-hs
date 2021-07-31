@@ -16,10 +16,9 @@ reserialize :: MonadReader BinaryCfg m => Bytes -> m Bytes
 reserialize bs = do
     binCfg <- ask
     let Right segs = parseSCPBytes' "" binCfg bs
-    serializeSCP segs
+    sSCP segs
 
 -- | Parse, then re-serialize.
---reserializeSCPDir :: (MonadReader BinaryCfg m, MonadIO m) => FilePath -> m ()
 reserializeSCPDir :: MonadIO m => BinaryCfg -> FilePath -> m ()
 reserializeSCPDir cfg dir = do
     files <- liftIO $ Dir.listDirectory dir
