@@ -23,6 +23,7 @@ dependencies:
 - attoparsec
 - binary
 - directory
+- unicode-show
 
 library:
   source-dirs: src
