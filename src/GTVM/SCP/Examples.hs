@@ -19,8 +19,8 @@ ex1 = build $
        w8 0x05
     <> w8 0x00
     <> w8s [ 0x00, 0x00, 0x00, 0x00 ]
-    <> utf8 str1
-    <> utf8 str2
+    <> utf8cstr str1
+    <> utf8cstr str2
     <> w8s [ 0xFF, 0x00, 0x00, 0x00 ]
 
 ex00120zzz0 :: Bytes

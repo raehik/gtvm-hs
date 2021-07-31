@@ -10,11 +10,14 @@ build-type:     Simple
 
 library
   exposed-modules:
+      GTVM.Common.Binary
+      GTVM.Common.Parse
       GTVM.SCP
       GTVM.SCP.Analyse
       GTVM.SCP.Examples
       GTVM.SCP.Parse
       GTVM.SCP.Serialize
+      GTVM.SCP.Test
       Text.Megaparsec.Byte.Binary
   other-modules:
       Paths_gtvm

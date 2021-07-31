@@ -138,30 +138,3 @@ data SCPSegment
   | SCPSeg76
   | SCPSeg77SCP Word8
     deriving (Eq, Show)
-
-data SCPOpts = SCPOpts
-  { scpOptEndianness :: Endianness
-  , scpOptStringType :: StringType
-  } deriving (Eq, Show)
-
-data Endianness
-  = BigEndian
-  | LittleEndian
-    deriving (Eq, Show)
-
-data StringType
-  = StrTyCString
-  -- ^ C strings: null-terminated.
-
-  | StrTyLengthPrefix
-  -- ^ Pascal strings: prefixed with length in bytes.
-  --
-  -- The game reads textboxes into a 256 byte buffer, so we follow suit and use
-  -- a single byte to indicate length. TODO: make clearer in types, docs, code?
-    deriving (Eq, Show)
-
-scpOptsDef :: SCPOpts
-scpOptsDef = SCPOpts
-  { scpOptEndianness = LittleEndian
-  , scpOptStringType = StrTyCString
-  }

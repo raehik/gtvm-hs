@@ -1,11 +1,18 @@
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module GTVM.SCP.Parse where
+module GTVM.SCP.Parse
+  ( parseSCPBytes
+  , parseSCPBytes'
+  , parseSCPFile
+  , checkSCPDir
+  , pSCPSeg
+  ) where
 
 import           GTVM.SCP
+import           GTVM.Common.Parse
+import           GTVM.Common.Binary
 import           Text.Megaparsec
-import           Text.Megaparsec.Byte.Binary
 import qualified Data.ByteString as BS
 import           Data.Void
 import           Data.Word
@@ -16,31 +23,31 @@ import           Data.Function ( (&) )
 import qualified Data.List as List
 import qualified System.Directory as Dir
 
+parseSCPBytes :: Bytes -> Either String [SCPSegment]
+parseSCPBytes = parseSCPBytes' "" binCfgSCP
+
+parseSCPBytes' :: String -> BinaryCfg -> Bytes -> Either String [SCPSegment]
+parseSCPBytes' fp opts bs =
+    mapLeft errorBundlePretty $ parse (runReaderT (many pSCPSeg) opts) fp bs
+
+parseSCPFile :: MonadIO m => FilePath -> m (Either String [SCPSegment])
+parseSCPFile fp = do
+    bs <- liftIO $ BS.readFile fp
+    return $ parseSCPBytes' fp binCfgSCP bs
+
 checkSCPDir :: MonadIO m => FilePath -> m ()
 checkSCPDir dir = do
     files <- liftIO $ Dir.listDirectory dir
     let scpFiles = filter (List.isSuffixOf ".scp") files
     flip mapM_ scpFiles $ \fp -> do
         bs <- liftIO $ BS.readFile (dir <> "/" <> fp)
-        case parseSCPBytes' fp scpOptsDef bs of
+        case parseSCPBytes' fp binCfgSCP bs of
           Left _ -> liftIO (putStrLn fp)
           Right _ -> return ()
 
-parseSCPFile :: MonadIO m => FilePath -> m (Either String [SCPSegment])
-parseSCPFile fp = do
-    bs <- liftIO $ BS.readFile fp
-    return $ parseSCPBytes' fp scpOptsDef bs
-
-parseSCPBytes :: Bytes -> Either String [SCPSegment]
-parseSCPBytes = parseSCPBytes' "" scpOptsDef
-
-parseSCPBytes' :: String -> SCPOpts -> Bytes -> Either String [SCPSegment]
-parseSCPBytes' fp opts bs =
-    mapLeft errorBundlePretty $ parse (runReaderT (many pSCPSeg) opts) fp bs
-
 --------------------------------------------------------------------------------
 
-pSCPSeg :: (MonadParsec Void Bytes m, MonadReader SCPOpts m) => m SCPSegment
+pSCPSeg :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m SCPSegment
 pSCPSeg = pW8 >>= \case
   0x00 -> SCPSeg00 & return
   0x01 -> SCPSeg01BG <$> pBytestring <*> pW8 <*> pW8
@@ -164,52 +171,8 @@ pSCPSeg = pW8 >>= \case
   0x77 -> SCPSeg77SCP <$> pW8
   b    -> unexpected (Tokens (b :| []))
 
--- | Parse any byte.
-pW8 :: (MonadParsec e s m, Token s ~ Word8) => m Word8
-pW8 = anyW8
-
--- | Parse any 'Word32'.
---
--- Endianness to parse is selected using provided context.
-pW32 :: (MonadParsec e Bytes m, MonadReader SCPOpts m) => m Word32
-pW32 = caseEndianness anyW32LE anyW32BE
-
--- | Parse a bytestring.
---
--- The type of bytestring to parse is selected using provided context.
-pBytestring :: (MonadParsec e Bytes m, MonadReader SCPOpts m) => m Bytes
-pBytestring = reader scpOptStringType >>= \case
-  StrTyCString      -> pCString
-  StrTyLengthPrefix -> pPascal
-
--- | Parse a null-terminated bytestring (a C string), consuming the null.
-pCString :: (MonadParsec e Bytes m) => m Bytes
-pCString =
-    takeWhileP (Just "non-null byte") (/= 0x00) <* pNullByte <?> "null-terminated bytestring"
-
--- | Parse a length-prefixed bytestring (a Pascal string).
-pPascal :: (MonadParsec e BS.ByteString m) => m BS.ByteString
-pPascal = do
-    len <- pW8
-    let lbl = show len <> "-byte bytestring"
-    takeP (Just lbl) (fromIntegral len)
-
--- | Parse the null byte.
-pNullByte :: (MonadParsec e s m, Token s ~ Word8) => m Word8
-pNullByte = single 0x00 <?> "null byte"
-
--- | Parse a single byte, then apply a parser that many times.
-pCount :: (MonadParsec e s m, Token s ~ Word8) => m a -> m [a]
-pCount p = pW8 >>= \i -> count (fromIntegral i) p
-
--- | Parse a bytestring, followed by a 'Word32'.
-pBSW32 :: (MonadParsec e Bytes m, MonadReader SCPOpts m) => m (Bytes, Word32)
-pBSW32 = (,) <$> pBytestring <*> pW32
-
 --------------------------------------------------------------------------------
 
--- | Helper for switching functions based on context endianness.
-caseEndianness :: MonadReader SCPOpts m => m a -> m a -> m a
-caseEndianness fLE fBE = reader scpOptEndianness >>= \case
-  LittleEndian -> fLE
-  BigEndian    -> fBE
+-- | Parse a bytestring, followed by a 'Word32'.
+pBSW32 :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m (Bytes, Word32)
+pBSW32 = (,) <$> pBytestring <*> pW32
