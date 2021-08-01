@@ -29,30 +29,24 @@ library
       OverloadedStrings
       LambdaCase
   build-depends:
-      attoparsec
+      aeson
+    , aeson-pretty
     , base
-    , binary
     , bytestring
-    , bytestring-strict-builder
-    , containers
-    , data-fix >=0.3.0
     , directory
     , either
-    , free
     , lens
     , megaparsec
     , mtl
-    , recursion-schemes
-    , streaming
-    , streaming-attoparsec
-    , streaming-bytestring >=0.2.0
     , text
     , unicode-show
   default-language: Haskell2010
 
-executable expr-pretty-exe
+executable gtvm-exe
   main-is: Main.hs
   other-modules:
+      CLI
+      Config
       Paths_gtvm
   hs-source-dirs:
       app
@@ -61,24 +55,17 @@ executable expr-pretty-exe
       LambdaCase
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      attoparsec
+      aeson
+    , aeson-pretty
     , base
-    , binary
     , bytestring
-    , bytestring-strict-builder
-    , containers
-    , data-fix >=0.3.0
     , directory
     , either
-    , free
     , gtvm
     , lens
     , megaparsec
     , mtl
-    , recursion-schemes
-    , streaming
-    , streaming-attoparsec
-    , streaming-bytestring >=0.2.0
+    , optparse-applicative
     , text
     , unicode-show
   default-language: Haskell2010

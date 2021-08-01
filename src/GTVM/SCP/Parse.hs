@@ -42,7 +42,18 @@ checkSCPDir dir = do
         bs <- liftIO $ BS.readFile (dir <> "/" <> fp)
         case parseSCPBytes' fp binCfgSCP bs of
           Left _ -> liftIO (putStrLn fp)
-          Right _ -> return ()
+          Right scp -> do
+            let textboxCount = textboxesInSCP scp
+                outStr = fp <> "," <> show textboxCount
+            liftIO $ putStrLn outStr
+
+textboxesInSCP :: [SCPSegment] -> Int
+textboxesInSCP segs = foldr go 0 (map isTextbox segs)
+  where
+    isTextbox (SCPSeg05Textbox{}) = True
+    isTextbox _                   = True
+    go True  i = i+1
+    go False i = i
 
 --------------------------------------------------------------------------------
 

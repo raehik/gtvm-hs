@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 

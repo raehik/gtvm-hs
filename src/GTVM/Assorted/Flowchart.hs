@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveGeneric    #-}
 
 module GTVM.Assorted.Flowchart where
 
@@ -18,11 +19,15 @@ import qualified Data.Text.Encoding as Text
 import           Data.Text (Text)
 import           Control.Monad.State
 
+import           Data.Aeson
+import           GHC.Generics
+import qualified Data.ByteString.Lazy as BL
+
 -- | bytestring is 32 bytes
-data FlowchartEntryBlock = FlowchartEntryBlock Bytes [FlowchartEntry] deriving (Eq, Show)
+data FlowchartEntryBlock = FlowchartEntryBlock Bytes [FlowchartEntry] deriving (Eq, Show, Generic)
 
 -- | 1st bytestring is 64 bytes, 2nd is 32 bytes. Null-packed to end.
-data FlowchartEntry = FlowchartEntry Word64 Bytes Bytes deriving (Eq, Show)
+data FlowchartEntry = FlowchartEntry Word32 Word32 Bytes Bytes deriving (Eq, Show, Generic)
 
 fcTest :: MonadReader BinaryCfg m => Bytes -> m Bytes
 fcTest bs = runParserBin pFlowchart bs >>= sFlowchart . fromRight
@@ -53,7 +58,7 @@ pFlowchartEntryBlock = pNullPadTo p 2116
 
 pFlowchartEntry
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m FlowchartEntry
-pFlowchartEntry = FlowchartEntry <$> pW64 <*> pCStringPad 64 <*> pCStringPad 32
+pFlowchartEntry = FlowchartEntry <$> pW32 <*> pW32 <*> pCStringPad 64 <*> pCStringPad 32
 
 sFlowchart :: MonadReader BinaryCfg m => [FlowchartEntryBlock] -> m Bytes
 sFlowchart = serialize bFlowchart
@@ -66,13 +71,16 @@ bFlowchartEntryBlock (FlowchartEntryBlock bs1 entries) = bNullPadTo b 2116
   where b = concatM [bBSFixedNullPadded bs1 32, bCount bW32 bFlowchartEntry entries]
 
 bFlowchartEntry :: MonadReader BinaryCfg m => FlowchartEntry -> m Builder
-bFlowchartEntry (FlowchartEntry w64 bs1 bs2) =
-    concatM [bW64 w64, bBSFixedNullPadded bs1 64, bBSFixedNullPadded bs2 32]
+bFlowchartEntry (FlowchartEntry u1 u2 bs1 bs2) =
+    concatM [bW32 u1, bW32 u2, bBSFixedNullPadded bs1 64, bBSFixedNullPadded bs2 32]
 
 --------------------------------------------------------------------------------
 
-data FlowchartEntryBlock' = FlowchartEntryBlock' Text [FlowchartEntry'] deriving (Eq, Show)
-data FlowchartEntry' = FlowchartEntry' Text Text deriving (Eq, Show)
+data FlowchartEntryBlock' = FlowchartEntryBlock' Text [FlowchartEntry'] deriving (Eq, Show, Generic)
+data FlowchartEntry' = FlowchartEntry' Word32 Text Text deriving (Eq, Show, Generic)
+
+instance ToJSON FlowchartEntryBlock'
+instance ToJSON FlowchartEntry'
 
 fcToAltFc :: [FlowchartEntryBlock] -> [FlowchartEntryBlock']
 fcToAltFc = fmap fcebToAltFceb
@@ -82,8 +90,8 @@ fcebToAltFceb (FlowchartEntryBlock dateBS entries) =
     FlowchartEntryBlock' (Text.decodeUtf8 dateBS) (fmap fceToAltFce entries)
 
 fceToAltFce :: FlowchartEntry -> FlowchartEntry'
-fceToAltFce (FlowchartEntry _ textBS scriptBS) =
-    FlowchartEntry' (Text.decodeUtf8 textBS) (extractScriptFilepath (Text.decodeUtf8 scriptBS))
+fceToAltFce (FlowchartEntry _ u1 textBS scriptBS) =
+    FlowchartEntry' u1 (Text.decodeUtf8 textBS) (extractScriptFilepath (Text.decodeUtf8 scriptBS))
 
 extractScriptFilepath :: Text -> Text
 extractScriptFilepath = Text.drop 7 . Text.dropEnd 4
@@ -98,10 +106,19 @@ altFcebToFceb (FlowchartEntryBlock' date entries) = do
 
 -- TODO: ensure that c is Word64-bound
 altFceToFce :: MonadState Int m => FlowchartEntry' -> m FlowchartEntry
-altFceToFce (FlowchartEntry' text script) = do
+altFceToFce (FlowchartEntry' u1 text script) = do
     c <- get
     modify (+1)
-    return $ FlowchartEntry (fromIntegral c) (Text.encodeUtf8 text) (Text.encodeUtf8 ("script/" <> script <> ".scp"))
+    return $ FlowchartEntry (fromIntegral c) u1 (Text.encodeUtf8 text) (Text.encodeUtf8 ("script/" <> script <> ".scp"))
 
 tmp :: MonadIO m => m [FlowchartEntryBlock]
 tmp = fromRight <$> runParserBinFile pFlowchart "../../assets/pack-unpacked/flow_chart.bin" binCfgSCP
+
+--------------------------------------------------------------------------------
+
+instance ToJSON FlowchartEntryBlock
+instance ToJSON FlowchartEntry
+
+-- lol Aeson you dicks
+instance ToJSON BS.ByteString where
+    toJSON = String . Text.decodeUtf8

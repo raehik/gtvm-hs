@@ -7,29 +7,31 @@ default-extensions:
 dependencies:
 - base
 - bytestring
-- megaparsec
-- either
-- bytestring-strict-builder
-- lens
-- mtl
-- streaming
-- streaming-bytestring >= 0.2.0
 - text
-- containers
-- recursion-schemes
-- data-fix >= 0.3.0 # renames cata -> foldFix etc.
-- free
-- streaming-attoparsec
-- attoparsec
-- binary
+- megaparsec
+- mtl
+- either
 - directory
 - unicode-show
+- aeson
+- aeson-pretty
+- lens
+  #- bytestring-strict-builder
+  #- streaming
+  #- streaming-bytestring >= 0.2.0
+  #- containers
+  #- recursion-schemes
+  #- data-fix >= 0.3.0 # renames cata -> foldFix etc.
+  #- free
+  #- streaming-attoparsec
+  #- attoparsec
+  #- binary
 
 library:
   source-dirs: src
 
 executables:
-  expr-pretty-exe:
+  gtvm-exe:
     main: Main.hs
     source-dirs: app
     ghc-options:
@@ -39,3 +41,4 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - gtvm
+    - optparse-applicative

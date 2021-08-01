@@ -1,3 +1,5 @@
+-- {-# LANGUAGE #-}
+
 module GTVM.SCP where
 
 import qualified Data.ByteString            as BS
