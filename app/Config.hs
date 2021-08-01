@@ -9,9 +9,11 @@ data ToolGroup
     deriving (Eq, Show)
 
 data TGFlowchartCfg = TGFlowchartCfg
-  { _tgFlowchartCfgDirection :: ActionDirection
-  , _tgFlowchartCfgType      :: CfgFlowchartType
-  , _tgFlowchartCfgFilepath  :: FilePath
+  { _tgFlowchartCfgDirection           :: ActionDirection
+  , _tgFlowchartCfgType                :: CfgFlowchartType
+  , _tgFlowchartCfgFilepath            :: FilePath
+  , _tgFlowchartCfgOutFilepath         :: Maybe FilePath
+  , _tgFlowchartCfgAllowBinaryOnStdout :: Bool
   } deriving (Eq, Show)
 
 data ActionDirection

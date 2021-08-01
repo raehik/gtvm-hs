@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Main where
 
 import           Config
@@ -10,39 +12,71 @@ import qualified GTVM.Common.Binary      as GCB
 import qualified Data.Aeson               as Aeson
 import qualified Data.Aeson.Encode.Pretty as DAEP
 import qualified Data.ByteString.Lazy     as BL
+import qualified Data.ByteString          as BS
+
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader
+
+import           System.IO ( stderr, hPutStrLn )
 
 main :: IO ()
 main = parseCLIOpts >>= runCmd
 
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
-  TGFlowchart cfg -> runCmdFlowchart cfg
+  TGFlowchart cfg -> runReaderT runCmdFlowchart cfg
 
-runCmdFlowchart :: TGFlowchartCfg -> IO ()
-runCmdFlowchart (TGFlowchartCfg dir ty fp) =
-    case dir of
+runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
+runCmdFlowchart = do
+    asks _tgFlowchartCfgDirection >>= \case
       ActionDirectionDecode -> do
-        lexed <- GCBU.runParserBinFile GAFc.pFlowchart fp GCB.binCfgSCP
-        case lexed of
-          Left err      -> putStr err
-          Right lexed' -> do
-            case ty of
-              CfgFlowchartTypeParse -> do
-                let parsed = GAFc.fcToAltFc lexed'
-                putJSON parsed
-              _                     -> putStrLn "unsupported"
+        json <- runCmdFlowchartDecode
+        putJSONBytes json
       ActionDirectionEncode -> do
-        putStrLn "Ignoring flowchart type SRY"
-        bytes <- BL.readFile fp
-        case Aeson.eitherDecode bytes of
-          Left err -> putStrLn $ "JSON decoding error: " <> err
-          Right flowchart -> do
-            let serialized = GAFc.sFlowchart (GAFc.altFcToFc flowchart) GCB.binCfgSCP
-            putStrLn "well I did it but it's bytes. not gonna print. TODO only allow writing to file, or require force flag"
+        json <- runCmdFlowchartEncode
+        asks _tgFlowchartCfgOutFilepath >>= \case
+          Nothing -> do
+            asks _tgFlowchartCfgAllowBinaryOnStdout >>= \case
+              True -> do
+                liftIO $ BS.putStr json
+              False -> do
+                liftIO $ putStrLn "warning: refusing to print binary to stdout"
+                liftIO $ putStrLn "(use --print-binary flag to override)"
+          Just outFp -> do
+            liftIO $ putStrLn "TODO"
 
-putJSON :: Aeson.ToJSON a => a -> IO ()
-putJSON a = do
-    BL.putStr $ DAEP.encodePretty' prettyCfg a
-    putStrLn ""
-  where
-    prettyCfg = DAEP.defConfig { DAEP.confIndent = DAEP.Spaces 2 }
+runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
+runCmdFlowchartDecode = do
+    fp <- asks _tgFlowchartCfgFilepath
+    lexed <- GCBU.runParserBinFile GAFc.pFlowchart fp GCB.binCfgSCP
+    case lexed of
+      Left err      -> liftIO (putStr err) >> error "fuck"
+      Right lexed' -> do
+        ty <- asks _tgFlowchartCfgType
+        case ty of
+          CfgFlowchartTypeParse -> do
+            let parsed = GAFc.fcToAltFc lexed'
+            return $ encodeJSON parsed
+
+runCmdFlowchartEncode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BS.ByteString
+runCmdFlowchartEncode = do
+    liftIO $ hPutStrLn stderr "Ignoring flowchart type SRY"
+    fp <- asks _tgFlowchartCfgFilepath
+    bytes <- liftIO $ BL.readFile fp
+    case Aeson.eitherDecode bytes of
+      Left err -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
+      Right flowchart -> do
+        let serialized = GAFc.sFlowchart (GAFc.altFcToFc flowchart) GCB.binCfgSCP
+        return serialized
+
+encodeJSON :: Aeson.ToJSON a => a -> BL.ByteString
+encodeJSON = DAEP.encodePretty' prettyCfg
+  where prettyCfg = DAEP.defConfig { DAEP.confIndent = DAEP.Spaces 2 }
+
+putJSONBytes :: MonadIO m => BL.ByteString -> m ()
+putJSONBytes a = do
+    liftIO $ BL.putStr $ a
+    liftIO $ putStrLn ""
+
+putJSON :: MonadIO m => Aeson.ToJSON a => a -> m ()
+putJSON = putJSONBytes . encodeJSON

@@ -19,8 +19,10 @@ pTGFlowchartCfg :: Parser TGFlowchartCfg
 pTGFlowchartCfg =
     TGFlowchartCfg
     <$> pActionDirection
-    <*> pOptFlowchartType
+    <*> pCfgFlowchartType
     <*> strArgument (metavar "FILE" <> help "file to work on")
+    <*> pOptOutFilepath
+    <*> switch (long "print-binary" <> help "allow printing binary to stdout")
 
 pActionDirection :: Parser ActionDirection
 pActionDirection = pEncode <|> pDecode
@@ -28,10 +30,16 @@ pActionDirection = pEncode <|> pDecode
     pEncode = flag' ActionDirectionEncode (long "encode" <> help "Encode JSON to binary")
     pDecode = flag' ActionDirectionDecode (long "decode" <> help "Decode binary to JSON")
 
-pOptFlowchartType :: Parser CfgFlowchartType
-pOptFlowchartType =
+pCfgFlowchartType :: Parser CfgFlowchartType
+pCfgFlowchartType =
     flag CfgFlowchartTypeParse CfgFlowchartTypeLex
         (long "lex" <> help "Operate on lexed flowcharts (instead of fully parsed)")
+
+pOptOutFilepath :: Parser (Maybe FilePath)
+pOptOutFilepath =
+    optional $
+        strOption $
+            long "output" <> help "write to file instead of stdout"
 
 parseCLIOpts :: IO ToolGroup
 parseCLIOpts = execParserWithDefaults desc pToolGroup
