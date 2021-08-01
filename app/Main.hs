@@ -34,8 +34,8 @@ runCmd = \case
 runCmdSCP :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m ()
 runCmdSCP = do
     asks _cfgBinaryProcessingDirection >>= \case
-      ActionDirectionDecode -> runCmdScpDecode >>= putJSONBytes
-      ActionDirectionEncode -> runCmdScpEncode >>= rBinOutputBytes
+      ActionDirectionDecode -> runCmdScpDecode >>= rBinOutputBytes
+      ActionDirectionEncode -> runCmdScpEncode >>= rBinOutputBytes . BL.fromStrict
 
 runCmdScpDecode :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m BL.ByteString
 runCmdScpDecode = do
@@ -44,24 +44,14 @@ runCmdScpDecode = do
       Right parsed -> return $ encodeJSON parsed
 
 runCmdScpEncode :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m BS.ByteString
-runCmdScpEncode = do
-    fp <- asks _cfgBinaryProcessingFilepath
-    bytes <- liftIO $ BL.readFile fp
-    case Aeson.eitherDecode bytes of
-      Left err -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
-      Right scp -> do
-        let serialized = GSS.sSCP scp GCB.binCfgSCP
-        return serialized
+runCmdScpEncode = rBinDecodeJsonAndReserialize (flip GSS.sSCP GCB.binCfgSCP)
 
 runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
 runCmdFlowchart = do
     binProcCfg <- asks _tgFlowchartCfgBinaryProcessing
     case _cfgBinaryProcessingDirection binProcCfg of
-      ActionDirectionDecode -> do
-        json <- runCmdFlowchartDecode
-        putJSONBytes json
-      ActionDirectionEncode -> do
-        runCmdFlowchartEncode >>= rBinOutputBytes
+      ActionDirectionDecode -> runCmdFlowchartDecode >>= rBinOutputBytes
+      ActionDirectionEncode -> runCmdFlowchartEncode >>= rBinOutputBytes . BL.fromStrict
 
 runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
 runCmdFlowchartDecode = do
@@ -80,14 +70,7 @@ runCmdFlowchartDecode = do
 runCmdFlowchartEncode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BS.ByteString
 runCmdFlowchartEncode = do
     liftIO $ hPutStrLn stderr "Ignoring flowchart type SRY"
-    binProcCfg <- asks _tgFlowchartCfgBinaryProcessing
-    let fp = _cfgBinaryProcessingFilepath binProcCfg
-    bytes <- liftIO $ BL.readFile fp
-    case Aeson.eitherDecode bytes of
-      Left err -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
-      Right flowchart -> do
-        let serialized = GAFc.sFlowchart (GAFc.altFcToFc flowchart) GCB.binCfgSCP
-        return serialized
+    rBinDecodeJsonAndReserialize $ \fc -> GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
 
 encodeJSON :: Aeson.ToJSON a => a -> BL.ByteString
 encodeJSON = DAEP.encodePretty' prettyCfg
@@ -113,16 +96,27 @@ rParseFile p cfg = do
 
 rBinOutputBytes
     :: (MonadReader env m, HasCfgBinaryProcessing env, MonadIO m)
-    => BS.ByteString -> m ()
+    => BL.ByteString -> m ()
 rBinOutputBytes bs = do
+    -- binProcCfg <- asks getCfgBinaryProcessing
     asks (_cfgBinaryProcessingOutFilepath . getCfgBinaryProcessing) >>= \case
       Nothing -> do
         asks (_cfgBinaryProcessingAllowBinaryOnStdout . getCfgBinaryProcessing) >>= \case
           True -> do
-            liftIO $ BS.putStr bs
+            liftIO $ BL.putStr bs
           False -> do
             liftIO $ putStrLn "warning: refusing to print binary to stdout"
             liftIO $ putStrLn "(write to a file with --write-file FILE, or use --print-binary flag to override)"
       Just outFp -> do
-        liftIO $ BS.writeFile outFp bs
+        liftIO $ BL.writeFile outFp bs
 
+rBinDecodeJsonAndReserialize
+    :: (MonadReader env m, HasCfgBinaryProcessing env, MonadIO m, Aeson.FromJSON a)
+    => (a -> BS.ByteString) -> m BS.ByteString
+rBinDecodeJsonAndReserialize serialize = do
+    binProcCfg <- asks getCfgBinaryProcessing
+    let fp = _cfgBinaryProcessingFilepath binProcCfg
+    bytes <- liftIO $ BL.readFile fp
+    case Aeson.eitherDecode bytes of
+      Left err      -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
+      Right decoded -> return $ serialize decoded
