@@ -25,6 +25,7 @@ library
       GTVM.Common.Binary.Parse
       GTVM.Common.Binary.Serialize
       GTVM.Common.Binary.Util
+      GTVM.Common.Orphans
       GTVM.SCP
       GTVM.SCP.Examples
       GTVM.SCP.Parse

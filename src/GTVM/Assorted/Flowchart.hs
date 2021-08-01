@@ -21,7 +21,6 @@ import           Control.Monad.State
 
 import           Data.Aeson
 import           GHC.Generics
-import qualified Data.ByteString.Lazy as BL
 
 -- | bytestring is 32 bytes
 data FlowchartEntryBlock = FlowchartEntryBlock Bytes [FlowchartEntry] deriving (Eq, Show, Generic)
@@ -122,9 +121,3 @@ instance ToJSON FlowchartEntryBlock
 instance ToJSON FlowchartEntry
 instance FromJSON FlowchartEntryBlock
 instance FromJSON FlowchartEntry
-
--- lol Aeson you dicks
-instance ToJSON BS.ByteString where
-    toJSON = String . Text.decodeUtf8
-instance FromJSON BS.ByteString where
-    parseJSON = withText "ByteString" $ pure . Text.encodeUtf8

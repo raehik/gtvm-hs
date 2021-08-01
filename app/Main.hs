@@ -8,6 +8,8 @@ import           CLI
 import qualified GTVM.Assorted.Flowchart as GAFc
 import qualified GTVM.Common.Binary.Util as GCBU
 import qualified GTVM.Common.Binary      as GCB
+import qualified GTVM.SCP.Parse          as GSP
+import qualified GTVM.SCP.Serialize      as GSS
 
 import qualified Data.Aeson               as Aeson
 import qualified Data.Aeson.Encode.Pretty as DAEP
@@ -19,6 +21,8 @@ import           Control.Monad.Reader
 
 import           System.IO ( stderr, hPutStrLn )
 
+import           Text.Megaparsec ( ParsecT, ShowErrorComponent )
+
 main :: IO ()
 main = parseCLIOpts >>= runCmd
 
@@ -29,8 +33,25 @@ runCmd = \case
 
 runCmdSCP :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m ()
 runCmdSCP = do
-    liftIO $ putStrLn $ "TODO. Printing config for now."
-    ask >>= liftIO . print
+    asks _cfgBinaryProcessingDirection >>= \case
+      ActionDirectionDecode -> runCmdScpDecode >>= putJSONBytes
+      ActionDirectionEncode -> runCmdScpEncode >>= rBinOutputBytes
+
+runCmdScpDecode :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m BL.ByteString
+runCmdScpDecode = do
+    rParseFile GSP.pSCP GCB.binCfgSCP >>= \case
+      Left err     -> liftIO (putStr err) >> error "fuck"
+      Right parsed -> return $ encodeJSON parsed
+
+runCmdScpEncode :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m BS.ByteString
+runCmdScpEncode = do
+    fp <- asks _cfgBinaryProcessingFilepath
+    bytes <- liftIO $ BL.readFile fp
+    case Aeson.eitherDecode bytes of
+      Left err -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
+      Right scp -> do
+        let serialized = GSS.sSCP scp GCB.binCfgSCP
+        return serialized
 
 runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
 runCmdFlowchart = do
@@ -40,23 +61,12 @@ runCmdFlowchart = do
         json <- runCmdFlowchartDecode
         putJSONBytes json
       ActionDirectionEncode -> do
-        json <- runCmdFlowchartEncode
-        case _cfgBinaryProcessingOutFilepath binProcCfg of
-          Nothing -> do
-            case _cfgBinaryProcessingAllowBinaryOnStdout binProcCfg of
-              True -> do
-                liftIO $ BS.putStr json
-              False -> do
-                liftIO $ putStrLn "warning: refusing to print binary to stdout"
-                liftIO $ putStrLn "(use --print-binary flag to override)"
-          Just outFp -> do
-            liftIO $ BS.writeFile outFp json
+        runCmdFlowchartEncode >>= rBinOutputBytes
 
 runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
 runCmdFlowchartDecode = do
     binProcCfg <- asks _tgFlowchartCfgBinaryProcessing
-    let fp = _cfgBinaryProcessingFilepath binProcCfg
-    lexed <- GCBU.runParserBinFile GAFc.pFlowchart fp GCB.binCfgSCP
+    lexed <- flip runReaderT binProcCfg $ rParseFile GAFc.pFlowchart GCB.binCfgSCP
     case lexed of
       Left err      -> liftIO (putStr err) >> error "fuck"
       Right lexed' -> do
@@ -90,3 +100,29 @@ putJSONBytes a = do
 
 putJSON :: MonadIO m => Aeson.ToJSON a => a -> m ()
 putJSON = putJSONBytes . encodeJSON
+
+--------------------------------------------------------------------------------
+
+rParseFile
+    :: (MonadReader CfgBinaryProcessing m, MonadIO m, ShowErrorComponent e)
+    => (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
+    -> GCB.BinaryCfg -> m (Either String a)
+rParseFile p cfg = do
+    fp <- asks _cfgBinaryProcessingFilepath
+    GCBU.runParserBinFile p fp cfg
+
+rBinOutputBytes
+    :: (MonadReader env m, HasCfgBinaryProcessing env, MonadIO m)
+    => BS.ByteString -> m ()
+rBinOutputBytes bs = do
+    asks (_cfgBinaryProcessingOutFilepath . getCfgBinaryProcessing) >>= \case
+      Nothing -> do
+        asks (_cfgBinaryProcessingAllowBinaryOnStdout . getCfgBinaryProcessing) >>= \case
+          True -> do
+            liftIO $ BS.putStr bs
+          False -> do
+            liftIO $ putStrLn "warning: refusing to print binary to stdout"
+            liftIO $ putStrLn "(write to a file with --write-file FILE, or use --print-binary flag to override)"
+      Just outFp -> do
+        liftIO $ BS.writeFile outFp bs
+

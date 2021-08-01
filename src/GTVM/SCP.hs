@@ -1,9 +1,12 @@
--- {-# LANGUAGE #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module GTVM.SCP where
 
 import qualified Data.ByteString            as BS
 import           Data.Word
+import           GHC.Generics
+import           Data.Aeson ( ToJSON, FromJSON )
+import           GTVM.Common.Orphans ()
 
 {-
 class HasSCPRep a where
@@ -139,4 +142,7 @@ data SCPSegment
   | SCPSeg75 Word8
   | SCPSeg76
   | SCPSeg77SCP Word8
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
+
+instance ToJSON   SCPSegment
+instance FromJSON SCPSegment

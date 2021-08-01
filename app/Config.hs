@@ -3,6 +3,7 @@
 module Config where
 
 import           Control.Lens.TH
+import           Control.Monad.Reader
 
 data CfgBinaryProcessing = CfgBinaryProcessing
   { _cfgBinaryProcessingDirection           :: ActionDirection
@@ -36,3 +37,11 @@ data TGSCPCfg = TGSCPCfg
   } deriving (Eq, Show)
 
 makeLenses ''TGFlowchartCfg
+
+class HasCfgBinaryProcessing a where
+    getCfgBinaryProcessing :: a -> CfgBinaryProcessing
+
+instance HasCfgBinaryProcessing CfgBinaryProcessing where
+    getCfgBinaryProcessing = id
+instance HasCfgBinaryProcessing TGFlowchartCfg where
+    getCfgBinaryProcessing = _tgFlowchartCfgBinaryProcessing
