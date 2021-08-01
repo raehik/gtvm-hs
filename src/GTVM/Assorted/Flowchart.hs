@@ -81,6 +81,8 @@ data FlowchartEntry' = FlowchartEntry' Word32 Text Text deriving (Eq, Show, Gene
 
 instance ToJSON FlowchartEntryBlock'
 instance ToJSON FlowchartEntry'
+instance FromJSON FlowchartEntryBlock'
+instance FromJSON FlowchartEntry'
 
 fcToAltFc :: [FlowchartEntryBlock] -> [FlowchartEntryBlock']
 fcToAltFc = fmap fcebToAltFceb
@@ -118,7 +120,11 @@ tmp = fromRight <$> runParserBinFile pFlowchart "../../assets/pack-unpacked/flow
 
 instance ToJSON FlowchartEntryBlock
 instance ToJSON FlowchartEntry
+instance FromJSON FlowchartEntryBlock
+instance FromJSON FlowchartEntry
 
 -- lol Aeson you dicks
 instance ToJSON BS.ByteString where
     toJSON = String . Text.decodeUtf8
+instance FromJSON BS.ByteString where
+    parseJSON = withText "ByteString" $ pure . Text.encodeUtf8
