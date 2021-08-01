@@ -34,10 +34,10 @@ runCmdFlowchart (TGFlowchartCfg dir ty fp) =
       ActionDirectionEncode -> do
         putStrLn "Ignoring flowchart type SRY"
         bytes <- BL.readFile fp
-        case Aeson.decode bytes of
-          Nothing -> putStrLn "Unable to parse file"
-          Just flowchart -> do
-            let serialized = GAFc.sFlowchart flowchart GCB.binCfgSCP
+        case Aeson.eitherDecode bytes of
+          Left err -> putStrLn $ "JSON decoding error: " <> err
+          Right flowchart -> do
+            let serialized = GAFc.sFlowchart (GAFc.altFcToFc flowchart) GCB.binCfgSCP
             putStrLn "well I did it but it's bytes. not gonna print. TODO only allow writing to file, or require force flag"
 
 putJSON :: Aeson.ToJSON a => a -> IO ()
