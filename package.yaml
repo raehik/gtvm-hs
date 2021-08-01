@@ -1,4 +1,10 @@
 name: gtvm
+version: "0.1.0"
+synopsis: "Various tools for reversing and using assets from Golden Time: Vivid Memories."
+github: raehik/gtvm-hs
+extra-source-files:
+- README.md
+- CHANGELOG.md
 
 default-extensions:
 - OverloadedStrings
