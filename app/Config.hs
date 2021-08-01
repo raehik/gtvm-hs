@@ -4,26 +4,35 @@ module Config where
 
 import           Control.Lens.TH
 
+data CfgBinaryProcessing = CfgBinaryProcessing
+  { _cfgBinaryProcessingDirection           :: ActionDirection
+  , _cfgBinaryProcessingFilepath            :: FilePath
+  , _cfgBinaryProcessingOutFilepath         :: Maybe FilePath
+  , _cfgBinaryProcessingAllowBinaryOnStdout :: Bool
+  } deriving (Eq, Show)
+
 data ToolGroup
   = TGFlowchart TGFlowchartCfg
+  | TGSCP TGSCPCfg
     deriving (Eq, Show)
 
 data TGFlowchartCfg = TGFlowchartCfg
-  { _tgFlowchartCfgDirection           :: ActionDirection
-  , _tgFlowchartCfgType                :: CfgFlowchartType
-  , _tgFlowchartCfgFilepath            :: FilePath
-  , _tgFlowchartCfgOutFilepath         :: Maybe FilePath
-  , _tgFlowchartCfgAllowBinaryOnStdout :: Bool
+  { _tgFlowchartCfgBinaryProcessing :: CfgBinaryProcessing
+  , _tgFlowchartCfgType             :: CfgFlowchartType
   } deriving (Eq, Show)
+
+data CfgFlowchartType
+  = CfgFlowchartTypeParse
+  | CfgFlowchartTypeLex
+    deriving (Eq, Show)
 
 data ActionDirection
   = ActionDirectionEncode
   | ActionDirectionDecode
     deriving (Eq, Show)
 
-data CfgFlowchartType
-  = CfgFlowchartTypeParse
-  | CfgFlowchartTypeLex
-    deriving (Eq, Show)
+data TGSCPCfg = TGSCPCfg
+  { _tgSCPCfgBinaryProcessing :: CfgBinaryProcessing
+  } deriving (Eq, Show)
 
 makeLenses ''TGFlowchartCfg

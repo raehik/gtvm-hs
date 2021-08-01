@@ -25,29 +25,37 @@ main = parseCLIOpts >>= runCmd
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
   TGFlowchart cfg -> runReaderT runCmdFlowchart cfg
+  TGSCP (TGSCPCfg binProcCfg) -> runReaderT runCmdSCP binProcCfg
+
+runCmdSCP :: (MonadReader CfgBinaryProcessing m, MonadIO m) => m ()
+runCmdSCP = do
+    liftIO $ putStrLn $ "TODO. Printing config for now."
+    ask >>= liftIO . print
 
 runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
 runCmdFlowchart = do
-    asks _tgFlowchartCfgDirection >>= \case
+    binProcCfg <- asks _tgFlowchartCfgBinaryProcessing
+    case _cfgBinaryProcessingDirection binProcCfg of
       ActionDirectionDecode -> do
         json <- runCmdFlowchartDecode
         putJSONBytes json
       ActionDirectionEncode -> do
         json <- runCmdFlowchartEncode
-        asks _tgFlowchartCfgOutFilepath >>= \case
+        case _cfgBinaryProcessingOutFilepath binProcCfg of
           Nothing -> do
-            asks _tgFlowchartCfgAllowBinaryOnStdout >>= \case
+            case _cfgBinaryProcessingAllowBinaryOnStdout binProcCfg of
               True -> do
                 liftIO $ BS.putStr json
               False -> do
                 liftIO $ putStrLn "warning: refusing to print binary to stdout"
                 liftIO $ putStrLn "(use --print-binary flag to override)"
           Just outFp -> do
-            liftIO $ putStrLn "TODO"
+            liftIO $ BS.writeFile outFp json
 
 runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
 runCmdFlowchartDecode = do
-    fp <- asks _tgFlowchartCfgFilepath
+    binProcCfg <- asks _tgFlowchartCfgBinaryProcessing
+    let fp = _cfgBinaryProcessingFilepath binProcCfg
     lexed <- GCBU.runParserBinFile GAFc.pFlowchart fp GCB.binCfgSCP
     case lexed of
       Left err      -> liftIO (putStr err) >> error "fuck"
@@ -57,11 +65,13 @@ runCmdFlowchartDecode = do
           CfgFlowchartTypeParse -> do
             let parsed = GAFc.fcToAltFc lexed'
             return $ encodeJSON parsed
+          CfgFlowchartTypeLex -> return $ encodeJSON lexed'
 
 runCmdFlowchartEncode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BS.ByteString
 runCmdFlowchartEncode = do
     liftIO $ hPutStrLn stderr "Ignoring flowchart type SRY"
-    fp <- asks _tgFlowchartCfgFilepath
+    binProcCfg <- asks _tgFlowchartCfgBinaryProcessing
+    let fp = _cfgBinaryProcessingFilepath binProcCfg
     bytes <- liftIO $ BL.readFile fp
     case Aeson.eitherDecode bytes of
       Left err -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
