@@ -3,7 +3,6 @@
 module Config where
 
 import           Control.Lens.TH
-import           Control.Monad.Reader
 
 data CfgBinaryProcessing = CfgBinaryProcessing
   { _cfgBinaryProcessingDirection           :: ActionDirection

@@ -1,4 +1,4 @@
-name: gtvm
+name: gtvm-hs
 version: "0.2.0"
 synopsis: "Various tools for reversing and using assets from Golden Time: Vivid Memories."
 github: raehik/gtvm-hs
@@ -37,7 +37,7 @@ library:
   source-dirs: src
 
 executables:
-  gtvm:
+  gtvm-hs:
     main: Main.hs
     source-dirs: app
     ghc-options:
@@ -46,5 +46,5 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - gtvm
+    - gtvm-hs
     - optparse-applicative
