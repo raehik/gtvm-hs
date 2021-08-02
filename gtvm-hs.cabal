@@ -21,6 +21,7 @@ source-repository head
 library
   exposed-modules:
       GTVM.Assorted.Flowchart
+      GTVM.Assorted.SL01
       GTVM.Common.Binary
       GTVM.Common.Binary.Parse
       GTVM.Common.Binary.Serialize
@@ -47,6 +48,7 @@ library
     , directory
     , either
     , lens
+    , lzo
     , megaparsec
     , mtl
     , text
@@ -74,6 +76,7 @@ executable gtvm-hs
     , either
     , gtvm-hs
     , lens
+    , lzo
     , megaparsec
     , mtl
     , optparse-applicative

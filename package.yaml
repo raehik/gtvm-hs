@@ -22,6 +22,7 @@ dependencies:
 - aeson
 - aeson-pretty
 - lens
+- lzo
   #- bytestring-strict-builder
   #- streaming
   #- streaming-bytestring >= 0.2.0

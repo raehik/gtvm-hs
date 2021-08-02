@@ -6,6 +6,7 @@ import           Config
 import           CLI
 
 import qualified GTVM.Assorted.Flowchart as GAFc
+import qualified GTVM.Assorted.SL01      as GAS
 import qualified GTVM.Common.Binary.Util as GCBU
 import qualified GTVM.Common.Binary      as GCB
 import qualified GTVM.SCP.Parse          as GSP
@@ -29,33 +30,57 @@ main = parseCLIOpts >>= runCmd
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
   TGFlowchart cfg -> runReaderT runCmdFlowchart cfg
-  TGSCP (TGSCPCfg cfgBinJSON) -> runReaderT runCmdSCP cfgBinJSON
+  TGSCP (TGSCPCfg cfg) -> runReaderT runCmdSCP cfg
+  TGSL01 (TGSL01Cfg cfg) -> runReaderT runCmdSL01 cfg
 
-runCmdSCP :: (MonadReader CfgBinaryJSON m, MonadIO m) => m ()
-runCmdSCP = do
-    asks _cfgBinaryJSONDirection >>= \case
-      ActionDirectionDecode -> runCmdScpDecode >>= rBinOutputBytes
-      ActionDirectionEncode -> runCmdScpEncode >>= rBinOutputBytes . BL.fromStrict
+runCmdSL01 :: (MonadReader CfgBinIO m, MonadIO m) => m ()
+runCmdSL01 = rBinActionAndOutput fDe fEn
+  where
+    fDe = do
+        rParseFile GAS.pSL01 GCB.binCfgSCP >>= \case
+          Left err     -> liftIO (putStr err) >> error "fuck"
+          Right parsed -> return . BL.fromStrict . GAS.decompress $ parsed
+    fEn = do
+        cfgBinIO <- asks getCfgBinIO
+        let fp = _cfgBinIOFilepath cfgBinIO
+        bytes <- liftIO $ BL.readFile fp
+        let sl01 = GAS.compress (BL.toStrict bytes)
+            sl01Bytes = GAS.sSL01 sl01 GCB.binCfgSCP
+        return (BL.fromStrict sl01Bytes)
 
-runCmdScpDecode :: (MonadReader CfgBinaryJSON m, MonadIO m) => m BL.ByteString
+rBinActionAndOutput
+    :: (MonadReader env m, HasCfgBinIO env, MonadIO m)
+    => m BL.ByteString -> m BL.ByteString -> m ()
+rBinActionAndOutput fDe fEn = do
+    cfgBinIO <- asks getCfgBinIO
+    case _cfgBinIODirection cfgBinIO of
+      ActionDirectionDecode -> fDe >>= rBinOutputBytes
+      ActionDirectionEncode -> fEn >>= rBinOutputBytes
+
+runCmdSCP :: (MonadReader CfgBinJSON m, MonadIO m) => m ()
+runCmdSCP = rBinActionAndOutput fDe fEn
+  where
+    fDe = runCmdScpDecode
+    fEn = BL.fromStrict <$> runCmdScpEncode
+
+runCmdScpDecode :: (MonadReader CfgBinJSON m, MonadIO m) => m BL.ByteString
 runCmdScpDecode = do
     rParseFile GSP.pSCP GCB.binCfgSCP >>= \case
       Left err     -> liftIO (putStr err) >> error "fuck"
       Right parsed -> rEncodeJSON parsed
 
-runCmdScpEncode :: (MonadReader CfgBinaryJSON m, MonadIO m) => m BS.ByteString
+runCmdScpEncode :: (MonadReader CfgBinJSON m, MonadIO m) => m BS.ByteString
 runCmdScpEncode = rBinDecodeJsonAndReserialize (flip GSS.sSCP GCB.binCfgSCP)
 
 runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
-runCmdFlowchart = do
-    binProcCfg <- asks _tgFlowchartCfgBinaryJSON
-    case _cfgBinaryJSONDirection binProcCfg of
-      ActionDirectionDecode -> runCmdFlowchartDecode >>= rBinOutputBytes
-      ActionDirectionEncode -> runCmdFlowchartEncode >>= rBinOutputBytes . BL.fromStrict
+runCmdFlowchart = rBinActionAndOutput fDe fEn
+  where
+    fDe = runCmdFlowchartDecode
+    fEn = BL.fromStrict <$> runCmdFlowchartEncode
 
 runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
 runCmdFlowchartDecode = do
-    binProcCfg <- asks _tgFlowchartCfgBinaryJSON
+    binProcCfg <- asks _tgFlowchartCfgBinJSON
     lexed <- flip runReaderT binProcCfg $ rParseFile GAFc.pFlowchart GCB.binCfgSCP
     case lexed of
       Left err      -> liftIO (putStr err) >> error "fuck"
@@ -73,11 +98,11 @@ runCmdFlowchartEncode = do
     rBinDecodeJsonAndReserialize $ \fc -> GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
 
 rEncodeJSON
-    :: (MonadReader env m, HasCfgBinaryJSON env, MonadIO m, Aeson.ToJSON a)
+    :: (MonadReader env m, HasCfgBinJSON env, MonadIO m, Aeson.ToJSON a)
     => a -> m BL.ByteString
 rEncodeJSON a = do
-    cfgBinJSON <- asks getCfgBinaryJSON
-    if   _cfgBinaryJSONPrettify cfgBinJSON
+    cfgBinJSON <- asks getCfgBinJSON
+    if   _cfgBinJSONPrettify cfgBinJSON
     then return $ DAEP.encodePretty' prettyCfg a
     else return $ Aeson.encode a
   where prettyCfg = DAEP.defConfig { DAEP.confIndent = DAEP.Spaces 2 }
@@ -85,36 +110,37 @@ rEncodeJSON a = do
 --------------------------------------------------------------------------------
 
 rParseFile
-    :: (MonadReader CfgBinaryJSON m, MonadIO m, ShowErrorComponent e)
+    :: (MonadReader env m, HasCfgBinIO env, MonadIO m, ShowErrorComponent e)
     => (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
     -> GCB.BinaryCfg -> m (Either String a)
 rParseFile p cfg = do
-    fp <- asks _cfgBinaryJSONFilepath
+    fp <- asks (_cfgBinIOFilepath . getCfgBinIO)
     GCBU.runParserBinFile p fp cfg
 
 rBinOutputBytes
-    :: (MonadReader env m, HasCfgBinaryJSON env, MonadIO m)
+    :: (MonadReader env m, HasCfgBinIO env, MonadIO m)
     => BL.ByteString -> m ()
 rBinOutputBytes bs = do
-    cfgBinJSON <- asks getCfgBinaryJSON
-    case _cfgBinaryJSONOutFilepath cfgBinJSON of
+    cfgBinIO <- asks getCfgBinIO
+    case _cfgBinIOOutFilepath cfgBinIO of
       Just outFp -> liftIO $ BL.writeFile outFp bs
       Nothing -> do
-        if   _cfgBinaryJSONDirection cfgBinJSON == ActionDirectionDecode
+        if   _cfgBinIODirection cfgBinIO == ActionDirectionDecode
         then liftIO $ BL.putStr bs >> putStrLn ""
         else
-            case _cfgBinaryJSONAllowBinaryOnStdout cfgBinJSON of
+            case _cfgBinIOAllowBinaryOnStdout cfgBinIO of
               True -> liftIO $ BL.putStr bs
               False -> do
                 liftIO $ putStrLn "warning: refusing to print binary to stdout"
                 liftIO $ putStrLn "(write to a file with --write-file FILE, or use --print-binary flag to override)"
 
 rBinDecodeJsonAndReserialize
-    :: (MonadReader env m, HasCfgBinaryJSON env, MonadIO m, Aeson.FromJSON a)
+    :: (MonadReader env m, HasCfgBinJSON env, MonadIO m, Aeson.FromJSON a)
     => (a -> BS.ByteString) -> m BS.ByteString
 rBinDecodeJsonAndReserialize serialize = do
-    cfgBinJSON <- asks getCfgBinaryJSON
-    let fp = _cfgBinaryJSONFilepath cfgBinJSON
+    cfgBinJSON <- asks getCfgBinJSON
+    let cfgBinIO = _cfgBinJSONCfgBinIO cfgBinJSON
+    let fp = _cfgBinIOFilepath cfgBinIO
     bytes <- liftIO $ BL.readFile fp
     case Aeson.eitherDecode bytes of
       Left err      -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"

@@ -11,6 +11,7 @@ module GTVM.Common.Binary.Serialize
   , bW32
   , bW64
   , bBS
+  , bBS'
   , bBSFixedNullPadded
   , bNullPadTo
   , bCount
@@ -22,7 +23,6 @@ import           Data.Word
 import           Control.Monad.Reader
 import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Lazy       as BL
---import           ByteString.StrictBuilder
 
 type Builder = BB.Builder
 type Bytes = BS.ByteString
@@ -47,50 +47,36 @@ bW64 w64 = binCfgCaseEndianness (return $ BB.word64LE w64) (return $ BB.word64BE
 
 bBS :: MonadReader BinaryCfg m => Bytes -> m Builder
 bBS bs = reader binCfgStringType >>= \case
-  StrTyCString      -> return $ BB.byteString bs <> BB.word8 0x00
+  StrTyCString      -> concatM [bBS' bs, bW8 0x00]
   StrTyLengthPrefix ->
-    let len = BS.length bs
-     in if   len > 255
-        then error "can't serialize a textbox with text longer than 255 bytes in length prefix mode"
-        else let lenW8 = fromIntegral len :: Word8
-              in return $ BB.word8 lenW8 <> BB.byteString bs
+    case integralToBounded (BS.length bs) of
+      Nothing  -> error "can't serialize bytestring longer than 255 bytes in length prefix mode"
+      Just len -> concatM [bW8 len, bBS' bs]
+
+bBS' :: Monad m => Bytes -> m Builder
+bBS' = return . BB.byteString
 
 bBSFixedNullPadded :: MonadReader BinaryCfg m => Bytes -> Int -> m Builder
 bBSFixedNullPadded bs = bNullPadTo (bBS bs)
 
+-- TODO: This sucks. We're forced to do this because 'Data.ByteString.Builder'
+-- doesn't let you view the current buffer size (it should be trivial!). I could
+-- write my own builder monad that tracks it, but cba.
 bNullPadTo :: Monad m => m Builder -> Int -> m Builder
-bNullPadTo b i = do
+bNullPadTo b padTo = do
     b' <- b
     let bs = execBuilder b'
-        reqNulls = i - BS.length bs
+        len = BS.length bs
+        reqNulls = padTo - len
     if   reqNulls < 0
-    then error $ "oversized field: " <> show (BS.length bs) <> " > " <> show i
-    else return $ BB.byteString bs <> BB.byteString (BS.replicate reqNulls 0x00)
+    then error $ "oversized field: " <> show len <> " > " <> show padTo
+    else concatM [bBS' bs, bBS' (BS.replicate reqNulls 0x00)]
 
 bCount
     :: forall m a b. (Monad m, Bounded a, Integral a, Show a)
     => (a -> m Builder) -> (b -> m Builder) -> [b] -> m Builder
 bCount bl bb parts =
     let len = length parts
-     in if   not (wellBounded len)
-        then error $ "length not bounded: " <> show (minBound @a) <> "<=" <> show len <> "<=" <> show (maxBound @a) <> " does not hold"
-        else concatM $ bl (fromIntegral len) : (bb <$> parts)
-  where
-    -- This is interesting: I *require* scoped type vars and having 'a' in scope
-    -- in order to write this simply. I need 'a' in scope to use in a type
-    -- application, but this function doesn't actually have 'a' in the type
-    -- signature (only the constraints), so apparently I can't write it as a
-    -- top-level definition.
-    -- TODO: perhaps ask on #haskell or somewhere, to gain better understanding
-    wellBounded :: forall b'. (Integral b') => b' -> Bool
-    wellBounded x = fromIntegral (minBound @a) <= x && x <= fromIntegral (maxBound @a)
-
--- Original, speedy version. But I value composition over speed.
-{-
-bBSCStringFixedNullPadded' :: Monad m => Bytes -> Int -> m Builder
-bBSCStringFixedNullPadded' bs i =
-    let reqNulls = i - BS.length bs
-     in if   reqNulls < 0
-        then error $ "bytestring too large for fixed-size field (" <> show (BS.length bs) <> " > " <> show i <> ")"
-        else return $ BB.byteString bs <> BB.byteString (BS.replicate reqNulls 0x00)
--}
+     in case integralToBounded len of
+          Nothing   -> error $ "length not bounded: " <> show (minBound @a) <> "<=" <> show len <> "<=" <> show (maxBound @a) <> " does not hold"
+          Just len' -> concatM $ bl len' : (bb <$> parts)

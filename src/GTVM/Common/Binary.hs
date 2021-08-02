@@ -1,4 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module GTVM.Common.Binary where
 
@@ -34,14 +36,21 @@ binCfgSCP = BinaryCfg
 
 -- | Helper for choosing actions based on configured endianness.
 binCfgCaseEndianness :: MonadReader BinaryCfg m => m a -> m a -> m a
-binCfgCaseEndianness fLE fBE =
-    reader binCfgEndianness >>= \case
-      LittleEndian -> fLE
-      BigEndian    -> fBE
+binCfgCaseEndianness fLE fBE = reader binCfgEndianness >>= \case
+  LittleEndian -> fLE
+  BigEndian    -> fBE
 
 -- | Helper for choosing actions based on configured string type.
 binCfgCaseStringType :: MonadReader BinaryCfg m => m a -> m a -> m a
-binCfgCaseStringType fCStr fPascal =
-    reader binCfgStringType >>= \case
-      StrTyCString      -> fCStr
-      StrTyLengthPrefix -> fPascal
+binCfgCaseStringType fCStr fPascal = reader binCfgStringType >>= \case
+  StrTyCString      -> fCStr
+  StrTyLengthPrefix -> fPascal
+
+-- | Attempt to convert one 'Integral' type into a 'Bounded' one.
+--
+-- Use with type applications e.g. @integralToBounded \@Word8 256@.
+integralToBounded :: forall b a. (Integral a, Bounded b, Integral b) => a -> Maybe b
+integralToBounded a =
+    if   fromIntegral (minBound @b) <= a && a <= fromIntegral (maxBound @b)
+    then Just (fromIntegral a)
+    else Nothing

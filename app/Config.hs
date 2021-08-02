@@ -1,26 +1,34 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE DerivingVia        #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Config where
 
 import           Control.Lens.TH
 
--- | Shared configuration for tools that serialize between binary and JSON.
-data CfgBinaryJSON = CfgBinaryJSON
-  { _cfgBinaryJSONDirection           :: ActionDirection
-  , _cfgBinaryJSONFilepath            :: FilePath
-  , _cfgBinaryJSONOutFilepath         :: Maybe FilePath
-  , _cfgBinaryJSONAllowBinaryOnStdout :: Bool
-  , _cfgBinaryJSONPrettify            :: Bool
+-- | Config for tools that serialize between binary and JSON.
+data CfgBinJSON = CfgBinJSON
+  { _cfgBinJSONCfgBinIO :: CfgBinIO
+  , _cfgBinJSONPrettify :: Bool
+  } deriving (Eq, Show)
+
+-- | Config for tools that do IO with binary data.
+data CfgBinIO = CfgBinIO
+  { _cfgBinIODirection           :: ActionDirection
+  , _cfgBinIOFilepath            :: FilePath
+  , _cfgBinIOOutFilepath         :: Maybe FilePath
+  , _cfgBinIOAllowBinaryOnStdout :: Bool
   } deriving (Eq, Show)
 
 data ToolGroup
   = TGFlowchart TGFlowchartCfg
   | TGSCP TGSCPCfg
+  | TGSL01 TGSL01Cfg
     deriving (Eq, Show)
 
 data TGFlowchartCfg = TGFlowchartCfg
-  { _tgFlowchartCfgBinaryJSON :: CfgBinaryJSON
-  , _tgFlowchartCfgType       :: CfgFlowchartType
+  { _tgFlowchartCfgBinJSON :: CfgBinJSON
+  , _tgFlowchartCfgType    :: CfgFlowchartType
   } deriving (Eq, Show)
 
 data CfgFlowchartType
@@ -34,15 +42,36 @@ data ActionDirection
     deriving (Eq, Show)
 
 data TGSCPCfg = TGSCPCfg
-  { _tgSCPCfgBinaryJSON :: CfgBinaryJSON
+  { _tgSCPCfgBinJSON :: CfgBinJSON
+  } deriving (Eq, Show)
+
+data TGSL01Cfg = TGSL01Cfg
+  { _tgSL01CfgBinIO :: CfgBinIO
   } deriving (Eq, Show)
 
 makeLenses ''TGFlowchartCfg
+makeLenses ''TGSCPCfg
+makeLenses ''TGSL01Cfg
+makeLenses ''CfgBinJSON
+makeLenses ''CfgBinIO
 
-class HasCfgBinaryJSON a where
-    getCfgBinaryJSON :: a -> CfgBinaryJSON
+class HasCfgBinIO a where
+    getCfgBinIO :: a -> CfgBinIO
 
-instance HasCfgBinaryJSON CfgBinaryJSON where
-    getCfgBinaryJSON = id
-instance HasCfgBinaryJSON TGFlowchartCfg where
-    getCfgBinaryJSON = _tgFlowchartCfgBinaryJSON
+instance HasCfgBinIO CfgBinIO where
+    getCfgBinIO = id
+
+class HasCfgBinJSON a where
+    getCfgBinJSON :: a -> CfgBinJSON
+
+newtype Wrap a = Wrap { unwrap :: a }
+instance HasCfgBinJSON a => HasCfgBinIO (Wrap a) where
+    getCfgBinIO = _cfgBinJSONCfgBinIO . getCfgBinJSON . unwrap
+
+instance HasCfgBinJSON CfgBinJSON where
+    getCfgBinJSON = id
+instance HasCfgBinJSON TGFlowchartCfg where
+    getCfgBinJSON = _tgFlowchartCfgBinJSON
+
+deriving via (Wrap CfgBinJSON) instance HasCfgBinIO CfgBinJSON
+deriving via (Wrap TGFlowchartCfg) instance HasCfgBinIO TGFlowchartCfg
