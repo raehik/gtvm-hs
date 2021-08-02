@@ -34,6 +34,15 @@ jobs:
     - name: Build and run tests
       run: stack --no-terminal haddock --test --no-haddock-deps
 
+    - name: Install (to place executable at a known location)
+      run: stack --no-terminal install
+
+    - name: Upload executable
+      uses: actions/upload-artifact@v2
+      with:
+        name: gtvm-linux-x64-stack-${{ github.sha }}
+        path: ~/.local/bin/gtvm
+
   ubuntu-cabal-test:
     runs-on: ubuntu-latest
     name: Ubuntu / GHC ${{ matrix.ghc }}, Cabal ${{ matrix.cabal }} / test
@@ -142,4 +151,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: gtvm-windows-cabal-${{ github.sha }}.exe
-        path: "C:/Users/runneradmin/AppData/Roaming/cabal/bin/gtvm-exe.exe"
+        path: "C:/Users/runneradmin/AppData/Roaming/cabal/bin/gtvm.exe"
