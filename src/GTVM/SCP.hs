@@ -1,17 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module GTVM.SCP where
+module GTVM.SCP
+  ( SCPSegment(..)
+  , Bytes
+  ) where
 
-import qualified Data.ByteString            as BS
+import qualified Data.ByteString    as BS
 import           Data.Word
 import           GHC.Generics
-import           Data.Aeson ( ToJSON, FromJSON )
-import           GTVM.Common.Orphans ()
-
-{-
-class HasSCPRep a where
-    scpBytes :: a -> BS.ByteString
--}
+import qualified Data.Aeson         as Aeson
+import           GTVM.Common.Orphans()
 
 type Bytes = BS.ByteString
 
@@ -144,5 +142,23 @@ data SCPSegment
   | SCPSeg77SCP Word8
     deriving (Eq, Show, Generic)
 
-instance ToJSON   SCPSegment
-instance FromJSON SCPSegment
+-- | Lexed SCP JSON en/decoding config.
+--
+-- JSON tag names are derived by dropping the @SCPSeg@ and taking just the 2 hex
+-- digits. (The suffix is just internal best-guesses at what they mean, subject
+-- to change.)
+--
+-- Also, "tag" -> "command_byte", "contents" -> "arguments".
+configJSON :: Aeson.Options
+configJSON = Aeson.defaultOptions
+  { Aeson.constructorTagModifier = take 2 . drop 6
+  , Aeson.sumEncoding =
+      Aeson.defaultTaggedObject
+        { Aeson.tagFieldName = "command_byte"
+        , Aeson.contentsFieldName = "arguments" }}
+
+instance Aeson.ToJSON SCPSegment where
+    toJSON     = Aeson.genericToJSON configJSON
+    toEncoding = Aeson.genericToEncoding configJSON
+instance Aeson.FromJSON SCPSegment where
+    parseJSON  = Aeson.genericParseJSON configJSON
