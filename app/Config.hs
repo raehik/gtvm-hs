@@ -4,11 +4,13 @@ module Config where
 
 import           Control.Lens.TH
 
-data CfgBinaryProcessing = CfgBinaryProcessing
-  { _cfgBinaryProcessingDirection           :: ActionDirection
-  , _cfgBinaryProcessingFilepath            :: FilePath
-  , _cfgBinaryProcessingOutFilepath         :: Maybe FilePath
-  , _cfgBinaryProcessingAllowBinaryOnStdout :: Bool
+-- | Shared configuration for tools that serialize between binary and JSON.
+data CfgBinaryJSON = CfgBinaryJSON
+  { _cfgBinaryJSONDirection           :: ActionDirection
+  , _cfgBinaryJSONFilepath            :: FilePath
+  , _cfgBinaryJSONOutFilepath         :: Maybe FilePath
+  , _cfgBinaryJSONAllowBinaryOnStdout :: Bool
+  , _cfgBinaryJSONPrettify            :: Bool
   } deriving (Eq, Show)
 
 data ToolGroup
@@ -17,8 +19,8 @@ data ToolGroup
     deriving (Eq, Show)
 
 data TGFlowchartCfg = TGFlowchartCfg
-  { _tgFlowchartCfgBinaryProcessing :: CfgBinaryProcessing
-  , _tgFlowchartCfgType             :: CfgFlowchartType
+  { _tgFlowchartCfgBinaryJSON :: CfgBinaryJSON
+  , _tgFlowchartCfgType       :: CfgFlowchartType
   } deriving (Eq, Show)
 
 data CfgFlowchartType
@@ -32,15 +34,15 @@ data ActionDirection
     deriving (Eq, Show)
 
 data TGSCPCfg = TGSCPCfg
-  { _tgSCPCfgBinaryProcessing :: CfgBinaryProcessing
+  { _tgSCPCfgBinaryJSON :: CfgBinaryJSON
   } deriving (Eq, Show)
 
 makeLenses ''TGFlowchartCfg
 
-class HasCfgBinaryProcessing a where
-    getCfgBinaryProcessing :: a -> CfgBinaryProcessing
+class HasCfgBinaryJSON a where
+    getCfgBinaryJSON :: a -> CfgBinaryJSON
 
-instance HasCfgBinaryProcessing CfgBinaryProcessing where
-    getCfgBinaryProcessing = id
-instance HasCfgBinaryProcessing TGFlowchartCfg where
-    getCfgBinaryProcessing = _tgFlowchartCfgBinaryProcessing
+instance HasCfgBinaryJSON CfgBinaryJSON where
+    getCfgBinaryJSON = id
+instance HasCfgBinaryJSON TGFlowchartCfg where
+    getCfgBinaryJSON = _tgFlowchartCfgBinaryJSON

@@ -2,14 +2,28 @@ module CLI where
 
 import           Config
 import           Options.Applicative
+import qualified Data.Char as Char
 
-pCfgBinaryProcessing :: Parser CfgBinaryProcessing
-pCfgBinaryProcessing =
-    CfgBinaryProcessing
+pCfgBinaryJSON :: Parser CfgBinaryJSON
+pCfgBinaryJSON =
+    CfgBinaryJSON
     <$> pActionDirection
-    <*> strArgument (metavar "FILE" <> help "file to work on")
+    <*> strArgument (metavar "FILE" <> help "File to work on")
     <*> pOptOutFilepath
-    <*> switch (long "print-binary" <> help "allow printing binary to stdout")
+    <*> switch (long "print-binary" <> help "Allow printing binary to stdout")
+    <*> pPrettifyOrNo
+
+pPrettifyOrNo :: Parser Bool
+pPrettifyOrNo = pYesOrNo "prettify" "prettify JSON"
+
+pYesOrNo :: String -> String -> Parser Bool
+pYesOrNo verb desc = p1 <|> p2
+  where
+    p1 = flag True True $ long verb <> help (capitalize desc <> " (default)")
+    p2 = flag' False $ long ("no-" <> verb) <> help ("Don't " <> desc)
+    capitalize = \case
+      []   -> []
+      c:cs -> Char.toUpper c : cs
 
 pToolGroup :: Parser ToolGroup
 pToolGroup = hsubparser $
@@ -21,14 +35,14 @@ piTGSCPCfg = info (TGSCP <$> pTGSCPCfg) (progDesc desc)
   where desc = "Game script file (SCP, script/*.scp) tools."
 
 pTGSCPCfg :: Parser TGSCPCfg
-pTGSCPCfg = TGSCPCfg <$> pCfgBinaryProcessing
+pTGSCPCfg = TGSCPCfg <$> pCfgBinaryJSON
 
 piTGFlowchartCfg :: ParserInfo ToolGroup
 piTGFlowchartCfg = info (TGFlowchart <$> pTGFlowchartCfg) (progDesc desc)
   where desc = "flow_chart.bin tools."
 
 pTGFlowchartCfg :: Parser TGFlowchartCfg
-pTGFlowchartCfg = TGFlowchartCfg <$> pCfgBinaryProcessing <*> pCfgFlowchartType
+pTGFlowchartCfg = TGFlowchartCfg <$> pCfgBinaryJSON <*> pCfgFlowchartType
 
 pActionDirection :: Parser ActionDirection
 pActionDirection = pEncode <|> pDecode
@@ -42,7 +56,7 @@ pCfgFlowchartType = flag CfgFlowchartTypeParse CfgFlowchartTypeLex
 
 pOptOutFilepath :: Parser (Maybe FilePath)
 pOptOutFilepath = optional $ strOption $
-    long "write-file" <> help "write to file instead of stdout"
+    long "write-file" <> help "Write to file instead of stdout"
 
 parseCLIOpts :: IO ToolGroup
 parseCLIOpts = execParserWithDefaults desc pToolGroup
