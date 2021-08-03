@@ -3,8 +3,9 @@
 {-# LANGUAGE DeriveGeneric    #-}
 
 module GTVM.Assorted.Pak
-  ( PakHeader
-  , PakHeaderFTE
+  ( Pak(..)
+  , PakHeader(..)
+  , PakHeaderFTE(..)
   , pPakHeader
   ) where
 
@@ -25,8 +26,11 @@ import           Control.Monad.State
 import           Data.Aeson
 import           GHC.Generics
 
+-- TODO: maybe parse trailing stuff (nulls?) between file table and files
+
 type Bytes = BS.ByteString
 
+data Pak = Pak Word32 [(Text, Bytes)] deriving (Eq, Show, Generic)
 data PakHeader = PakHeader Word32 [PakHeaderFTE] deriving (Eq, Show, Generic)
 data PakHeaderFTE = PakHeaderFTE Word32 Word32 Bytes deriving (Eq, Show, Generic)
 

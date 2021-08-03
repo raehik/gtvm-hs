@@ -9,11 +9,7 @@ pToolGroup = hsubparser $
     command "flowchart" piTGFlowchartCfg
     <> command "scp" piTGSCPCfg
     <> command "sl01" piTGSL01Cfg
-    <> command "pak" piTGPak
-
-piTGPak :: ParserInfo ToolGroup
-piTGPak = info (TGPak <$> pCfgBinIO) (progDesc desc)
-  where desc = ".pak (sound_se.pak) tools."
+    <> command "pak" piCPak
 
 pCfgBinIO :: Parser CfgBinIO
 pCfgBinIO =
@@ -81,3 +77,54 @@ pYesOrNo verb desc = p1 <|> p2
     capitalize = \case
       []   -> []
       c:cs -> Char.toUpper c : cs
+
+--------------------------------------------------------------------------------
+
+capitalize :: String -> String
+capitalize = \case
+  []   -> []
+  c:cs -> Char.toUpper c : cs
+
+pCDirection :: String -> String -> String -> String -> Parser CDirection
+pCDirection verbFrom helpFrom verbTo helpTo = pFrom <|> pTo
+  where
+    pFrom = flag' CDirectionFromOrig (long verbFrom <> help helpFrom')
+    pTo   = flag' CDirectionToOrig   (long verbTo   <> help helpTo')
+    helpFrom' = capitalize verbFrom <> " " <> helpFrom
+    helpTo'   = capitalize verbTo   <> " " <> helpTo
+
+pBinCodingDirection :: String -> Parser CDirection
+pBinCodingDirection toNoun = pCDirection "decode" helpFrom "encode" helpTo
+  where
+    helpFrom = "binary -> " <> toNoun
+    helpTo   = toNoun <> " -> binary"
+
+pPackDirection :: Parser CDirection
+pPackDirection = pCDirection "unpack" "archive" "pack" "archive"
+
+pCStream :: CDirection -> Parser CStream
+pCStream dir = pFile <|> pStd
+  where
+    pFile = CStreamFile <$> strArgument (metavar "FILE" <> help (dir' <> " file"))
+    pStd  = flag' CStreamStd (long stdStream <> help ("Use " <> stdStream))
+    (dir', stdStream) =
+        case dir of
+          CDirectionFromOrig -> ("Input", "stdin")
+          CDirectionToOrig   -> ("Output", "stdout")
+
+pCStreams :: CDirection -> Parser CStreams
+pCStreams dir = pFolder <|> pArchive
+  where
+    pFolder  = CStreamsFolder  <$> strOption (long (dir' <> "-folder")  <> help (dir'' <> " folder"))
+    pArchive = CStreamsArchive <$> strOption (long (dir' <> "-archive") <> help (dir'' <> " archive"))
+    (dir', dir'') =
+        case dir of
+          CDirectionFromOrig -> ("in", "Input")
+          CDirectionToOrig   -> ("out", "Output")
+
+pCPak :: Parser CPak
+pCPak = CPak <$> pPackDirection <*> pCStream CDirectionFromOrig <*> pCStreams CDirectionToOrig
+
+piCPak :: ParserInfo ToolGroup
+piCPak = info (TGPak <$> pCPak) (progDesc desc)
+  where desc = ".pak (sound_se.pak) tools."
