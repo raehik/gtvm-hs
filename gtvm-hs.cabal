@@ -21,6 +21,7 @@ source-repository head
 library
   exposed-modules:
       GTVM.Assorted.Flowchart
+      GTVM.Assorted.Pak
       GTVM.Assorted.SL01
       GTVM.Common.Binary
       GTVM.Common.Binary.Parse

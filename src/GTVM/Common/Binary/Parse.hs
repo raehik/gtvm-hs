@@ -5,14 +5,14 @@ module GTVM.Common.Binary.Parse
   ( pW8
   , pW32
   , pW64
-  , pBytestring
+  , pBS
+  , pBSTextFixed
+  , pBS'
   , pCString
   , pPascal
-  , pBytestringFixed
-  , pCStringPad
-  , pNullByte
   , pCount
   , pNullPadTo
+  , pNullByte
   , parseBin
   ) where
 
@@ -41,8 +41,8 @@ pW64 = binCfgCaseEndianness anyW64LE anyW64BE
 -- | Parse a bytestring.
 --
 -- The type of bytestring to parse is selected using provided context.
-pBytestring :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m Bytes
-pBytestring = binCfgCaseStringType pCString pPascal
+pBS :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m Bytes
+pBS = binCfgCaseStringType pCString pPascal
 
 -- | Parse a null-terminated bytestring (a C string), consuming the null.
 pCString :: (MonadParsec e Bytes m) => m Bytes
@@ -53,16 +53,24 @@ pCString =
 --
 -- Uses a single byte for length, so only lengths of 0->255 are permitted.
 pPascal :: (MonadParsec e BS.ByteString m) => m BS.ByteString
-pPascal = pW8 >>= \len -> pBytestringFixed (fromIntegral len)
+pPascal = pW8 >>= \len -> pBS' (fromIntegral len)
 
--- | Parse a fixed-length bytestring (no null terminator).
-pBytestringFixed :: (MonadParsec e Bytes m) => Int -> m Bytes
-pBytestringFixed len = takeP (Just (show len <> "-byte bytestring")) len
+-- | Parse a fixed-length bytestring. Just pulls bytes from the stream with no
+--   checks.
+pBS' :: (MonadParsec e Bytes m) => Int -> m Bytes
+pBS' len = takeP (Just (show len <> "-byte bytestring")) len
 
--- | Parse a "fixed-length" null-terminated bytestring, consuming nulls after
---   the null terminator to reach a given size.
-pCStringPad :: (MonadParsec e Bytes m) => Int -> m Bytes
-pCStringPad len = pNullPadTo pCString len <?> "null-padded fixed-size null-terminated bytestring"
+-- | Parse a fixed-length bytestring and truncate to the first null.
+--
+-- This is intended for parsing text bytestrings which don't allow nulls. It
+-- lets us truncate them early and get them out of the way. It's essentially a
+-- fixed-length C string parser, but doesn't enforce ending with a null.
+--
+-- Note that a null in the middle of a bytestring string will chop off all that
+-- follows it.
+pBSTextFixed :: (MonadParsec e Bytes m) => Int -> m Bytes
+pBSTextFixed len =
+    (BS.takeWhile (/= 0x00) <$> pNullPadTo pCString len) <?> "null-padded fixed-size bytestring"
 
 -- | Parse the null byte.
 pNullByte :: (MonadParsec e s m, Token s ~ Word8) => m Word8

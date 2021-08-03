@@ -8,6 +8,7 @@ import           Util
 
 import qualified GTVM.Assorted.Flowchart as GAFc
 import qualified GTVM.Assorted.SL01      as GAS
+import qualified GTVM.Assorted.Pak       as GAP
 import qualified GTVM.Common.Binary.Util as GCBU
 import qualified GTVM.Common.Binary      as GCB
 import qualified GTVM.SCP.Parse          as GSP
@@ -30,15 +31,28 @@ main = parseCLIOpts >>= runCmd
 
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
-  TGFlowchart cfg -> runReaderT runCmdFlowchart cfg
   TGSCP (TGSCPCfg cfg) -> runReaderT runCmdSCP cfg
   TGSL01 (TGSL01Cfg cfg) -> runReaderT runCmdSL01 cfg
+  TGFlowchart cfg -> runReaderT runCmdFlowchart cfg
+  TGPak cfg -> runReaderT runCmdPak cfg
+
+runCmdPak :: (MonadReader CfgBinIO m, MonadIO m) => m ()
+runCmdPak = rBinActionAndOutput fDe fEn
+  where
+    fDe = do
+        rParseFile' GAP.pPakHeader >>= \case
+          Left err     -> liftIO (putStr err) >> error "fuck"
+          Right parsed -> do
+              liftIO $ print parsed
+              error "ok"
+    fEn = do
+        error "shit"
 
 runCmdSL01 :: (MonadReader CfgBinIO m, MonadIO m) => m ()
 runCmdSL01 = rBinActionAndOutput fDe fEn
   where
     fDe = do
-        rParseFile GAS.pSL01 GCB.binCfgSCP >>= \case
+        rParseFile' GAS.pSL01 >>= \case
           Left err     -> liftIO (putStr err) >> error "fuck"
           Right parsed -> return . BL.fromStrict . GAS.decompress $ parsed
     fEn = do
@@ -66,7 +80,7 @@ runCmdSCP = rBinActionAndOutput fDe fEn
 
 runCmdScpDecode :: (MonadReader CfgBinJSON m, MonadIO m) => m BL.ByteString
 runCmdScpDecode = do
-    rParseFile GSP.pSCP GCB.binCfgSCP >>= \case
+    rParseFile' GSP.pSCP >>= \case
       Left err     -> liftIO (putStr err) >> error "fuck"
       Right parsed -> rEncodeJSON parsed
 
@@ -81,7 +95,7 @@ runCmdFlowchart = rBinActionAndOutput fDe fEn
 
 runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
 runCmdFlowchartDecode = do
-    lexed <- rParseFile GAFc.pFlowchart GCB.binCfgSCP
+    lexed <- rParseFile' GAFc.pFlowchart
     case lexed of
       Left err      -> liftIO (putStr err) >> error "fuck"
       Right lexed' -> do
@@ -111,11 +125,18 @@ rEncodeJSON a = do
 
 rParseFile
     :: (MonadReader env m, HasCfgBinIO env, MonadIO m, ShowErrorComponent e)
-    => (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
-    -> GCB.BinaryCfg -> m (Either String a)
-rParseFile p cfg = do
+    => GCB.BinaryCfg
+    -> (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
+    -> m (Either String a)
+rParseFile cfg p = do
     fp <- asks' $ cfgBinIO . cfgBinIOFilepath
     GCBU.runParserBinFile p fp cfg
+
+rParseFile'
+    :: (MonadReader env m, HasCfgBinIO env, MonadIO m, ShowErrorComponent e)
+    => (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
+    -> m (Either String a)
+rParseFile' = rParseFile GCB.binCfgSCP
 
 rBinOutputBytes
     :: (MonadReader env m, HasCfgBinIO env, MonadIO m)

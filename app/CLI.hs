@@ -4,6 +4,17 @@ import           Config
 import           Options.Applicative
 import qualified Data.Char as Char
 
+pToolGroup :: Parser ToolGroup
+pToolGroup = hsubparser $
+    command "flowchart" piTGFlowchartCfg
+    <> command "scp" piTGSCPCfg
+    <> command "sl01" piTGSL01Cfg
+    <> command "pak" piTGPak
+
+piTGPak :: ParserInfo ToolGroup
+piTGPak = info (TGPak <$> pCfgBinIO) (progDesc desc)
+  where desc = ".pak (sound_se.pak) tools."
+
 pCfgBinIO :: Parser CfgBinIO
 pCfgBinIO =
     CfgBinIO
@@ -19,12 +30,6 @@ pCfgBinIO =
 pCfgBinJSON :: Parser CfgBinJSON
 pCfgBinJSON = CfgBinJSON <$> pCfgBinIO <*> pPrettifyOrNo
   where pPrettifyOrNo = pYesOrNo "prettify" "prettify JSON"
-
-pToolGroup :: Parser ToolGroup
-pToolGroup = hsubparser $
-    command "flowchart" piTGFlowchartCfg
-    <> command "scp" piTGSCPCfg
-    <> command "sl01" piTGSL01Cfg
 
 piTGFlowchartCfg :: ParserInfo ToolGroup
 piTGFlowchartCfg = info (TGFlowchart <$> pTGFlowchartCfg) (progDesc desc)

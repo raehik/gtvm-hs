@@ -4,6 +4,13 @@ module Config where
 
 import           Control.Lens.TH
 
+data ToolGroup
+  = TGFlowchart TGFlowchartCfg
+  | TGSCP TGSCPCfg
+  | TGSL01 TGSL01Cfg
+  | TGPak CfgBinIO
+    deriving (Eq, Show)
+
 -- | Config for tools that serialize between binary and JSON.
 data CfgBinJSON = CfgBinJSON
   { _cfgBinJSONCfgBinIO :: CfgBinIO
@@ -17,12 +24,6 @@ data CfgBinIO = CfgBinIO
   , _cfgBinIOOutFilepath         :: Maybe FilePath
   , _cfgBinIOAllowBinaryOnStdout :: Bool
   } deriving (Eq, Show)
-
-data ToolGroup
-  = TGFlowchart TGFlowchartCfg
-  | TGSCP TGSCPCfg
-  | TGSL01 TGSL01Cfg
-    deriving (Eq, Show)
 
 data TGFlowchartCfg = TGFlowchartCfg
   { _tgFlowchartCfgBinJSON :: CfgBinJSON

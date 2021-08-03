@@ -3,18 +3,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module GTVM.Common.Binary.Serialize
-  ( Builder
-  , serialize
-  , execBuilder
-  , concatM
-  , bW8
+  ( bW8
   , bW32
   , bW64
   , bBS
+  , bBSNullPadTo
   , bBS'
-  , bBSFixedNullPadded
-  , bNullPadTo
+  , bCString
+  , bPascal
   , bCount
+  , bNullPadTo
+  , Builder
+  , serialize
+  , execBuilder
+  , concatM
   ) where
 
 import           GTVM.Common.Binary
@@ -27,15 +29,6 @@ import qualified Data.ByteString.Lazy       as BL
 type Builder = BB.Builder
 type Bytes = BS.ByteString
 
-execBuilder :: Builder -> Bytes
-execBuilder = BL.toStrict . BB.toLazyByteString
-
-serialize :: Functor f => (a -> f Builder) -> a -> f Bytes
-serialize f a = execBuilder <$> f a
-
-concatM :: (Monad m, Monoid a) => [m a] -> m a
-concatM as = mconcat <$> sequence as
-
 bW8 :: Monad m => Word8 -> m Builder
 bW8 = return . BB.word8
 
@@ -46,9 +39,13 @@ bW64 :: MonadReader BinaryCfg m => Word64 -> m Builder
 bW64 w64 = binCfgCaseEndianness (return $ BB.word64LE w64) (return $ BB.word64BE w64)
 
 bBS :: MonadReader BinaryCfg m => Bytes -> m Builder
-bBS bs = reader binCfgStringType >>= \case
-  StrTyCString      -> concatM [bBS' bs, bW8 0x00]
-  StrTyLengthPrefix ->
+bBS bs = binCfgCaseStringType (bCString bs) (bPascal bs)
+
+bCString :: Monad m => Bytes -> m Builder
+bCString bs = concatM [bBS' bs, bW8 0x00]
+
+bPascal :: Monad m => Bytes -> m Builder
+bPascal bs =
     case integralToBounded (BS.length bs) of
       Nothing  -> error "can't serialize bytestring longer than 255 bytes in length prefix mode"
       Just len -> concatM [bW8 len, bBS' bs]
@@ -56,8 +53,8 @@ bBS bs = reader binCfgStringType >>= \case
 bBS' :: Monad m => Bytes -> m Builder
 bBS' = return . BB.byteString
 
-bBSFixedNullPadded :: MonadReader BinaryCfg m => Bytes -> Int -> m Builder
-bBSFixedNullPadded bs = bNullPadTo (bBS bs)
+bBSNullPadTo :: Monad m => Bytes -> Int -> m Builder
+bBSNullPadTo bs = bNullPadTo (bBS' bs)
 
 -- TODO: This sucks. We're forced to do this because 'Data.ByteString.Builder'
 -- doesn't let you view the current buffer size (it should be trivial!). I could
@@ -80,3 +77,12 @@ bCount bl bb parts =
      in case integralToBounded len of
           Nothing   -> error $ "length not bounded: " <> show (minBound @a) <> "<=" <> show len <> "<=" <> show (maxBound @a) <> " does not hold"
           Just len' -> concatM $ bl len' : (bb <$> parts)
+
+execBuilder :: Builder -> Bytes
+execBuilder = BL.toStrict . BB.toLazyByteString
+
+serialize :: Functor f => (a -> f Builder) -> a -> f Bytes
+serialize f a = execBuilder <$> f a
+
+concatM :: (Monad m, Monoid a) => [m a] -> m a
+concatM as = mconcat <$> sequence as

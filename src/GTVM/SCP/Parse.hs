@@ -63,13 +63,13 @@ pSCP = many pSCPSeg <* eof
 pSCPSeg :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m SCPSegment
 pSCPSeg = pW8 >>= \case
   0x00 -> SCPSeg00 & return
-  0x01 -> SCPSeg01BG <$> pBytestring <*> pW8 <*> pW8
-  0x02 -> SCPSeg02SFX <$> pBytestring <*> pW8
-  0x03 -> SCPSeg03 <$> pW8 <*> pBytestring <*> pW8
+  0x01 -> SCPSeg01BG <$> pBS <*> pW8 <*> pW8
+  0x02 -> SCPSeg02SFX <$> pBS <*> pW8
+  0x03 -> SCPSeg03 <$> pW8 <*> pBS <*> pW8
   0x04 -> SCPSeg04 <$> pW8 <*> pW8
-  0x05 -> SCPSeg05Textbox <$> pW8 <*> pW32 <*> pBytestring <*> pBytestring <*> pW32
+  0x05 -> SCPSeg05Textbox <$> pW8 <*> pW32 <*> pBS <*> pBS <*> pW32
   -- no 0x06
-  0x07 -> SCPSeg07SCP <$> pBytestring
+  0x07 -> SCPSeg07SCP <$> pBS
   0x08 -> SCPSeg08 & return
   0x09 -> SCPSeg09 <$> pW8 <*> pCount pW8 pBSW32
   0x0A -> SCPSeg0A <$> pW8 <*> pW8 <*> pW32 <*> pW32 <*> pW32
@@ -79,9 +79,9 @@ pSCPSeg = pW8 >>= \case
   0x0E -> SCPSeg0E <$> pW8
   0x0F -> SCPSeg0F & return
   0x10 -> SCPSeg10 <$> pW8 <*> pW8 <*> pW8
-  0x11 -> SCPSeg11EventCG <$> pBytestring
+  0x11 -> SCPSeg11EventCG <$> pBS
   0x12 -> SCPSeg12 & return
-  0x13 -> SCPSeg13 <$> pW8 <*> pBytestring <*> pW8 <*> pW32
+  0x13 -> SCPSeg13 <$> pW8 <*> pBS <*> pW8 <*> pW32
   0x14 -> SCPSeg14 <$> pW8
   0x15 -> SCPSeg15 & return
   0x16 -> SCPSeg16Wadai & return
@@ -96,18 +96,18 @@ pSCPSeg = pW8 >>= \case
   0x1F -> SCPSeg1FDelay & return
   0x20 -> SCPSeg20 <$> pW8
   0x21 -> SCPSeg21 & return
-  0x22 -> SCPSeg22 <$> pBytestring <*> pCount pW8 pBSW32
+  0x22 -> SCPSeg22 <$> pBS <*> pCount pW8 pBSW32
   0x23 -> SCPSeg23SFX & return
-  0x24 -> SCPSeg24 <$> pBytestring
+  0x24 -> SCPSeg24 <$> pBS
   0x25 -> SCPSeg25 & return
   0x26 -> SCPSeg26 & return
-  0x27 -> SCPSeg27 <$> pBytestring <*> pW8 <*> pW8
-  0x28 -> SCPSeg28 <$> pBytestring <*> pW8 <*> pW8
-  0x29 -> SCPSeg29 <$> pBytestring <*> pW8 <*> pW8
+  0x27 -> SCPSeg27 <$> pBS <*> pW8 <*> pW8
+  0x28 -> SCPSeg28 <$> pBS <*> pW8 <*> pW8
+  0x29 -> SCPSeg29 <$> pBS <*> pW8 <*> pW8
   0x2A -> SCPSeg2A <$> pW8 <*> pW8
-  0x2B -> SCPSeg2B <$> pW8 <*> pW8 <*> pW8 <*> pBytestring <*> pW8
+  0x2B -> SCPSeg2B <$> pW8 <*> pW8 <*> pW8 <*> pBS <*> pW8
   0x2C -> SCPSeg2CMap & return
-  0x2D -> SCPSeg2D <$> pBytestring <*> pW8 <*> pW8
+  0x2D -> SCPSeg2D <$> pBS <*> pW8 <*> pW8
   0x2E -> SCPSeg2E <$> pW8 <*> pW8 <*> pW32 <*> pW32
   0x2F -> SCPSeg2F <$> pW8
   0x30 -> SCPSeg30 <$> pW8
@@ -115,7 +115,7 @@ pSCPSeg = pW8 >>= \case
   0x32 -> SCPSeg32 <$> pW32 <*> pW8
   0x33 -> SCPSeg33 <$> pW8 <*> pW8
   0x34 -> SCPSeg34 <$> pW32
-  0x35 -> SCPSeg35 <$> pBytestring
+  0x35 -> SCPSeg35 <$> pBS
   0x36 -> SCPSeg36 <$> pW8 <*> pW32
   0x37 -> SCPSeg37 <$> pW8 <*> pW32
   0x38 -> SCPSeg38 <$> pW8 <*> pW32
@@ -129,23 +129,23 @@ pSCPSeg = pW8 >>= \case
   0x40 -> SCPSeg40 <$> pW8
   0x41 -> SCPSeg41 <$> pW8 <*> pW32 <*> pW32
   0x42 -> SCPSeg42 <$> pW8
-  0x43 -> SCPSeg43SFX <$> pBytestring
-  0x44 -> SCPSeg44SFX <$> pBytestring
-  0x45 -> SCPSeg45SFX <$> pBytestring <*> pW8
+  0x43 -> SCPSeg43SFX <$> pBS
+  0x44 -> SCPSeg44SFX <$> pBS
+  0x45 -> SCPSeg45SFX <$> pBS <*> pW8
   0x46 -> SCPSeg46 <$> pW8 <*> pW8
   0x47 -> SCPSeg47 <$> pW8 <*> pW8
   0x48 -> SCPSeg48 & return
   0x49 -> SCPSeg49 & return
   0x4A -> SCPSeg4A & return
   0x4B -> SCPSeg4B & return
-  0x4C -> SCPSeg4C <$> pBytestring
+  0x4C -> SCPSeg4C <$> pBS
   0x4D -> SCPSeg4D & return
   0x4E -> SCPSeg4E & return
-  0x4F -> SCPSeg4F <$> pBytestring <*> pW8 <*> pW8
-  0x50 -> SCPSeg50 <$> pBytestring <*> pW8 <*> pW8
-  0x51 -> SCPSeg51 <$> pBytestring <*> pW8 <*> pW8
-  0x52 -> SCPSeg52 <$> pBytestring
-  0x53 -> SCPSeg53 <$> pBytestring <*> pW8 <*> pW8
+  0x4F -> SCPSeg4F <$> pBS <*> pW8 <*> pW8
+  0x50 -> SCPSeg50 <$> pBS <*> pW8 <*> pW8
+  0x51 -> SCPSeg51 <$> pBS <*> pW8 <*> pW8
+  0x52 -> SCPSeg52 <$> pBS
+  0x53 -> SCPSeg53 <$> pBS <*> pW8 <*> pW8
   0x54 -> SCPSeg54 <$> pW8 <*> pW8
   0x55 -> SCPSeg55 <$> pW8 <*> pW8
   0x56 -> SCPSeg56 <$> pW8 <*> pW8
@@ -188,4 +188,4 @@ pSCPSeg = pW8 >>= \case
 
 -- | Parse a bytestring, followed by a 'Word32'.
 pBSW32 :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m (Bytes, Word32)
-pBSW32 = (,) <$> pBytestring <*> pW32
+pBSW32 = (,) <$> pBS <*> pW32

@@ -2,15 +2,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric    #-}
 
-module GTVM.Assorted.Flowchart
-  ( FlowchartEntryBlock
-  , FlowchartEntry
-  , FlowchartEntryBlock'
-  , FlowchartEntry'
-  , pFlowchart
-  , sFlowchart
-  , fcToAltFc
-  , altFcToFc
+module GTVM.Assorted.Pak
+  ( PakHeader
+  , PakHeaderFTE
+  , pPakHeader
   ) where
 
 import           GTVM.Common.Orphans()
@@ -32,26 +27,22 @@ import           GHC.Generics
 
 type Bytes = BS.ByteString
 
--- | bytestring is 32 bytes
-data FlowchartEntryBlock = FlowchartEntryBlock Bytes [FlowchartEntry] deriving (Eq, Show, Generic)
+data PakHeader = PakHeader Word32 [PakHeaderFTE] deriving (Eq, Show, Generic)
+data PakHeaderFTE = PakHeaderFTE Word32 Word32 Bytes deriving (Eq, Show, Generic)
 
--- | 1st bytestring is 64 bytes, 2nd is 32 bytes. Null-packed to end.
-data FlowchartEntry = FlowchartEntry Word32 Word32 Bytes Bytes deriving (Eq, Show, Generic)
+pPakHeader
+    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m PakHeader
+pPakHeader = do
+    numEntries <- pW32
+    unkW32 <- pW32
+    filetable <- count (fromIntegral numEntries) pPakHeaderFTE
+    return $ PakHeader unkW32 filetable
 
-pFlowchart
-    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m [FlowchartEntryBlock]
-pFlowchart = many pFlowchartEntryBlock <* eof
+pPakHeaderFTE
+    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m PakHeaderFTE
+pPakHeaderFTE = PakHeaderFTE <$> pW32 <*> pW32 <*> pBSTextFixed 0x18
 
-pFlowchartEntryBlock
-    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m FlowchartEntryBlock
-pFlowchartEntryBlock = pNullPadTo p 2116
-  where p = FlowchartEntryBlock <$> pBSTextFixed 32 <*> pCount pW32 pFlowchartEntry
-
-pFlowchartEntry
-    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m FlowchartEntry
-pFlowchartEntry =
-    FlowchartEntry <$> pW32 <*> pW32 <*> pBSTextFixed 64 <*> pBSTextFixed 32
-
+{-
 sFlowchart :: MonadReader BinaryCfg m => [FlowchartEntryBlock] -> m Bytes
 sFlowchart = serialize bFlowchart
 
@@ -60,11 +51,11 @@ bFlowchart = concatM . fmap bFlowchartEntryBlock
 
 bFlowchartEntryBlock :: MonadReader BinaryCfg m => FlowchartEntryBlock -> m Builder
 bFlowchartEntryBlock (FlowchartEntryBlock bs1 entries) = bNullPadTo b 2116
-  where b = concatM [bBSNullPadTo bs1 32, bCount bW32 bFlowchartEntry entries]
+  where b = concatM [bBSFixedNullPadded bs1 32, bCount bW32 bFlowchartEntry entries]
 
 bFlowchartEntry :: MonadReader BinaryCfg m => FlowchartEntry -> m Builder
 bFlowchartEntry (FlowchartEntry u1 u2 bs1 bs2) =
-    concatM [bW32 u1, bW32 u2, bBSNullPadTo bs1 64, bBSNullPadTo bs2 32]
+    concatM [bW32 u1, bW32 u2, bBSFixedNullPadded bs1 64, bBSFixedNullPadded bs2 32]
 
 --------------------------------------------------------------------------------
 
@@ -111,3 +102,4 @@ instance ToJSON FlowchartEntryBlock
 instance ToJSON FlowchartEntry
 instance FromJSON FlowchartEntryBlock
 instance FromJSON FlowchartEntry
+-}

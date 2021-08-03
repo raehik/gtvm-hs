@@ -1,5 +1,8 @@
 # To-dos
 ## Tools
+### `sound_se.pak`
+  * Use Megaparsec to parse file table, then use to grab bytes manually.
+
 ### MDL
   * [x] Start on. Look at parsing them.
 
