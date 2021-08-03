@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module GTVM.Common.Orphans where
 
 import           Data.Aeson

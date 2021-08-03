@@ -1,6 +1,4 @@
-{-# LANGUAGE TemplateHaskell    #-}
-{-# LANGUAGE DerivingVia        #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Config where
 
@@ -49,29 +47,17 @@ data TGSL01Cfg = TGSL01Cfg
   { _tgSL01CfgBinIO :: CfgBinIO
   } deriving (Eq, Show)
 
-makeLenses ''TGFlowchartCfg
-makeLenses ''TGSCPCfg
-makeLenses ''TGSL01Cfg
-makeLenses ''CfgBinJSON
-makeLenses ''CfgBinIO
+makeClassy ''TGFlowchartCfg
+makeClassy ''TGSCPCfg
+makeClassy ''TGSL01Cfg
+makeClassy ''CfgBinJSON
+makeClassy ''CfgBinIO
 
-class HasCfgBinIO a where
-    getCfgBinIO :: a -> CfgBinIO
+instance HasCfgBinIO CfgBinJSON where
+    cfgBinIO = cfgBinJSONCfgBinIO
 
-instance HasCfgBinIO CfgBinIO where
-    getCfgBinIO = id
-
-class HasCfgBinJSON a where
-    getCfgBinJSON :: a -> CfgBinJSON
-
-newtype Wrap a = Wrap { unwrap :: a }
-instance HasCfgBinJSON a => HasCfgBinIO (Wrap a) where
-    getCfgBinIO = _cfgBinJSONCfgBinIO . getCfgBinJSON . unwrap
-
-instance HasCfgBinJSON CfgBinJSON where
-    getCfgBinJSON = id
 instance HasCfgBinJSON TGFlowchartCfg where
-    getCfgBinJSON = _tgFlowchartCfgBinJSON
+    cfgBinJSON = tgFlowchartCfgBinJSON
 
-deriving via (Wrap CfgBinJSON) instance HasCfgBinIO CfgBinJSON
-deriving via (Wrap TGFlowchartCfg) instance HasCfgBinIO TGFlowchartCfg
+instance HasCfgBinIO TGFlowchartCfg where
+    cfgBinIO = cfgBinJSON . cfgBinIO

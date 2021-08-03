@@ -60,6 +60,7 @@ executable gtvm-hs
   other-modules:
       CLI
       Config
+      Util
       Paths_gtvm_hs
   hs-source-dirs:
       app
