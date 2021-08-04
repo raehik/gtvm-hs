@@ -1,3 +1,8 @@
+## 0.4.0 (2021-08-04)
+  * CLI: partial redesign (internals overhauled)
+  * add `SL01` LZO1x en/decoding tool (output not tested in game)
+  * add initial `sound_se.pak` pack/unpack support (output not tested in game)
+
 ## 0.3.0 (2021-08-02)
 Release primarily to ensure the latest version displayed on GitHub has the
 correct executable name (`gtvm-hs`, not `gtvm`).
