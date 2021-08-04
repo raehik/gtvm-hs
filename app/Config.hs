@@ -12,42 +12,21 @@ data CStream
   | CStreamStd
     deriving (Eq, Show)
 
-cStreamCaseFileStd :: (FilePath -> a) -> a -> CStream -> a
-cStreamCaseFileStd sFile sStd = \case
-  CStreamFile fp -> sFile fp
-  CStreamStd     -> sStd
-
 data CStreams
   = CStreamsFolder FilePath
   | CStreamsArchive FilePath
     deriving (Eq, Show)
-
-cStreamsCaseFolderArchive :: (FilePath -> a) -> (FilePath -> a) -> CStreams -> a
-cStreamsCaseFolderArchive ssFolder ssArchive = \case
-  CStreamsFolder  fp -> ssFolder fp
-  CStreamsArchive fp -> ssArchive fp
 
 data CDirection
   = CDirectionFromOrig
   | CDirectionToOrig
     deriving (Eq, Show)
 
-cDirectionCaseFromTo :: a -> a -> CDirection -> a
-cDirectionCaseFromTo from to = \case
-  CDirectionFromOrig -> from
-  CDirectionToOrig   -> to
-
 -- | one stream -> one stream
 data CBin = CBin
-  { _cBinCDirection  :: CDirection
-  , _cBinCStreamFrom :: CStream
-  , _cBinCStreamTo   :: CStream
+  { _cBinCDirection     :: CDirection
+  , _cBinCStream2       :: (CStream, CStream)
   , _cBinAllowBinStdout :: Bool
-  } deriving (Eq, Show)
-
-data CJSON = CJSON
-  { _cJSONCBin     :: CBin
-  , _cJSONPrettify :: Bool
   } deriving (Eq, Show)
 
 data CParseType
@@ -73,3 +52,10 @@ data CS1N = CS1N
   { _cS1N1 :: CStream
   , _cS1NN :: CStreams
   } deriving (Eq, Show)
+
+data CJSON
+  = CJSONDe (CStream, CStream) Bool
+  -- ^ bool = prettify
+  | CJSONEn (CStream, CStream) Bool
+  -- ^ bool = print binary to stdout
+    deriving (Eq, Show)

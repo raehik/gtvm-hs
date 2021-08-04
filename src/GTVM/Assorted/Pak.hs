@@ -20,12 +20,9 @@ import           Data.Void
 import           Data.Word
 import           Control.Monad.Reader
 import           Control.Monad.State
-import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import           Data.Text (Text)
-import           Control.Monad.State
 
-import           Data.Aeson
 import           GHC.Generics
 
 -- TODO: maybe parse trailing stuff (nulls?) between file table and files

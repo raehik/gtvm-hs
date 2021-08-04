@@ -1,62 +1,41 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Main where
+module Main (main) where
 
 import           Config
-import           CLI
-import           Util
+import qualified CLI as CLI
 
-import qualified GTVM.Assorted.Flowchart as GAFc
-import qualified GTVM.Assorted.SL01      as GAS
-import qualified GTVM.Assorted.Pak       as GAP
-import qualified GTVM.Common.Binary.Util as GCBU
+import qualified GTVM.Assorted.SL01       as GAS
+import qualified GTVM.Assorted.Flowchart  as GAFc
+import qualified GTVM.Assorted.Pak        as GAP
 import qualified GTVM.Common.Binary.Parse as GCBP
-import qualified GTVM.Common.Binary      as GCB
-import qualified GTVM.SCP.Parse          as GSP
-import qualified GTVM.SCP.Serialize      as GSS
+import qualified GTVM.Common.Binary       as GCB
+import qualified GTVM.SCP.Parse           as GSP
+import qualified GTVM.SCP.Serialize       as GSS
 
 import qualified Data.Aeson               as Aeson
 import qualified Data.Aeson.Encode.Pretty as DAEP
 import qualified Data.ByteString.Lazy     as BL
 import qualified Data.ByteString          as BS
-import qualified Data.ByteString.Char8    as BSC
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import           Data.Text                (Text)
 import qualified Data.List                as List
 
-import           Control.Monad ( mapM )
 import           Control.Monad.IO.Class
-import           Control.Monad.Reader
-import           Control.Lens
 
-import           System.IO ( stderr, hPutStrLn )
 import qualified System.FilePath.Find as Filemanip
 
-import           Text.Megaparsec ( ParsecT, ShowErrorComponent )
 
 main :: IO ()
-main = parseCLIOpts >>= runCmd
+main = CLI.parseOpts >>= runCmd
 
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
   TGSCP cfg  -> runCmdSCP cfg
   TGSL01 cfg -> runCmdSL01 cfg
-  -- TGFlowchart cfg parseType -> runCmdFlowchart cfg parseType
+  TGFlowchart cfg parseType -> runCmdFlowchart cfg parseType
   TGPak cfg  -> runCmdPak cfg
-
-runCmdSCP :: MonadIO m => CJSON -> m ()
-runCmdSCP c = readBytes >>= writeBytes
-  where
-    readBytes = rReadBytes fromOrig cSFrom cDir
-    writeBytes = rWriteStreamFromBinToText cDir cPrintStdout cSTo
-    fromOrig fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
-    cPrettify = _cJSONPrettify c
-    cBin = _cJSONCBin c
-    cDir = _cBinCDirection cBin
-    cPrintStdout = _cBinAllowBinStdout cBin
-    cSFrom = _cBinCStreamFrom cBin
-    cSTo   = _cBinCStreamTo cBin
 
 runCmdSL01 :: MonadIO m => CBin -> m ()
 runCmdSL01 c = readBytes cDir >>= writeBytes
@@ -72,8 +51,7 @@ runCmdSL01 c = readBytes cDir >>= writeBytes
         return $ GAS.decompress sl01
     cDir = _cBinCDirection c
     cPrintStdout = _cBinAllowBinStdout c
-    cSFrom = _cBinCStreamFrom c
-    cSTo   = _cBinCStreamTo c
+    (cSFrom, cSTo) = _cBinCStream2 c
 
 runCmdPak :: (MonadIO m) => CPak -> m ()
 runCmdPak c =
@@ -81,12 +59,12 @@ runCmdPak c =
       CDirectionFromOrig -> do
         pak <- rParseStream parseAndExtract (_cS1N1 cS1N)
         case _cS1NN cS1N of
-          CStreamsArchive fp -> error "unimplemented: write pak to archive"
-          CStreamsFolder fp  -> rWritePakFolder pak fp
+          CStreamsArchive fp -> error $ "unimplemented: write pak to archive: " <> fp
+          CStreamsFolder  fp -> rWritePakFolder pak fp
       CDirectionToOrig   -> do
         case _cS1NN cS1N of
-          CStreamsArchive fp -> error "unimplemented: write pak from archive"
-          CStreamsFolder fp  -> do
+          CStreamsArchive fp -> error $ "unimplemented: write pak from archive: " <> fp
+          CStreamsFolder  fp -> do
             files <- liftIO $ getDirContentsWithFilenameRecursive fp
             let unk = 0x00200020 -- TODO magic number
                 pak = GAP.Pak unk files
@@ -113,26 +91,6 @@ getDirContentsWithFilenameRecursive fp = do
 
 pakExtract :: BS.ByteString -> GAP.PakHeader -> GAP.Pak
 pakExtract bs (GAP.PakHeader unk ft) = GAP.Pak unk (pakExtractFile bs <$> ft)
-
-rReadBytes
-    :: MonadIO m
-    => (FilePath -> BS.ByteString -> Either String BS.ByteString)
-    -> CStream -> CDirection -> m BS.ByteString
-rReadBytes parser cSFrom = \case
-  CDirectionFromOrig -> rParseStream parser cSFrom
-  CDirectionToOrig   -> rReadStream cSFrom
-
--- | Write bytes to the given stream, choosing whether to use a text or byte
---   print approach depending on 'CDirection'.
---
--- Intended for printing results from orig binary<->text processes. Bin->text
--- means we can always print to stdout; text->bin means we check a flag before
--- printing to stdout.
-rWriteStreamFromBinToText :: MonadIO m => CDirection -> Bool -> CStream -> BS.ByteString -> m ()
-rWriteStreamFromBinToText dir printStdout =
-    case dir of
-      CDirectionFromOrig -> rWriteStreamBin True
-      CDirectionToOrig   -> rWriteStreamBin printStdout
 
 rWriteStreamBin :: MonadIO m => Bool -> CStream -> BS.ByteString -> m ()
 rWriteStreamBin printStdout s bs =
@@ -186,108 +144,53 @@ rReadStream = \case
   CStreamFile fp -> liftIO $ BS.readFile fp
   CStreamStd     -> liftIO $ BS.getContents
 
--- | Includes the filepath (to use in debug info).
-rProcessStream' :: MonadIO m => (FilePath -> BS.ByteString -> a) -> CStream -> m a
-rProcessStream' p = \case
-  CStreamFile fp -> p fp <$> liftIO (BS.readFile fp)
-  CStreamStd     -> p "" <$> liftIO BS.getContents
-
-rProcessStream :: MonadIO m => (BS.ByteString -> a) -> CStream -> m a
-rProcessStream p = \case
-  CStreamFile fp -> p <$> liftIO (BS.readFile fp)
-  CStreamStd     -> p <$> liftIO BS.getContents
-
---------------------------------------------------------------------------------
-
-{-
-
-rParseFile
-    :: (MonadReader env m, HasCfgBinIO env, MonadIO m, ShowErrorComponent e)
-    => GCB.BinaryCfg
-    -> (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
-    -> m (Either String a)
-rParseFile cfg p = do
-    fp <- asks' $ cfgBinIO . cfgBinIOFilepath
-    GCBU.runParserBinFile p fp cfg
-
-rParseFile'
-    :: (MonadReader env m, HasCfgBinIO env, MonadIO m, ShowErrorComponent e)
-    => (ParsecT e BS.ByteString (Reader GCB.BinaryCfg) a)
-    -> m (Either String a)
-rParseFile' = rParseFile GCB.binCfgSCP
-
-rBinOutputBytes
-    :: (MonadReader env m, HasCfgBinIO env, MonadIO m)
-    => BL.ByteString -> m ()
-rBinOutputBytes bs = do
-    cfg <- asks' cfgBinIO
-    case _cfgBinIOOutFilepath cfg of
-      Just outFp -> liftIO $ BL.writeFile outFp bs
-      Nothing -> do
-        if   _cfgBinIODirection cfg == ActionDirectionDecode
-        then liftIO $ BL.putStr bs >> putStrLn ""
-        else
-            case _cfgBinIOAllowBinaryOnStdout cfg of
-              True -> liftIO $ BL.putStr bs
-              False -> do
-                liftIO $ putStrLn "warning: refusing to print binary to stdout"
-                liftIO $ putStrLn "(write to a file with --write-file FILE, or use --print-binary flag to override)"
-
-rBinDecodeJsonAndReserialize
-    :: (MonadReader env m, HasCfgBinJSON env, MonadIO m, Aeson.FromJSON a)
-    => (a -> BS.ByteString) -> m BS.ByteString
-rBinDecodeJsonAndReserialize serialize = do
-    cfg <- asks' $ cfgBinJSON . cfgBinIO
-    let fp = _cfgBinIOFilepath cfg
-    bytes <- liftIO $ BL.readFile fp
-    case Aeson.eitherDecode bytes of
-      Left err      -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
-      Right decoded -> return $ serialize decoded
-
-rEncodeJSON
-    :: (MonadReader env m, HasCfgBinJSON env, MonadIO m, Aeson.ToJSON a)
-    => a -> m BL.ByteString
-rEncodeJSON a = do
-    cfg <- asks' cfgBinJSON
-    if   _cfgBinJSONPrettify cfg
-    then return $ DAEP.encodePretty' prettyCfg a
-    else return $ Aeson.encode a
-  where prettyCfg = DAEP.defConfig { DAEP.confIndent = DAEP.Spaces 2 }
-
-runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
-runCmdFlowchartDecode = do
-    lexed <- rParseFile' GAFc.pFlowchart
-    case lexed of
-      Left err      -> liftIO (putStr err) >> error "fuck"
-      Right lexed' -> do
-        ty <- asks' tgFlowchartCfgType
-        case ty of
-          CfgFlowchartTypeParse -> do
-            let parsed = GAFc.fcToAltFc lexed'
-            rEncodeJSON parsed
-          CfgFlowchartTypeLex -> rEncodeJSON lexed'
-
-runCmdFlowchartEncode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BS.ByteString
-runCmdFlowchartEncode = do
-    liftIO $ hPutStrLn stderr "Ignoring flowchart type SRY"
-    rBinDecodeJsonAndReserialize $ \fc -> GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
-
-rBinActionAndOutput
-    :: (MonadReader env m, HasCfgBinIO env, MonadIO m)
-    => m BL.ByteString -> m BL.ByteString -> m ()
-rBinActionAndOutput fDe fEn = do
-    cfg <- asks' cfgBinIO
-    case _cfgBinIODirection cfg of
-      ActionDirectionDecode -> fDe >>= rBinOutputBytes
-      ActionDirectionEncode -> fEn >>= rBinOutputBytes
-
-runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
-runCmdFlowchart = rBinActionAndOutput fDe fEn
+runCmdSCP :: MonadIO m => CJSON -> m ()
+runCmdSCP = \case
+  CJSONDe (cSFrom, cSTo) cPrettify -> do
+    bs <- rParseStream (fromOrig cPrettify) cSFrom
+    rWriteStreamBin True cSTo bs
+  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+    bs <- rReadStream cSFrom
+    case Aeson.eitherDecode (BL.fromStrict bs) of
+      Left  err -> liftIO $ putStrLn $ "error during JSON decoding: " <> err
+      Right scp ->
+        let scpBytes = GSS.sSCP scp GCB.binCfgSCP
+         in rWriteStreamBin cPrintStdout cSTo scpBytes
   where
-    fDe = runCmdFlowchartDecode
-    fEn = BL.fromStrict <$> runCmdFlowchartEncode
+    fromOrig cPrettify fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
 
--}
+runCmdFlowchart :: (MonadIO m) => CJSON -> CParseType -> m ()
+runCmdFlowchart c parseType =
+    case c of
+      CJSONDe (cSFrom, cSTo) cPrettify -> do
+        bs <- rParseStream (fromOrig cPrettify) cSFrom
+        rWriteStreamBin True cSTo bs
+      CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+        bs <- rReadStream cSFrom
+        let bs' = rParseJSONWithParseType fromFullParsed fromPartParsed parseType (BL.fromStrict bs)
+        rWriteStreamBin cPrintStdout cSTo bs'
+  where
+    fromOrig cPrettify fp bs = do
+        fc <- GCBP.parseBin GAFc.pFlowchart GCB.binCfgSCP fp bs
+        case parseType of
+          CParseTypeFull    -> return $ rEncodeJSON cPrettify (GAFc.fcToAltFc fc)
+          CParseTypePartial -> return $ rEncodeJSON cPrettify fc
+    fromFullParsed fc = GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
+    fromPartParsed fc = GAFc.sFlowchart fc GCB.binCfgSCP
+
+rParseJSONWithParseType
+    :: (Aeson.FromJSON a, Aeson.FromJSON b)
+    => (a -> c) -> (b -> c) -> CParseType -> BL.ByteString -> c
+rParseJSONWithParseType fFull fPart parseType bs =
+    case parseType of
+      CParseTypeFull    ->
+        case Aeson.eitherDecode bs of
+          Left err      -> error $ "JSON decoding error: " <> err
+          Right decoded -> fFull decoded
+      CParseTypePartial ->
+        case Aeson.eitherDecode bs of
+          Left err      -> error $ "JSON decoding error: " <> err
+          Right decoded -> fPart decoded
 
 pakExtractFile :: BS.ByteString -> GAP.PakHeaderFTE -> (Text, BS.ByteString)
 pakExtractFile bs (GAP.PakHeaderFTE offset len filenameBS) =
