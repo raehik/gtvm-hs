@@ -34,11 +34,12 @@ data CParseType
   | CParseTypePartial
     deriving (Eq, Show)
 
-data CPak = CPak
-  { _cPakCDirection :: CDirection
-  , _cPakCS1N       :: CS1N
-  , _cPakAllowBinStdout :: Bool
-  } deriving (Eq, Show)
+data CPak
+  = CPakUnpack CS1N Bool
+  -- ^ bool = print binary to stdout
+  | CPakPack CS1N Bool
+  -- ^ bool = print binary to stdout
+    deriving (Eq, Show)
 
 -- This was fun to recognise. With previous commands being 1<->1, I could keep
 -- both on hand and use the same help text, swapping "how they're used" on the

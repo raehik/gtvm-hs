@@ -54,29 +54,26 @@ runCmdSL01 c = readBytes cDir >>= writeBytes
     (cSFrom, cSTo) = _cBinCStream2 c
 
 runCmdPak :: (MonadIO m) => CPak -> m ()
-runCmdPak c =
-    case _cPakCDirection c of
-      CDirectionFromOrig -> do
-        pak <- rParseStream parseAndExtract (_cS1N1 cS1N)
-        case _cS1NN cS1N of
-          CStreamsArchive fp -> error $ "unimplemented: write pak to archive: " <> fp
-          CStreamsFolder  fp -> rWritePakFolder pak fp
-      CDirectionToOrig   -> do
-        case _cS1NN cS1N of
-          CStreamsArchive fp -> error $ "unimplemented: write pak from archive: " <> fp
-          CStreamsFolder  fp -> do
-            files <- liftIO $ getDirContentsWithFilenameRecursive fp
-            let unk = 0x00200020 -- TODO magic number
-                pak = GAP.Pak unk files
-                pakBytes = GAP.sPak pak GCB.binCfgSCP
-            rWriteStreamBin cPrintStdout (_cS1N1 cS1N) pakBytes
+runCmdPak = \case
+  CPakUnpack (CS1N cS1 cSN) _ -> do
+    pak <- rParseStream parseAndExtract cS1
+    case cSN of
+      CStreamsArchive fp -> error $ "unimplemented: write pak to archive: " <> fp
+      CStreamsFolder  fp -> rWritePakFolder pak fp
+  CPakPack   (CS1N cS1 cSN) cPrintStdout -> do
+    case cSN of
+      CStreamsArchive fp -> error $ "unimplemented: write pak from archive: " <> fp
+      CStreamsFolder  fp -> do
+        files <- liftIO $ getDirContentsWithFilenameRecursive fp
+        let unk = 0x00200020 -- TODO magic number
+            pak = GAP.Pak unk files
+            pakBytes = GAP.sPak pak GCB.binCfgSCP
+        rWriteStreamBin cPrintStdout cS1 pakBytes
   where
     parseAndExtract :: FilePath -> BS.ByteString -> Either String GAP.Pak
     parseAndExtract fp bs = do
         pakHeader <- GCBP.parseBin GAP.pPakHeader GCB.binCfgSCP fp bs
         return $ pakExtract bs pakHeader
-    cS1N = _cPakCS1N c
-    cPrintStdout = _cPakAllowBinStdout c
 
 -- Only gets stuff with content (files).
 getDirContentsWithFilenameRecursive :: FilePath -> IO [(Text, BS.ByteString)]

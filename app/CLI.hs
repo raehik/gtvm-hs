@@ -69,8 +69,8 @@ pCS1N d1 d2 = CS1N <$> pCStream d1 <*> pCStreams d2
 
 pCPak :: Parser CPak
 pCPak = hsubparser $
-    command "unpack" (info (CPak <$> pure CDirectionFromOrig <*> pCS1N CDirectionFromOrig CDirectionToOrig <*> pAllowBinStdout) (progDesc "Unpack archive."))
-    <> command "pack" (info (CPak <$> pure CDirectionToOrig <*> pCS1N CDirectionToOrig CDirectionFromOrig <*> pAllowBinStdout) (progDesc "Pack archive."))
+       command "unpack" (info (CPakUnpack <$> pCS1N CDirectionFromOrig CDirectionToOrig <*> pAllowBinStdout) (progDesc "Unpack a pak archive."))
+    <> command "pack"   (info (CPakPack   <$> pCS1N CDirectionToOrig CDirectionFromOrig <*> pAllowBinStdout) (progDesc "Pack files to a pak archive."))
 
 pCJSON :: String -> Parser CJSON
 pCJSON noun = hsubparser $
