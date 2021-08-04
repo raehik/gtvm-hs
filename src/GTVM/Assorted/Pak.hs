@@ -1,3 +1,7 @@
+-- | Not implemented: it looks like the game has built-in SL01 deserializing for
+--   paks. They should be separate in this tool, but I could provide some handy
+--   dandy connectors ("compress and archive", "dearchive and decompress").
+
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric    #-}
@@ -57,7 +61,8 @@ bPak (Pak unk files) = do
     return $ bHeaderPadded <> bFs
   where
     -- Guessing that the 0x18 null pad between the file table and contents is
-    -- for 0x20 blocking. At any rate, it reserializes the original to the byte.
+    -- for 0x20 blocking. At any rate, it reserializes the original to the byte,
+    -- and appears to work for repacking with no issues.
     totalFTSize = nextMultiple blockTo (0x08 + (length files * 0x20))
     blockTo = 0x20
     go = \case
