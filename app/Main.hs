@@ -10,6 +10,7 @@ import qualified GTVM.Assorted.Flowchart as GAFc
 import qualified GTVM.Assorted.SL01      as GAS
 import qualified GTVM.Assorted.Pak       as GAP
 import qualified GTVM.Common.Binary.Util as GCBU
+import qualified GTVM.Common.Binary.Parse as GCBP
 import qualified GTVM.Common.Binary      as GCB
 import qualified GTVM.SCP.Parse          as GSP
 import qualified GTVM.SCP.Serialize      as GSS
@@ -18,15 +19,19 @@ import qualified Data.Aeson               as Aeson
 import qualified Data.Aeson.Encode.Pretty as DAEP
 import qualified Data.ByteString.Lazy     as BL
 import qualified Data.ByteString          as BS
+import qualified Data.ByteString.Char8    as BSC
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import           Data.Text                (Text)
+import qualified Data.List                as List
 
+import           Control.Monad ( mapM )
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader
 import           Control.Lens
 
 import           System.IO ( stderr, hPutStrLn )
+import qualified System.FilePath.Find as Filemanip
 
 import           Text.Megaparsec ( ParsecT, ShowErrorComponent )
 
@@ -35,85 +40,166 @@ main = parseCLIOpts >>= runCmd
 
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
-  TGSCP (TGSCPCfg cfg) -> runReaderT runCmdSCP cfg
-  TGSL01 (TGSL01Cfg cfg) -> runReaderT runCmdSL01 cfg
-  TGFlowchart cfg -> runReaderT runCmdFlowchart cfg
-  TGPak cfg -> runReaderT runCmdPak cfg
+  TGSCP cfg  -> runCmdSCP cfg
+  TGSL01 cfg -> runCmdSL01 cfg
+  -- TGFlowchart cfg parseType -> runCmdFlowchart cfg parseType
+  TGPak cfg  -> runCmdPak cfg
 
-runCmdSL01 :: (MonadReader env m, HasCfgBinIO env, MonadIO m) => m ()
-runCmdSL01 = rBinActionAndOutput fDe fEn
+runCmdSCP :: MonadIO m => CJSON -> m ()
+runCmdSCP c = readBytes >>= writeBytes
   where
-    fDe = do
-        rParseFile' GAS.pSL01 >>= \case
-          Left err     -> liftIO (putStr err) >> error "fuck"
-          Right parsed -> return . BL.fromStrict . GAS.decompress $ parsed
-    fEn = do
-        cfg <- asks' cfgBinIO
-        let fp = _cfgBinIOFilepath cfg
-        bytes <- liftIO $ BL.readFile fp
-        let sl01 = GAS.compress (BL.toStrict bytes)
-            sl01Bytes = GAS.sSL01 sl01 GCB.binCfgSCP
-        return (BL.fromStrict sl01Bytes)
+    readBytes = rReadBytes fromOrig cSFrom cDir
+    writeBytes = rWriteStreamFromBinToText cDir cPrintStdout cSTo
+    fromOrig fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
+    cPrettify = _cJSONPrettify c
+    cBin = _cJSONCBin c
+    cDir = _cBinCDirection cBin
+    cPrintStdout = _cBinAllowBinStdout cBin
+    cSFrom = _cBinCStreamFrom cBin
+    cSTo   = _cBinCStreamTo cBin
 
-rBinActionAndOutput
-    :: (MonadReader env m, HasCfgBinIO env, MonadIO m)
-    => m BL.ByteString -> m BL.ByteString -> m ()
-rBinActionAndOutput fDe fEn = do
-    cfg <- asks' cfgBinIO
-    case _cfgBinIODirection cfg of
-      ActionDirectionDecode -> fDe >>= rBinOutputBytes
-      ActionDirectionEncode -> fEn >>= rBinOutputBytes
-
-runCmdSCP :: (MonadReader CfgBinJSON m, MonadIO m) => m ()
-runCmdSCP = rBinActionAndOutput fDe fEn
+runCmdSL01 :: MonadIO m => CBin -> m ()
+runCmdSL01 c = readBytes cDir >>= writeBytes
   where
-    fDe = runCmdScpDecode
-    fEn = BL.fromStrict <$> runCmdScpEncode
+    readBytes = \case
+      CDirectionFromOrig -> rParseStream fromOrig cSFrom
+      CDirectionToOrig   -> do
+        bytes <- rReadStream cSFrom
+        return $ GAS.sSL01 (GAS.compress bytes) GCB.binCfgSCP
+    writeBytes = rWriteStreamBin cPrintStdout cSTo
+    fromOrig fp bs = do
+        sl01 <- GCBP.parseBin GAS.pSL01 GCB.binCfgSCP fp bs
+        return $ GAS.decompress sl01
+    cDir = _cBinCDirection c
+    cPrintStdout = _cBinAllowBinStdout c
+    cSFrom = _cBinCStreamFrom c
+    cSTo   = _cBinCStreamTo c
 
-runCmdScpDecode :: (MonadReader CfgBinJSON m, MonadIO m) => m BL.ByteString
-runCmdScpDecode = do
-    rParseFile' GSP.pSCP >>= \case
-      Left err     -> liftIO (putStr err) >> error "fuck"
-      Right parsed -> rEncodeJSON parsed
-
-runCmdScpEncode :: (MonadReader CfgBinJSON m, MonadIO m) => m BS.ByteString
-runCmdScpEncode = rBinDecodeJsonAndReserialize (flip GSS.sSCP GCB.binCfgSCP)
-
-runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
-runCmdFlowchart = rBinActionAndOutput fDe fEn
+runCmdPak :: (MonadIO m) => CPak -> m ()
+runCmdPak c =
+    case _cPakCDirection c of
+      CDirectionFromOrig -> do
+        pak <- rParseStream parseAndExtract (_cS1N1 cS1N)
+        case _cS1NN cS1N of
+          CStreamsArchive fp -> error "unimplemented: write pak to archive"
+          CStreamsFolder fp  -> rWritePakFolder pak fp
+      CDirectionToOrig   -> do
+        case _cS1NN cS1N of
+          CStreamsArchive fp -> error "unimplemented: write pak from archive"
+          CStreamsFolder fp  -> do
+            files <- liftIO $ getDirContentsWithFilenameRecursive fp
+            let unk = 0x00200020 -- TODO magic number
+                pak = GAP.Pak unk files
+                pakBytes = GAP.sPak pak GCB.binCfgSCP
+            rWriteStreamBin cPrintStdout (_cS1N1 cS1N) pakBytes
   where
-    fDe = runCmdFlowchartDecode
-    fEn = BL.fromStrict <$> runCmdFlowchartEncode
+    parseAndExtract :: FilePath -> BS.ByteString -> Either String GAP.Pak
+    parseAndExtract fp bs = do
+        pakHeader <- GCBP.parseBin GAP.pPakHeader GCB.binCfgSCP fp bs
+        return $ pakExtract bs pakHeader
+    cS1N = _cPakCS1N c
+    cPrintStdout = _cPakAllowBinStdout c
 
-runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
-runCmdFlowchartDecode = do
-    lexed <- rParseFile' GAFc.pFlowchart
-    case lexed of
-      Left err      -> liftIO (putStr err) >> error "fuck"
-      Right lexed' -> do
-        ty <- asks' tgFlowchartCfgType
-        case ty of
-          CfgFlowchartTypeParse -> do
-            let parsed = GAFc.fcToAltFc lexed'
-            rEncodeJSON parsed
-          CfgFlowchartTypeLex -> rEncodeJSON lexed'
+-- Only gets stuff with content (files).
+getDirContentsWithFilenameRecursive :: FilePath -> IO [(Text, BS.ByteString)]
+getDirContentsWithFilenameRecursive fp = do
+    fileList <- Filemanip.find (pure True) (Filemanip.fileType Filemanip.==? Filemanip.RegularFile) fp
+    mapM f fileList
+  where
+    f fp' = do
+        bs <- BS.readFile fp'
+        let Just fp'' = List.stripPrefix (fp <> "/") fp'
+        return (Text.pack fp'', bs)
 
-runCmdFlowchartEncode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BS.ByteString
-runCmdFlowchartEncode = do
-    liftIO $ hPutStrLn stderr "Ignoring flowchart type SRY"
-    rBinDecodeJsonAndReserialize $ \fc -> GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
+pakExtract :: BS.ByteString -> GAP.PakHeader -> GAP.Pak
+pakExtract bs (GAP.PakHeader unk ft) = GAP.Pak unk (pakExtractFile bs <$> ft)
 
-rEncodeJSON
-    :: (MonadReader env m, HasCfgBinJSON env, MonadIO m, Aeson.ToJSON a)
-    => a -> m BL.ByteString
-rEncodeJSON a = do
-    cfg <- asks' cfgBinJSON
-    if   _cfgBinJSONPrettify cfg
-    then return $ DAEP.encodePretty' prettyCfg a
-    else return $ Aeson.encode a
-  where prettyCfg = DAEP.defConfig { DAEP.confIndent = DAEP.Spaces 2 }
+rReadBytes
+    :: MonadIO m
+    => (FilePath -> BS.ByteString -> Either String BS.ByteString)
+    -> CStream -> CDirection -> m BS.ByteString
+rReadBytes parser cSFrom = \case
+  CDirectionFromOrig -> rParseStream parser cSFrom
+  CDirectionToOrig   -> rReadStream cSFrom
+
+-- | Write bytes to the given stream, choosing whether to use a text or byte
+--   print approach depending on 'CDirection'.
+--
+-- Intended for printing results from orig binary<->text processes. Bin->text
+-- means we can always print to stdout; text->bin means we check a flag before
+-- printing to stdout.
+rWriteStreamFromBinToText :: MonadIO m => CDirection -> Bool -> CStream -> BS.ByteString -> m ()
+rWriteStreamFromBinToText dir printStdout =
+    case dir of
+      CDirectionFromOrig -> rWriteStreamBin True
+      CDirectionToOrig   -> rWriteStreamBin printStdout
+
+rWriteStreamBin :: MonadIO m => Bool -> CStream -> BS.ByteString -> m ()
+rWriteStreamBin printStdout s bs =
+    case s of
+      CStreamFile fp -> liftIO $ BS.writeFile fp bs
+      CStreamStd     ->
+        case printStdout of
+          True -> liftIO $ BS.putStr bs
+          False -> do
+            liftIO $ putStrLn "warning: refusing to print binary to stdout"
+            liftIO $ putStrLn "(write to a file with --out-file FILE, or use --print-binary flag to override)"
+
+rEncodeJSON :: Aeson.ToJSON a => Bool -> a -> BS.ByteString
+rEncodeJSON prettify =
+    case prettify of
+      True  -> BL.toStrict . DAEP.encodePretty' prettyCfg
+      False -> BL.toStrict . Aeson.encode
+  where
+    prettyCfg = DAEP.defConfig
+      { DAEP.confIndent = DAEP.Spaces 2
+      , DAEP.confTrailingNewline = True }
+
+-- TODO: bad error...
+rParseStream :: MonadIO m => (FilePath -> BS.ByteString -> Either String a) -> CStream -> m a
+rParseStream f s = do
+    getStream s >>= \case
+      Left  err -> liftIO (putStr err) >> error "fuck"
+      Right out -> return out
+  where
+    getStream = \case
+      CStreamFile fp -> f fp        <$> liftIO (BS.readFile fp)
+      CStreamStd     -> f "<stdin>" <$> liftIO BS.getContents
 
 --------------------------------------------------------------------------------
+
+rWritePakFolder :: MonadIO m => GAP.Pak -> FilePath -> m ()
+rWritePakFolder (GAP.Pak _ files) fp =
+    let files' = map (\(a, b) -> (Text.unpack a, b)) files
+     in liftIO $ rWriteFilesToFolder fp files'
+
+rWriteFilesToFolder :: MonadIO m => FilePath -> [(FilePath, BS.ByteString)] -> m ()
+rWriteFilesToFolder folder = mapM_ f
+  where
+    f (filename, bytes) = do
+        let fp = folder <> "/" <> filename
+        liftIO $ putStrLn $ "writing file: " <> fp
+        liftIO $ BS.writeFile fp bytes
+
+rReadStream :: MonadIO m => CStream -> m BS.ByteString
+rReadStream = \case
+  CStreamFile fp -> liftIO $ BS.readFile fp
+  CStreamStd     -> liftIO $ BS.getContents
+
+-- | Includes the filepath (to use in debug info).
+rProcessStream' :: MonadIO m => (FilePath -> BS.ByteString -> a) -> CStream -> m a
+rProcessStream' p = \case
+  CStreamFile fp -> p fp <$> liftIO (BS.readFile fp)
+  CStreamStd     -> p "" <$> liftIO BS.getContents
+
+rProcessStream :: MonadIO m => (BS.ByteString -> a) -> CStream -> m a
+rProcessStream p = \case
+  CStreamFile fp -> p <$> liftIO (BS.readFile fp)
+  CStreamStd     -> p <$> liftIO BS.getContents
+
+--------------------------------------------------------------------------------
+
+{-
 
 rParseFile
     :: (MonadReader env m, HasCfgBinIO env, MonadIO m, ShowErrorComponent e)
@@ -158,49 +244,53 @@ rBinDecodeJsonAndReserialize serialize = do
       Left err      -> liftIO (putStrLn $ "JSON decoding error: " <> err) >>= error "fuck"
       Right decoded -> return $ serialize decoded
 
---------------------------------------------------------------------------------
+rEncodeJSON
+    :: (MonadReader env m, HasCfgBinJSON env, MonadIO m, Aeson.ToJSON a)
+    => a -> m BL.ByteString
+rEncodeJSON a = do
+    cfg <- asks' cfgBinJSON
+    if   _cfgBinJSONPrettify cfg
+    then return $ DAEP.encodePretty' prettyCfg a
+    else return $ Aeson.encode a
+  where prettyCfg = DAEP.defConfig { DAEP.confIndent = DAEP.Spaces 2 }
 
-rDirectionCase
-    :: (MonadReader env m, HasCDirection env)
-    => m a -> m a -> m a
-rDirectionCase fFrom fTo = asks' cDirection >>= \case
-  CDirectionFromOrig -> fFrom
-  CDirectionToOrig   -> fTo
+runCmdFlowchartDecode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BL.ByteString
+runCmdFlowchartDecode = do
+    lexed <- rParseFile' GAFc.pFlowchart
+    case lexed of
+      Left err      -> liftIO (putStr err) >> error "fuck"
+      Right lexed' -> do
+        ty <- asks' tgFlowchartCfgType
+        case ty of
+          CfgFlowchartTypeParse -> do
+            let parsed = GAFc.fcToAltFc lexed'
+            rEncodeJSON parsed
+          CfgFlowchartTypeLex -> rEncodeJSON lexed'
 
-runCmdPak :: (MonadReader env m, HasCPak env, HasCDirection env, MonadIO m) => m ()
-runCmdPak = rDirectionCase fDe (error "pak encoding unimplemented")
+runCmdFlowchartEncode :: (MonadReader TGFlowchartCfg m, MonadIO m) => m BS.ByteString
+runCmdFlowchartEncode = do
+    liftIO $ hPutStrLn stderr "Ignoring flowchart type SRY"
+    rBinDecodeJsonAndReserialize $ \fc -> GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
+
+rBinActionAndOutput
+    :: (MonadReader env m, HasCfgBinIO env, MonadIO m)
+    => m BL.ByteString -> m BL.ByteString -> m ()
+rBinActionAndOutput fDe fEn = do
+    cfg <- asks' cfgBinIO
+    case _cfgBinIODirection cfg of
+      ActionDirectionDecode -> fDe >>= rBinOutputBytes
+      ActionDirectionEncode -> fEn >>= rBinOutputBytes
+
+runCmdFlowchart :: (MonadReader TGFlowchartCfg m, MonadIO m) => m ()
+runCmdFlowchart = rBinActionAndOutput fDe fEn
   where
-    fDe = do
-        cfg <- asks' cPak
-        case cfg ^. cPakCS1 of
-          CStreamStd     -> error "stdin usage unimplemented"
-          CStreamFile fp -> do
-            GCBU.runParserBinFile GAP.pPakHeader fp GCB.binCfgSCP >>= \case
-              Left err     -> liftIO (putStr err) >> error "fuck"
-              Right parsed -> do
-                (GAP.Pak unk files) <- tgPakExtractFiles fp parsed
-                case cfg ^. cPakCS2s of
-                  CStreamsFolder  fp' -> do
-                    let files' = map (\(a, b) -> (Text.unpack a, b)) files
-                     in liftIO $ rWriteFilesToFolder fp' files'
-                  CStreamsArchive fp' -> error $ "out to archive: " <> fp'
+    fDe = runCmdFlowchartDecode
+    fEn = BL.fromStrict <$> runCmdFlowchartEncode
 
-rWriteFilesToFolder :: MonadIO m => FilePath -> [(FilePath, BS.ByteString)] -> m ()
-rWriteFilesToFolder folder = mapM_ f
-  where
-    f (filename, bytes) = do
-        let fp = folder <> "/" <> filename
-        liftIO $ putStrLn $ "writing file: " <> fp
-        liftIO $ BS.writeFile fp bytes
+-}
 
-tgPakExtractFiles :: MonadIO m => FilePath -> GAP.PakHeader -> m GAP.Pak
-tgPakExtractFiles fp (GAP.PakHeader unk ft) = do
-    bs <- liftIO $ BS.readFile fp
-    let files = tgPakExtractFile bs <$> ft
-    return $ GAP.Pak unk files
-
-tgPakExtractFile :: BS.ByteString -> GAP.PakHeaderFTE -> (Text, BS.ByteString)
-tgPakExtractFile bs (GAP.PakHeaderFTE offset len filenameBS) =
+pakExtractFile :: BS.ByteString -> GAP.PakHeaderFTE -> (Text, BS.ByteString)
+pakExtractFile bs (GAP.PakHeaderFTE offset len filenameBS) =
     let fileBs   = bsExtract (fromIntegral offset) (fromIntegral len) bs
         filename = Text.decodeUtf8 filenameBS
      in (filename, fileBs)

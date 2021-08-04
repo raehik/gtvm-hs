@@ -23,6 +23,7 @@ dependencies:
 - aeson-pretty
 - lens
 - lzo
+- filemanip
   #- generic-lens
   #- bytestring-strict-builder
   #- streaming

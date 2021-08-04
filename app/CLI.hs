@@ -3,80 +3,35 @@ module CLI where
 import           Config
 import           Options.Applicative
 import qualified Data.Char as Char
+import           Control.Monad.IO.Class
 
-pToolGroup :: Parser ToolGroup
-pToolGroup = hsubparser $
-    command "flowchart" piTGFlowchartCfg
-    <> command "scp" piTGSCPCfg
-    <> command "sl01" piTGSL01Cfg
-    <> command "pak" piCPak
-
-pCfgBinIO :: Parser CfgBinIO
-pCfgBinIO =
-    CfgBinIO
-    <$> pActionDirection
-    <*> strArgument (metavar "FILE" <> help "File to work on")
-    <*> pOptOutFilepath
-    <*> switch (long "print-binary" <> help "Allow printing binary to stdout")
-  where
-    pOptOutFilepath =
-        optional $ strOption $
-            long "write-file" <> help "Write to file instead of stdout"
-
-pCfgBinJSON :: Parser CfgBinJSON
-pCfgBinJSON = CfgBinJSON <$> pCfgBinIO <*> pPrettifyOrNo
-  where pPrettifyOrNo = pYesOrNo "prettify" "prettify JSON"
-
-piTGFlowchartCfg :: ParserInfo ToolGroup
-piTGFlowchartCfg = info (TGFlowchart <$> pTGFlowchartCfg) (progDesc desc)
-  where desc = "flow_chart.bin tools."
-
-pTGFlowchartCfg :: Parser TGFlowchartCfg
-pTGFlowchartCfg = TGFlowchartCfg <$> pCfgBinJSON <*> pCfgFlowchartType
-
-pCfgFlowchartType :: Parser CfgFlowchartType
-pCfgFlowchartType = flag CfgFlowchartTypeParse CfgFlowchartTypeLex
-        (long "lex" <> help "Operate on lexed flowcharts (instead of fully parsed)")
-
-piTGSCPCfg :: ParserInfo ToolGroup
-piTGSCPCfg = info (TGSCP <$> pTGSCPCfg) (progDesc desc)
-  where desc = "Game script file (SCP, script/*.scp) tools."
-
-pTGSCPCfg :: Parser TGSCPCfg
-pTGSCPCfg = TGSCPCfg <$> pCfgBinJSON
-
-piTGSL01Cfg :: ParserInfo ToolGroup
-piTGSL01Cfg = info (TGSL01 <$> pTGSL01Cfg) (progDesc desc)
-  where desc = "SL01 (LZO1x-compressed file) tools."
-
-pTGSL01Cfg :: Parser TGSL01Cfg
-pTGSL01Cfg = TGSL01Cfg <$> pCfgBinIO
-
-pActionDirection :: Parser ActionDirection
-pActionDirection = pEncode <|> pDecode
-  where
-    pEncode = flag' ActionDirectionEncode (long "encode" <> help "Encode JSON to binary")
-    pDecode = flag' ActionDirectionDecode (long "decode" <> help "Decode binary to JSON")
-
-parseCLIOpts :: IO ToolGroup
+parseCLIOpts :: MonadIO m => m ToolGroup
 parseCLIOpts = execParserWithDefaults desc pToolGroup
   where
     desc = "Various GTVM tools."
 
 -- | Execute a 'Parser' with decent defaults.
-execParserWithDefaults :: String -> Parser a -> IO a
-execParserWithDefaults desc p = customExecParser
+execParserWithDefaults :: MonadIO m => String -> Parser a -> m a
+execParserWithDefaults desc p = liftIO $ customExecParser
     (prefs $ showHelpOnError)
     (info (helper <*> p) (progDesc desc))
 
-pYesOrNo :: String -> String -> Parser Bool
-pYesOrNo verb desc = p1 <|> p2
+pToolGroup :: Parser ToolGroup
+pToolGroup = hsubparser $
+    makeCmd "flowchart" descFlowchart (TGFlowchart <$> pCJSON <*> pCParseType)
+    <> makeCmd "scp"    descSCP       (TGSCP <$> pCJSON)
+    <> makeCmd "sl01"   descSL01      (TGSL01 <$> pCBin pCompressDirection)
+    <> makeCmd "pak"    descPak       (TGPak <$> pCPak)
   where
-    p1 = flag True True $ long verb <> help (capitalize desc <> " (default)")
-    p2 = flag' False $ long ("no-" <> verb) <> help ("Don't " <> desc)
-    capitalize = \case
-      []   -> []
-      c:cs -> Char.toUpper c : cs
+    makeCmd name desc p = command name (info p (progDesc desc))
+    descSCP = "Game script file (SCP, script/*.scp) tools."
+    descSL01 = "SL01 (LZO1x-compressed file) tools."
+    descPak = ".pak (sound_se.pak) tools."
+    descFlowchart = "flow_chart.bin tools."
+
+pCParseType :: Parser CParseType
+pCParseType = flag CParseTypeFull CParseTypePartial
+        (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
 
 --------------------------------------------------------------------------------
 
@@ -99,32 +54,50 @@ pBinCodingDirection toNoun = pCDirection "decode" helpFrom "encode" helpTo
     helpFrom = "binary -> " <> toNoun
     helpTo   = toNoun <> " -> binary"
 
+-- TODO: Make an alternate command-based parser.
 pPackDirection :: Parser CDirection
 pPackDirection = pCDirection "unpack" "archive" "pack" "archive"
 
+pCompressDirection :: Parser CDirection
+pCompressDirection = pCDirection "decompress" "file" "compress" "file"
+
 pCStream :: CDirection -> Parser CStream
-pCStream dir = pFile <|> pStd
+pCStream = \case
+  CDirectionFromOrig -> pFileArg <|> pStdin
+  CDirectionToOrig   -> pFileOpt <|> pStdout
   where
-    pFile = CStreamFile <$> strArgument (metavar "FILE" <> help (dir' <> " file"))
-    pStd  = flag' CStreamStd (long stdStream <> help ("Use " <> stdStream))
-    (dir', stdStream) =
-        case dir of
-          CDirectionFromOrig -> ("Input", "stdin")
-          CDirectionToOrig   -> ("Output", "stdout")
+    pFileArg = CStreamFile <$> strArgument (metavar "FILE" <> help "Input file")
+    pFileOpt = CStreamFile <$> strOption (metavar "FILE" <> long "out-file" <> help "Output file")
+    pStdin   = flag' CStreamStd (long "stdin"  <> help "Use stdin")
+    pStdout  = flag' CStreamStd (long "stdout" <> help "Use stdout")
 
 pCStreams :: CDirection -> Parser CStreams
 pCStreams dir = pFolder <|> pArchive
   where
-    pFolder  = CStreamsFolder  <$> strOption (long (dir' <> "-folder")  <> help (dir'' <> " folder"))
-    pArchive = CStreamsArchive <$> strOption (long (dir' <> "-archive") <> help (dir'' <> " archive"))
-    (dir', dir'') =
-        case dir of
-          CDirectionFromOrig -> ("in", "Input")
-          CDirectionToOrig   -> ("out", "Output")
+    pFolder  = CStreamsFolder  <$> strOption (metavar "FOLDER" <> long (dir' <> "-folder")  <> help (dir'' <> " folder"))
+    pArchive = CStreamsArchive <$> strOption (metavar "FILE" <> long (dir' <> "-archive") <> help (dir'' <> " archive"))
+    dir'  = cDirectionCaseFromTo "in"    "out"    dir
+    dir'' = cDirectionCaseFromTo "Input" "Output" dir
+
+pCBin :: Parser CDirection -> Parser CBin
+pCBin pDir =
+    CBin
+    <$> pDir
+    <*> pCStream CDirectionFromOrig
+    <*> pCStream CDirectionToOrig
+    <*> pAllowBinStdout
+
+pCJSON :: Parser CJSON
+pCJSON = CJSON <$> pCBin (pBinCodingDirection "JSON") <*> pPrettifyOrNo
+  where pPrettifyOrNo = switch (long "prettify" <> help "Prettify JSON")
+
+pAllowBinStdout :: Parser Bool
+pAllowBinStdout = switch (long "print-binary" <> help "Allow printing binary to stdout")
+
+pCS1N :: CDirection -> CDirection -> Parser CS1N
+pCS1N d1 d2 = CS1N <$> pCStream d1 <*> pCStreams d2
 
 pCPak :: Parser CPak
-pCPak = CPak <$> pPackDirection <*> pCStream CDirectionFromOrig <*> pCStreams CDirectionToOrig
-
-piCPak :: ParserInfo ToolGroup
-piCPak = info (TGPak <$> pCPak) (progDesc desc)
-  where desc = ".pak (sound_se.pak) tools."
+pCPak = hsubparser $
+    command "unpack" (info (CPak <$> pure CDirectionFromOrig <*> pCS1N CDirectionFromOrig CDirectionToOrig <*> pAllowBinStdout) (progDesc "Unpack archive."))
+    <> command "pack" (info (CPak <$> pure CDirectionToOrig <*> pCS1N CDirectionToOrig CDirectionFromOrig <*> pAllowBinStdout) (progDesc "Pack archive."))

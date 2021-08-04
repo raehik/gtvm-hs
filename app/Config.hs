@@ -1,95 +1,75 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Config where
 
-import           Control.Lens.TH
-
-data CPak = CPak
-  { _cPakCDirection :: CDirection
-  , _cPakCS1        :: CStream
-  , _cPakCS2s       :: CStreams
-  } deriving (Eq, Show)
+data ToolGroup
+  = TGFlowchart CJSON CParseType
+  | TGSCP CJSON
+  | TGSL01 CBin
+  | TGPak CPak
+    deriving (Eq, Show)
 
 data CStream
   = CStreamFile FilePath
   | CStreamStd
     deriving (Eq, Show)
 
+cStreamCaseFileStd :: (FilePath -> a) -> a -> CStream -> a
+cStreamCaseFileStd sFile sStd = \case
+  CStreamFile fp -> sFile fp
+  CStreamStd     -> sStd
+
 data CStreams
   = CStreamsFolder FilePath
   | CStreamsArchive FilePath
     deriving (Eq, Show)
+
+cStreamsCaseFolderArchive :: (FilePath -> a) -> (FilePath -> a) -> CStreams -> a
+cStreamsCaseFolderArchive ssFolder ssArchive = \case
+  CStreamsFolder  fp -> ssFolder fp
+  CStreamsArchive fp -> ssArchive fp
 
 data CDirection
   = CDirectionFromOrig
   | CDirectionToOrig
     deriving (Eq, Show)
 
-makeClassy ''CPak
-makeClassy ''CDirection
-makeClassy ''CStream
-makeClassy ''CStreams
+cDirectionCaseFromTo :: a -> a -> CDirection -> a
+cDirectionCaseFromTo from to = \case
+  CDirectionFromOrig -> from
+  CDirectionToOrig   -> to
 
-instance HasCDirection CPak where
-    cDirection = cPakCDirection
+-- | one stream -> one stream
+data CBin = CBin
+  { _cBinCDirection  :: CDirection
+  , _cBinCStreamFrom :: CStream
+  , _cBinCStreamTo   :: CStream
+  , _cBinAllowBinStdout :: Bool
+  } deriving (Eq, Show)
 
---------------------------------------------------------------------------------
+data CJSON = CJSON
+  { _cJSONCBin     :: CBin
+  , _cJSONPrettify :: Bool
+  } deriving (Eq, Show)
 
-data ToolGroup
-  = TGFlowchart TGFlowchartCfg
-  | TGSCP TGSCPCfg
-  | TGSL01 TGSL01Cfg
-  | TGPak CPak
+data CParseType
+  = CParseTypeFull
+  | CParseTypePartial
     deriving (Eq, Show)
 
--- | Config for tools that do IO with binary data.
-data CfgBinIO = CfgBinIO
-  { _cfgBinIODirection           :: ActionDirection
-  , _cfgBinIOFilepath            :: FilePath
-  , _cfgBinIOOutFilepath         :: Maybe FilePath
-  , _cfgBinIOAllowBinaryOnStdout :: Bool
+data CPak = CPak
+  { _cPakCDirection :: CDirection
+  , _cPakCS1N       :: CS1N
+  , _cPakAllowBinStdout :: Bool
   } deriving (Eq, Show)
 
--- | Config for tools that serialize between binary and JSON.
-data CfgBinJSON = CfgBinJSON
-  { _cfgBinJSONCfgBinIO :: CfgBinIO
-  , _cfgBinJSONPrettify :: Bool
+-- This was fun to recognise. With previous commands being 1<->1, I could keep
+-- both on hand and use the same help text, swapping "how they're used" on the
+-- code side. But 1<->n means that the 1 is always the same type, just changes
+-- "position". Anyway, it's kind of opposite to what I was doing before, and
+-- this is the solution, plus gives me clean, combinatory optparse code.
+--
+-- Wait, oops, I didn't need to make this its own data type, optparse is clever
+-- enough. But eh, minor detail, and the type makes sense enough.
+data CS1N = CS1N
+  { _cS1N1 :: CStream
+  , _cS1NN :: CStreams
   } deriving (Eq, Show)
-
-data TGFlowchartCfg = TGFlowchartCfg
-  { _tgFlowchartCfgBinJSON :: CfgBinJSON
-  , _tgFlowchartCfgType    :: CfgFlowchartType
-  } deriving (Eq, Show)
-
-data CfgFlowchartType
-  = CfgFlowchartTypeParse
-  | CfgFlowchartTypeLex
-    deriving (Eq, Show)
-
-data ActionDirection
-  = ActionDirectionEncode
-  | ActionDirectionDecode
-    deriving (Eq, Show)
-
-data TGSCPCfg = TGSCPCfg
-  { _tgSCPCfgBinJSON :: CfgBinJSON
-  } deriving (Eq, Show)
-
-data TGSL01Cfg = TGSL01Cfg
-  { _tgSL01CfgBinIO :: CfgBinIO
-  } deriving (Eq, Show)
-
-makeClassy ''TGFlowchartCfg
-makeClassy ''TGSCPCfg
-makeClassy ''TGSL01Cfg
-makeClassy ''CfgBinJSON
-makeClassy ''CfgBinIO
-
-instance HasCfgBinIO CfgBinJSON where
-    cfgBinIO = cfgBinJSONCfgBinIO
-
-instance HasCfgBinJSON TGFlowchartCfg where
-    cfgBinJSON = tgFlowchartCfgBinJSON
-
-instance HasCfgBinIO TGFlowchartCfg where
-    cfgBinIO = cfgBinJSON . cfgBinIO

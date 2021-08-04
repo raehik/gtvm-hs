@@ -48,6 +48,7 @@ library
     , bytestring
     , directory
     , either
+    , filemanip
     , lens
     , lzo
     , megaparsec
@@ -76,6 +77,7 @@ executable gtvm-hs
     , bytestring
     , directory
     , either
+    , filemanip
     , gtvm-hs
     , lens
     , lzo

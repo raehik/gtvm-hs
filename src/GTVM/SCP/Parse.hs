@@ -24,15 +24,15 @@ import qualified Data.List as List
 import qualified System.Directory as Dir
 
 parseSCPBytes :: Bytes -> Either String [SCPSegment]
-parseSCPBytes = parseSCPBytes' "" binCfgSCP
+parseSCPBytes = parseSCPBytes' binCfgSCP ""
 
-parseSCPBytes' :: String -> BinaryCfg -> Bytes -> Either String [SCPSegment]
+parseSCPBytes' :: BinaryCfg -> String -> Bytes -> Either String [SCPSegment]
 parseSCPBytes' = parseBin (many pSCPSeg)
 
 parseSCPFile :: MonadIO m => FilePath -> m (Either String [SCPSegment])
 parseSCPFile fp = do
     bs <- liftIO $ BS.readFile fp
-    return $ parseSCPBytes' fp binCfgSCP bs
+    return $ parseSCPBytes' binCfgSCP fp bs
 
 checkSCPDir :: MonadIO m => FilePath -> m ()
 checkSCPDir dir = do
@@ -40,7 +40,7 @@ checkSCPDir dir = do
     let scpFiles = filter (List.isSuffixOf ".scp") files
     flip mapM_ scpFiles $ \fp -> do
         bs <- liftIO $ BS.readFile (dir <> "/" <> fp)
-        case parseSCPBytes' fp binCfgSCP bs of
+        case parseSCPBytes' binCfgSCP fp bs of
           Left _ -> liftIO (putStrLn fp)
           Right scp -> do
             let textboxCount = textboxesInSCP scp

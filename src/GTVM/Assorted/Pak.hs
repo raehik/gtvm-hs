@@ -7,6 +7,7 @@ module GTVM.Assorted.Pak
   , PakHeader(..)
   , PakHeaderFTE(..)
   , pPakHeader
+  , sPak
   ) where
 
 import           GTVM.Common.Orphans()
@@ -18,6 +19,7 @@ import qualified Data.ByteString as BS
 import           Data.Void
 import           Data.Word
 import           Control.Monad.Reader
+import           Control.Monad.State
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import           Data.Text (Text)
@@ -46,64 +48,34 @@ pPakHeaderFTE
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m PakHeaderFTE
 pPakHeaderFTE = PakHeaderFTE <$> pW32 <*> pW32 <*> pBSTextFixed 0x18
 
-{-
-sFlowchart :: MonadReader BinaryCfg m => [FlowchartEntryBlock] -> m Bytes
-sFlowchart = serialize bFlowchart
+sPak :: MonadReader BinaryCfg m => Pak -> m Bytes
+sPak = serialize bPak
 
-bFlowchart :: MonadReader BinaryCfg m => [FlowchartEntryBlock] -> m Builder
-bFlowchart = concatM . fmap bFlowchartEntryBlock
+bPak :: MonadReader BinaryCfg m => Pak -> m Builder
+bPak (Pak unk files) = concatM [bW32 (fromIntegral (length files)), bW32 unk, bPakMain files]
 
-bFlowchartEntryBlock :: MonadReader BinaryCfg m => FlowchartEntryBlock -> m Builder
-bFlowchartEntryBlock (FlowchartEntryBlock bs1 entries) = bNullPadTo b 2116
-  where b = concatM [bBSFixedNullPadded bs1 32, bCount bW32 bFlowchartEntry entries]
+bPakMain :: MonadReader BinaryCfg m => [(Text, Bytes)] -> m Builder
+bPakMain x = evalStateT (go x) (mempty, mempty, totalFTSize)
+  where
+    totalFTSize = 0x08 + (length x * 0x20) + 0x18 -- TODO yeah I dunno why
+    go = \case
+      [] -> do
+        (bFT, bFs, _) <- get
+        bSomeSpacingDunno <- bBSNullPadTo "" 0x18
+        return $ bFT <> bSomeSpacingDunno <> bFs
+      ((f,bs):fs) -> do
+        (bFT, bFs, offset) <- get
+        bOffset <- bW32 (fromIntegral offset)
+        bLen    <- bW32 (fromIntegral (BS.length bs))
+        bF      <- bBSNullPadTo (Text.encodeUtf8 f) 0x18
+        bFSpacingDunno <- bBSNullPadTo "" 0x1C
+        builtBS <- bBS' bs
+        let bFT' = bFT <> bOffset <> bLen <> bF
+            bFs' = bFs <> builtBS <> bFSpacingDunno
+            offset' = offset + (BS.length bs) + 0x1C
+        put (bFT', bFs', offset')
+        go fs
 
-bFlowchartEntry :: MonadReader BinaryCfg m => FlowchartEntry -> m Builder
-bFlowchartEntry (FlowchartEntry u1 u2 bs1 bs2) =
-    concatM [bW32 u1, bW32 u2, bBSFixedNullPadded bs1 64, bBSFixedNullPadded bs2 32]
-
---------------------------------------------------------------------------------
-
-data FlowchartEntryBlock' = FlowchartEntryBlock' Text [FlowchartEntry'] deriving (Eq, Show, Generic)
-data FlowchartEntry' = FlowchartEntry' Word32 Text Text deriving (Eq, Show, Generic)
-
-instance ToJSON FlowchartEntryBlock'
-instance ToJSON FlowchartEntry'
-instance FromJSON FlowchartEntryBlock'
-instance FromJSON FlowchartEntry'
-
-fcToAltFc :: [FlowchartEntryBlock] -> [FlowchartEntryBlock']
-fcToAltFc = fmap fcebToAltFceb
-
-fcebToAltFceb :: FlowchartEntryBlock -> FlowchartEntryBlock'
-fcebToAltFceb (FlowchartEntryBlock dateBS entries) =
-    FlowchartEntryBlock' (Text.decodeUtf8 dateBS) (fmap fceToAltFce entries)
-
-fceToAltFce :: FlowchartEntry -> FlowchartEntry'
-fceToAltFce (FlowchartEntry _ u1 textBS scriptBS) =
-    FlowchartEntry' u1 (Text.decodeUtf8 textBS) (extractScriptFilepath (Text.decodeUtf8 scriptBS))
-
-extractScriptFilepath :: Text -> Text
-extractScriptFilepath = Text.drop 7 . Text.dropEnd 4
-
-altFcToFc :: [FlowchartEntryBlock'] -> [FlowchartEntryBlock]
-altFcToFc x = flip evalState 0 $ sequence (altFcebToFceb <$> x)
-
-altFcebToFceb :: MonadState Int m => FlowchartEntryBlock' -> m FlowchartEntryBlock
-altFcebToFceb (FlowchartEntryBlock' date entries) = do
-    entries' <- sequence (altFceToFce <$> entries)
-    return $ FlowchartEntryBlock (Text.encodeUtf8 date) entries'
-
--- TODO: ensure that c is Word64-bound
-altFceToFce :: MonadState Int m => FlowchartEntry' -> m FlowchartEntry
-altFceToFce (FlowchartEntry' u1 text script) = do
-    c <- get
-    modify (+1)
-    return $ FlowchartEntry (fromIntegral c) u1 (Text.encodeUtf8 text) (Text.encodeUtf8 ("script/" <> script <> ".scp"))
-
---------------------------------------------------------------------------------
-
-instance ToJSON FlowchartEntryBlock
-instance ToJSON FlowchartEntry
-instance FromJSON FlowchartEntryBlock
-instance FromJSON FlowchartEntry
--}
+-- TODO: How do we serialize something like this nicely? Defo need to calculate
+-- file table size. Then instead of maintaing two pointers, maintain two
+-- builders, one for the file table and one for concatenated contents.

@@ -101,5 +101,5 @@ pNullPadTo p i = do
 parseBin
     :: (ShowErrorComponent e)
     => (ReaderT BinaryCfg (Parsec e Bytes)) a
-    -> String -> BinaryCfg -> Bytes -> Either String a
-parseBin p fp opts bs = mapLeft errorBundlePretty $ parse (runReaderT p opts) fp bs
+    -> BinaryCfg -> FilePath -> Bytes -> Either String a
+parseBin p opts fp bs = mapLeft errorBundlePretty $ parse (runReaderT p opts) fp bs

@@ -15,7 +15,7 @@ import qualified Data.List as List
 reserialize :: MonadReader BinaryCfg m => Bytes -> m Bytes
 reserialize bs = do
     binCfg <- ask
-    let Right segs = parseSCPBytes' "" binCfg bs
+    let Right segs = parseSCPBytes' binCfg "" bs
     sSCP segs
 
 -- | Parse, then re-serialize.
