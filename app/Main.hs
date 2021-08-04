@@ -21,6 +21,7 @@ import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import           Data.Text                (Text)
 import qualified Data.List                as List
+import qualified System.Exit              as Exit
 
 import           Control.Monad.IO.Class
 
@@ -36,6 +37,19 @@ runCmd = \case
   TGSL01 cfg -> runCmdSL01 cfg
   TGFlowchart cfg parseType -> runCmdFlowchart parseType cfg
   TGPak cfg  -> runCmdPak cfg
+
+runCmdSCP :: MonadIO m => CJSON -> m ()
+runCmdSCP = \case
+  CJSONDe (cSFrom, cSTo) cPrettify -> do
+    bs <- rParseStream (fromOrig cPrettify) cSFrom
+    rWriteStreamBin True cSTo bs
+  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+    bs <- rReadStream cSFrom
+    scp <- rForceParseJSON bs
+    let scpBytes = GSS.sSCP scp GCB.binCfgSCP
+    rWriteStreamBin cPrintStdout cSTo scpBytes
+  where
+    fromOrig cPrettify fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
 
 runCmdSL01 :: MonadIO m => CBin -> m ()
 runCmdSL01 c = readBytes cDir >>= writeBytes
@@ -53,16 +67,40 @@ runCmdSL01 c = readBytes cDir >>= writeBytes
     cPrintStdout = _cBinAllowBinStdout c
     (cSFrom, cSTo) = _cBinCStream2 c
 
+runCmdFlowchart :: (MonadIO m) => CParseType -> CJSON -> m ()
+runCmdFlowchart parseType = \case
+  CJSONDe (cSFrom, cSTo) cPrettify -> do
+    bs <- rParseStream (fromOrig cPrettify) cSFrom
+    rWriteStreamBin True cSTo bs
+  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+    bs <- rReadStream cSFrom
+    fc <- rGetFc bs parseType
+    let fcBytes = GAFc.sFlowchart fc GCB.binCfgSCP
+    rWriteStreamBin cPrintStdout cSTo fcBytes
+  where
+    fromOrig cPrettify fp bs = do
+        fc <- GCBP.parseBin GAFc.pFlowchart GCB.binCfgSCP fp bs
+        case parseType of
+          CParseTypeFull    -> return $ rEncodeJSON cPrettify (GAFc.fcToAltFc fc)
+          CParseTypePartial -> return $ rEncodeJSON cPrettify fc
+    rGetFc bs = \case
+      CParseTypeFull    -> GAFc.altFcToFc <$> rForceParseJSON bs
+      CParseTypePartial ->                    rForceParseJSON bs
+
 runCmdPak :: (MonadIO m) => CPak -> m ()
 runCmdPak = \case
   CPakUnpack (CS1N cS1 cSN) _ -> do
     pak <- rParseStream parseAndExtract cS1
     case cSN of
-      CStreamsArchive fp -> error $ "unimplemented: write pak to archive: " <> fp
+      CStreamsArchive fp -> do
+        liftIO $ putStrLn $ "error: unimplemented: write pak to archive: " <> fp
+        liftIO $ Exit.exitWith (Exit.ExitFailure 3)
       CStreamsFolder  fp -> rWritePakFolder pak fp
   CPakPack   (CS1N cS1 cSN) cPrintStdout unk -> do
     case cSN of
-      CStreamsArchive fp -> error $ "unimplemented: write pak from archive: " <> fp
+      CStreamsArchive fp -> do
+        liftIO $ putStrLn $ "error: unimplemented: write pak from archive: " <> fp
+        liftIO $ Exit.exitWith (Exit.ExitFailure 3)
       CStreamsFolder  fp -> do
         files <- liftIO $ getDirContentsWithFilenameRecursive fp
         let pak = GAP.Pak unk files
@@ -73,6 +111,15 @@ runCmdPak = \case
     parseAndExtract fp bs = do
         pakHeader <- GCBP.parseBin GAP.pPakHeader GCB.binCfgSCP fp bs
         return $ pakExtract bs pakHeader
+
+-- TODO: bad. decoding may fail, that's why we gotta do this.
+rForceParseJSON :: (MonadIO m, Aeson.FromJSON a) => BS.ByteString -> m a
+rForceParseJSON bs =
+    case Aeson.eitherDecode (BL.fromStrict bs) of
+      Left err      -> do
+        liftIO $ putStrLn $ "error decoding JSON: " <> err
+        liftIO $ Exit.exitWith (Exit.ExitFailure 1)
+      Right decoded -> return decoded
 
 -- Only gets stuff with content (files).
 getDirContentsWithFilenameRecursive :: FilePath -> IO [(Text, BS.ByteString)]
@@ -87,6 +134,20 @@ getDirContentsWithFilenameRecursive fp = do
 
 pakExtract :: BS.ByteString -> GAP.PakHeader -> GAP.Pak
 pakExtract bs (GAP.PakHeader unk ft) = GAP.Pak unk (pakExtractFile bs <$> ft)
+
+pakExtractFile :: BS.ByteString -> GAP.PakHeaderFTE -> (Text, BS.ByteString)
+pakExtractFile bs (GAP.PakHeaderFTE offset len filenameBS) =
+    let fileBs   = bsExtract (fromIntegral offset) (fromIntegral len) bs
+        filename = Text.decodeUtf8 filenameBS
+     in (filename, fileBs)
+
+-- | Extract a indexed substring from a bytestring. Runtime error if can't.
+bsExtract :: Int -> Int -> BS.ByteString -> BS.ByteString
+bsExtract offset len bs =
+    let bs' = (BS.take len . BS.drop offset) bs
+     in if   BS.length bs' /= len
+        then error "ya bytes fucked"
+        else bs'
 
 rWriteStreamBin :: MonadIO m => Bool -> CStream -> BS.ByteString -> m ()
 rWriteStreamBin printStdout s bs =
@@ -113,7 +174,10 @@ rEncodeJSON prettify =
 rParseStream :: MonadIO m => (FilePath -> BS.ByteString -> Either String a) -> CStream -> m a
 rParseStream f s = do
     getStream s >>= \case
-      Left  err -> liftIO (putStr err) >> error "fuck"
+      Left  err -> do
+        liftIO $ putStrLn "error parsing input:"
+        liftIO $ putStr err
+        liftIO $ Exit.exitWith (Exit.ExitFailure 2)
       Right out -> return out
   where
     getStream = \case
@@ -139,59 +203,3 @@ rReadStream :: MonadIO m => CStream -> m BS.ByteString
 rReadStream = \case
   CStreamFile fp -> liftIO $ BS.readFile fp
   CStreamStd     -> liftIO $ BS.getContents
-
-runCmdSCP :: MonadIO m => CJSON -> m ()
-runCmdSCP = \case
-  CJSONDe (cSFrom, cSTo) cPrettify -> do
-    bs <- rParseStream (fromOrig cPrettify) cSFrom
-    rWriteStreamBin True cSTo bs
-  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
-    bs <- rReadStream cSFrom
-    case Aeson.eitherDecode (BL.fromStrict bs) of
-      Left  err -> liftIO $ putStrLn $ "error during JSON decoding: " <> err
-      Right scp ->
-        let scpBytes = GSS.sSCP scp GCB.binCfgSCP
-         in rWriteStreamBin cPrintStdout cSTo scpBytes
-  where
-    fromOrig cPrettify fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
-
-runCmdFlowchart :: (MonadIO m) => CParseType -> CJSON -> m ()
-runCmdFlowchart parseType = \case
-  CJSONDe (cSFrom, cSTo) cPrettify -> do
-    bs <- rParseStream (fromOrig cPrettify) cSFrom
-    rWriteStreamBin True cSTo bs
-  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
-    bs <- rReadStream cSFrom
-    let bs' = BL.fromStrict bs
-    case parseType of
-      CParseTypeFull    ->
-        case Aeson.eitherDecode bs' of
-          Left err -> liftIO $ putStrLn $ "error decoding JSON: " <> err
-          Right fc ->
-            let fcBytes = GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
-             in rWriteStreamBin cPrintStdout cSTo fcBytes
-      CParseTypePartial ->
-        case Aeson.eitherDecode bs' of
-          Left err -> liftIO $ putStrLn $ "error decoding JSON: " <> err
-          Right fc ->
-            let fcBytes = GAFc.sFlowchart fc GCB.binCfgSCP
-             in rWriteStreamBin cPrintStdout cSTo fcBytes
-  where
-    fromOrig cPrettify fp bs = do
-        fc <- GCBP.parseBin GAFc.pFlowchart GCB.binCfgSCP fp bs
-        case parseType of
-          CParseTypeFull    -> return $ rEncodeJSON cPrettify (GAFc.fcToAltFc fc)
-          CParseTypePartial -> return $ rEncodeJSON cPrettify fc
-
-pakExtractFile :: BS.ByteString -> GAP.PakHeaderFTE -> (Text, BS.ByteString)
-pakExtractFile bs (GAP.PakHeaderFTE offset len filenameBS) =
-    let fileBs   = bsExtract (fromIntegral offset) (fromIntegral len) bs
-        filename = Text.decodeUtf8 filenameBS
-     in (filename, fileBs)
-
-bsExtract :: Int -> Int -> BS.ByteString -> BS.ByteString
-bsExtract offset len bs =
-    let bs' = (BS.take len . BS.drop offset) bs
-     in if   BS.length bs' /= len
-        then error "ya bytes fucked"
-        else bs'
