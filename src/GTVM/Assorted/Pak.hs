@@ -8,6 +8,7 @@ module GTVM.Assorted.Pak
   , PakHeaderFTE(..)
   , pPakHeader
   , sPak
+  , nextMultiple
   ) where
 
 import           GTVM.Common.Orphans()
@@ -49,17 +50,20 @@ sPak :: MonadReader BinaryCfg m => Pak -> m Bytes
 sPak = serialize bPak
 
 bPak :: MonadReader BinaryCfg m => Pak -> m Builder
-bPak (Pak unk files) = concatM [bW32 (fromIntegral (length files)), bW32 unk, bPakMain files]
-
-bPakMain :: MonadReader BinaryCfg m => [(Text, Bytes)] -> m Builder
-bPakMain x = evalStateT (go x) (mempty, mempty, totalFTSize)
+bPak (Pak unk files) = do
+    (bFT, bFs) <- evalStateT (go files) (mempty, mempty, totalFTSize)
+    bHeader <- concatM [bW32 (fromIntegral (length files)), bW32 unk, pure bFT]
+    bHeaderPadded <- bNullPadTo (pure bHeader) totalFTSize
+    return $ bHeaderPadded <> bFs
   where
-    totalFTSize = 0x08 + (length x * 0x20) + 0x18 -- TODO yeah I dunno why
+    -- Guessing that the 0x18 null pad between the file table and contents is
+    -- for 0x20 blocking. At any rate, it reserializes the original to the byte.
+    totalFTSize = nextMultiple blockTo (0x08 + (length files * 0x20))
+    blockTo = 0x20
     go = \case
       [] -> do
         (bFT, bFs, _) <- get
-        bSomeSpacingDunno <- bBSNullPadTo "" 0x18
-        return $ bFT <> bSomeSpacingDunno <> bFs
+        return (bFT, bFs)
       ((f,bs):fs) -> do
         (bFT, bFs, offset) <- get
         bOffset <- bW32 (fromIntegral offset)
@@ -73,6 +77,5 @@ bPakMain x = evalStateT (go x) (mempty, mempty, totalFTSize)
         put (bFT', bFs', offset')
         go fs
 
--- TODO: How do we serialize something like this nicely? Defo need to calculate
--- file table size. Then instead of maintaing two pointers, maintain two
--- builders, one for the file table and one for concatenated contents.
+nextMultiple :: Integral a => a -> a -> a
+nextMultiple a b = b + (a - (b `mod` a))

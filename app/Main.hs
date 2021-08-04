@@ -60,13 +60,12 @@ runCmdPak = \case
     case cSN of
       CStreamsArchive fp -> error $ "unimplemented: write pak to archive: " <> fp
       CStreamsFolder  fp -> rWritePakFolder pak fp
-  CPakPack   (CS1N cS1 cSN) cPrintStdout -> do
+  CPakPack   (CS1N cS1 cSN) cPrintStdout unk -> do
     case cSN of
       CStreamsArchive fp -> error $ "unimplemented: write pak from archive: " <> fp
       CStreamsFolder  fp -> do
         files <- liftIO $ getDirContentsWithFilenameRecursive fp
-        let unk = 0x00200020 -- TODO magic number
-            pak = GAP.Pak unk files
+        let pak = GAP.Pak unk files
             pakBytes = GAP.sPak pak GCB.binCfgSCP
         rWriteStreamBin cPrintStdout cS1 pakBytes
   where

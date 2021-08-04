@@ -4,6 +4,7 @@ import           Config
 import           Options.Applicative
 import           Control.Monad.IO.Class
 import qualified Data.Char as Char
+import           Data.Word
 
 parseOpts :: MonadIO m => m ToolGroup
 parseOpts = execParserWithDefaults desc pToolGroup
@@ -70,7 +71,13 @@ pCS1N d1 d2 = CS1N <$> pCStream d1 <*> pCStreams d2
 pCPak :: Parser CPak
 pCPak = hsubparser $
        command "unpack" (info (CPakUnpack <$> pCS1N CDirectionFromOrig CDirectionToOrig <*> pAllowBinStdout) (progDesc "Unpack a pak archive."))
-    <> command "pack"   (info (CPakPack   <$> pCS1N CDirectionToOrig CDirectionFromOrig <*> pAllowBinStdout) (progDesc "Pack files to a pak archive."))
+    <> command "pack"   (info (CPakPack   <$> pCS1N CDirectionToOrig CDirectionFromOrig <*> pAllowBinStdout <*> pW32 "header-unk" "Unknown header value. Note that it's read as big-endian, and doesn't limit to Word32. (TODO)") (progDesc "Pack files to a pak archive."))
+
+pW32 :: String -> String -> Parser Word32
+pW32 noun h = option auto $
+    metavar "NUM"
+    <> long noun
+    <> help (h <> ". 4-byte number (up to 0xFFFFFFFF)")
 
 pCJSON :: String -> Parser CJSON
 pCJSON noun = hsubparser $

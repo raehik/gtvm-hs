@@ -1,5 +1,7 @@
 module Config where
 
+import           Data.Word
+
 data ToolGroup
   = TGFlowchart CJSON CParseType
   | TGSCP CJSON
@@ -37,7 +39,7 @@ data CParseType
 data CPak
   = CPakUnpack CS1N Bool
   -- ^ bool = print binary to stdout
-  | CPakPack CS1N Bool
+  | CPakPack CS1N Bool Word32
   -- ^ bool = print binary to stdout
     deriving (Eq, Show)
 
