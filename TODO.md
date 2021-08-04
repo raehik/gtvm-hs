@@ -11,5 +11,5 @@
         the Lensyness).
 
 ## CLI
-  * [x] See how ghcup does it's CLI options (particularly verbose flag) *-- it's
-    all manual I'm afraid, we do similar things for `--x,--no-x`*
+  * [x] See how ghcup does it's CLI options (particularly verbose flag)
+    *-- it's all manual I'm afraid, we do similar things for `--x,--no-x`*

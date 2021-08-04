@@ -34,7 +34,7 @@ runCmd :: ToolGroup -> IO ()
 runCmd = \case
   TGSCP cfg  -> runCmdSCP cfg
   TGSL01 cfg -> runCmdSL01 cfg
-  TGFlowchart cfg parseType -> runCmdFlowchart cfg parseType
+  TGFlowchart cfg parseType -> runCmdFlowchart parseType cfg
   TGPak cfg  -> runCmdPak cfg
 
 runCmdSL01 :: MonadIO m => CBin -> m ()
@@ -156,38 +156,33 @@ runCmdSCP = \case
   where
     fromOrig cPrettify fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
 
-runCmdFlowchart :: (MonadIO m) => CJSON -> CParseType -> m ()
-runCmdFlowchart c parseType =
-    case c of
-      CJSONDe (cSFrom, cSTo) cPrettify -> do
-        bs <- rParseStream (fromOrig cPrettify) cSFrom
-        rWriteStreamBin True cSTo bs
-      CJSONEn (cSFrom, cSTo) cPrintStdout -> do
-        bs <- rReadStream cSFrom
-        let bs' = rParseJSONWithParseType fromFullParsed fromPartParsed parseType (BL.fromStrict bs)
-        rWriteStreamBin cPrintStdout cSTo bs'
+runCmdFlowchart :: (MonadIO m) => CParseType -> CJSON -> m ()
+runCmdFlowchart parseType = \case
+  CJSONDe (cSFrom, cSTo) cPrettify -> do
+    bs <- rParseStream (fromOrig cPrettify) cSFrom
+    rWriteStreamBin True cSTo bs
+  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+    bs <- rReadStream cSFrom
+    let bs' = BL.fromStrict bs
+    case parseType of
+      CParseTypeFull    ->
+        case Aeson.eitherDecode bs' of
+          Left err -> liftIO $ putStrLn $ "error decoding JSON: " <> err
+          Right fc ->
+            let fcBytes = GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
+             in rWriteStreamBin cPrintStdout cSTo fcBytes
+      CParseTypePartial ->
+        case Aeson.eitherDecode bs' of
+          Left err -> liftIO $ putStrLn $ "error decoding JSON: " <> err
+          Right fc ->
+            let fcBytes = GAFc.sFlowchart fc GCB.binCfgSCP
+             in rWriteStreamBin cPrintStdout cSTo fcBytes
   where
     fromOrig cPrettify fp bs = do
         fc <- GCBP.parseBin GAFc.pFlowchart GCB.binCfgSCP fp bs
         case parseType of
           CParseTypeFull    -> return $ rEncodeJSON cPrettify (GAFc.fcToAltFc fc)
           CParseTypePartial -> return $ rEncodeJSON cPrettify fc
-    fromFullParsed fc = GAFc.sFlowchart (GAFc.altFcToFc fc) GCB.binCfgSCP
-    fromPartParsed fc = GAFc.sFlowchart fc GCB.binCfgSCP
-
-rParseJSONWithParseType
-    :: (Aeson.FromJSON a, Aeson.FromJSON b)
-    => (a -> c) -> (b -> c) -> CParseType -> BL.ByteString -> c
-rParseJSONWithParseType fFull fPart parseType bs =
-    case parseType of
-      CParseTypeFull    ->
-        case Aeson.eitherDecode bs of
-          Left err      -> error $ "JSON decoding error: " <> err
-          Right decoded -> fFull decoded
-      CParseTypePartial ->
-        case Aeson.eitherDecode bs of
-          Left err      -> error $ "JSON decoding error: " <> err
-          Right decoded -> fPart decoded
 
 pakExtractFile :: BS.ByteString -> GAP.PakHeaderFTE -> (Text, BS.ByteString)
 pakExtractFile bs (GAP.PakHeaderFTE offset len filenameBS) =
