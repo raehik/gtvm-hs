@@ -24,6 +24,7 @@ dependencies:
 - lens
 - lzo
 - filemanip
+- yaml
   #- generic-lens
   #- bytestring-strict-builder
   #- streaming

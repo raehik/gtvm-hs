@@ -12,9 +12,12 @@ import qualified GTVM.Common.Binary.Parse as GCBP
 import qualified GTVM.Common.Binary       as GCB
 import qualified GTVM.SCP.Parse           as GSP
 import qualified GTVM.SCP.Serialize       as GSS
+import qualified GTVM.Assorted.BSReplace  as GAB
+import           GTVM.Assorted.BSReplace  ( CReplace )
 
 import qualified Data.Aeson               as Aeson
 import qualified Data.Aeson.Encode.Pretty as DAEP
+import qualified Data.Yaml                as Yaml
 import qualified Data.ByteString.Lazy     as BL
 import qualified Data.ByteString          as BS
 import qualified Data.Text                as Text
@@ -37,6 +40,20 @@ runCmd = \case
   TGSL01 cfg cS2 -> runCmdSL01 cS2 cfg
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
+  TGPatch cfg fpFrom cS2 cPrintStdout -> runCmdPatch cfg fpFrom cS2 cPrintStdout
+
+runCmdPatch
+    :: MonadIO m => CReplace -> FilePath -> (CStream, CStream) -> Bool -> m ()
+runCmdPatch cReplace fpFrom (cSFrom, cSTo) cPrintStdout = do
+    bsPatch <- rReadFile fpFrom
+    patch   <- rForceParseYAML bsPatch
+    case GAB.normalise patch of
+      Left err -> liftIO $ print err
+      Right patchScript -> do
+        bsFrom <- rReadStream cSFrom
+        case GAB.replaceBytes patchScript bsFrom cReplace of
+          Left err   -> liftIO $ print err
+          Right bsTo -> rWriteStreamBin cPrintStdout cSTo bsTo
 
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case
@@ -118,6 +135,16 @@ rForceParseJSON bs =
         liftIO $ Exit.exitWith (Exit.ExitFailure 1)
       Right decoded -> return decoded
 
+-- TODO: bad. decoding may fail, that's why we gotta do this.
+rForceParseYAML :: (MonadIO m, Aeson.FromJSON a) => BS.ByteString -> m a
+rForceParseYAML bs =
+    case Yaml.decodeEither' bs of
+      Left err      -> do
+        liftIO $ putStrLn $ "error decoding YAML: "
+        liftIO $ print err
+        liftIO $ Exit.exitWith (Exit.ExitFailure 1)
+      Right decoded -> return decoded
+
 -- Only gets stuff with content (files).
 getDirContentsWithFilenameRecursive :: FilePath -> IO [(Text, BS.ByteString)]
 getDirContentsWithFilenameRecursive fp = do
@@ -169,17 +196,27 @@ rEncodeJSON prettify =
 
 -- TODO: bad error...
 rParseStream :: MonadIO m => (FilePath -> BS.ByteString -> Either String a) -> CStream -> m a
-rParseStream f s = do
-    getStream s >>= \case
+rParseStream f = \case
+  CStreamFile fp -> rParseFile f fp
+  CStreamStd     -> do
+    bs <- rReadStdin
+    case f "<stdin>" bs of
       Left  err -> do
         liftIO $ putStrLn "error parsing input:"
         liftIO $ putStr err
         liftIO $ Exit.exitWith (Exit.ExitFailure 2)
       Right out -> return out
-  where
-    getStream = \case
-      CStreamFile fp -> f fp        <$> liftIO (BS.readFile fp)
-      CStreamStd     -> f "<stdin>" <$> liftIO BS.getContents
+
+-- TODO: bad error...
+rParseFile :: MonadIO m => (FilePath -> BS.ByteString -> Either String a) -> FilePath -> m a
+rParseFile f fp = do
+    bs <- rReadFile fp
+    case f fp bs of
+      Left  err -> do
+        liftIO $ putStrLn "error parsing input:"
+        liftIO $ putStr err
+        liftIO $ Exit.exitWith (Exit.ExitFailure 3)
+      Right out -> return out
 
 --------------------------------------------------------------------------------
 
@@ -198,5 +235,11 @@ rWriteFilesToFolder folder = mapM_ f
 
 rReadStream :: MonadIO m => CStream -> m BS.ByteString
 rReadStream = \case
-  CStreamFile fp -> liftIO $ BS.readFile fp
-  CStreamStd     -> liftIO $ BS.getContents
+  CStreamFile fp -> rReadFile fp
+  CStreamStd     -> rReadStdin
+
+rReadFile :: MonadIO m => FilePath -> m BS.ByteString
+rReadFile = liftIO . BS.readFile
+
+rReadStdin :: MonadIO m => m BS.ByteString
+rReadStdin = liftIO BS.getContents

@@ -5,6 +5,7 @@ import           Options.Applicative
 import           Control.Monad.IO.Class
 import qualified Data.Char as Char
 import           Data.Word
+import           GTVM.Assorted.BSReplace ( CReplace(..) )
 
 parseOpts :: MonadIO m => m ToolGroup
 parseOpts = execParserWithDefaults desc pToolGroup
@@ -13,18 +14,27 @@ parseOpts = execParserWithDefaults desc pToolGroup
 
 pToolGroup :: Parser ToolGroup
 pToolGroup = hsubparser $
-       cmd "scp"    descSCP       (TGSCP <$> pCJSON "SCP" <*> pCStream2)
-    <> cmd "sl01"   descSL01      (TGSL01 <$> pCBin <*> pCStream2)
+       cmd "scp"    descSCP   (TGSCP <$> pCJSON "SCP" <*> pCStream2)
+    <> cmd "sl01"   descSL01  (TGSL01 <$> pCBin <*> pCStream2)
     <> cmd "flowchart" descFlowchart
         (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
-    <> cmd "pak"    descPak       (TGPak <$> pCPak <*> pAllowBinStdout)
+    <> cmd "pak"    descPak   (TGPak <$> pCPak <*> pAllowBinStdout)
+    <> cmd "patch"  descPatch
+        (TGPatch <$> pCReplace <*> pFileIn "PATCH-FILE" "patch file" <*> pCStream2 <*> pAllowBinStdout)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
     descFlowchart = "flow_chart.bin tools."
     descPak       = ".pak (sound_se.pak) tools."
+    descPatch     = "Patch bytestrings in a stream."
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
+
+pCReplace :: Parser CReplace
+pCReplace = CReplace <$> pAllowRepatch <*> pAllowPartial
+  where
+    pAllowRepatch = switch $ long "allow-repatch" <> help "Override safety checks and only warn if it appears we're repatching a patched file (CURRENTLY NONFUNCTIONAL)"
+    pAllowPartial = flag True False $ long "allow-partial-check" <> help "When checking expected bytes, allow the expected bytes being a prefix of actual (instead of matching exactly)"
 
 pCPak :: Parser CPak
 pCPak = hsubparser $
@@ -75,6 +85,9 @@ pCStream :: CDirection -> Parser CStream
 pCStream = \case
   CDirectionFromOrig -> pCStreamIn "file"
   CDirectionToOrig   -> pCStreamOut "file"
+
+pFileIn :: String -> String -> Parser FilePath
+pFileIn meta noun = strArgument (metavar meta <> help ("Input "<>noun))
 
 pCStreamIn :: String -> Parser CStream
 pCStreamIn noun = pFileArg <|> pStdin

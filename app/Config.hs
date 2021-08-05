@@ -1,12 +1,14 @@
 module Config where
 
 import           Data.Word
+import           GTVM.Assorted.BSReplace ( CReplace )
 
 data ToolGroup
   = TGFlowchart CJSON (CStream, CStream) CParseType
   | TGSCP CJSON (CStream, CStream)
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
+  | TGPatch CReplace FilePath (CStream, CStream) Bool
     deriving (Eq, Show)
 
 -- | orig one bin stream <-> one text stream
