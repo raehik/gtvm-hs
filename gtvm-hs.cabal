@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           gtvm-hs
-version:        0.4.0
+version:        0.5.0
 synopsis:       Various tools for reversing and using assets from Golden Time: Vivid Memories.
 homepage:       https://github.com/raehik/gtvm-hs#readme
 bug-reports:    https://github.com/raehik/gtvm-hs/issues

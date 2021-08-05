@@ -1,3 +1,10 @@
+## 0.5.0 (2021-08-05)
+I don't expect to alter the CLI in any more major ways, so go mad with scripts.
+
+  * add binary/string patcher tool
+  * some documentation; `sound_se.pak` repacking appears functional
+  * partial CLI redesign (fewer options, more commands)
+
 ## 0.4.0 (2021-08-04)
   * CLI: partial redesign (internals overhauled)
   * add `SL01` LZO1x en/decoding tool (output not tested in game)
