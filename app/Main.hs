@@ -33,17 +33,17 @@ main = CLI.parseOpts >>= runCmd
 
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
-  TGSCP cfg  -> runCmdSCP cfg
-  TGSL01 cfg -> runCmdSL01 cfg
-  TGFlowchart cfg parseType -> runCmdFlowchart parseType cfg
-  TGPak cfg  -> runCmdPak cfg
+  TGSCP cfg cS2 -> runCmdSCP cS2 cfg
+  TGSL01 cfg cS2 -> runCmdSL01 cS2 cfg
+  TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
+  TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
 
-runCmdSCP :: MonadIO m => CJSON -> m ()
-runCmdSCP = \case
-  CJSONDe (cSFrom, cSTo) cPrettify -> do
+runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
+runCmdSCP (cSFrom, cSTo) = \case
+  CJSONDe cPrettify -> do
     bs <- rParseStream (fromOrig cPrettify) cSFrom
     rWriteStreamBin True cSTo bs
-  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+  CJSONEn cPrintStdout -> do
     bs <- rReadStream cSFrom
     scp <- rForceParseJSON bs
     let scpBytes = GSS.sSCP scp GCB.binCfgSCP
@@ -51,8 +51,8 @@ runCmdSCP = \case
   where
     fromOrig cPrettify fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
 
-runCmdSL01 :: MonadIO m => CBin -> m ()
-runCmdSL01 c = readBytes cDir >>= writeBytes
+runCmdSL01 :: MonadIO m => (CStream, CStream) -> CBin -> m ()
+runCmdSL01 (cSFrom, cSTo) (CBin cDir cPrintStdout) = readBytes cDir >>= writeBytes
   where
     readBytes = \case
       CDirectionFromOrig -> rParseStream fromOrig cSFrom
@@ -63,16 +63,13 @@ runCmdSL01 c = readBytes cDir >>= writeBytes
     fromOrig fp bs = do
         sl01 <- GCBP.parseBin GAS.pSL01 GCB.binCfgSCP fp bs
         return $ GAS.decompress sl01
-    cDir = _cBinCDirection c
-    cPrintStdout = _cBinAllowBinStdout c
-    (cSFrom, cSTo) = _cBinCStream2 c
 
-runCmdFlowchart :: (MonadIO m) => CParseType -> CJSON -> m ()
-runCmdFlowchart parseType = \case
-  CJSONDe (cSFrom, cSTo) cPrettify -> do
+runCmdFlowchart :: (MonadIO m) => (CStream, CStream) -> CParseType -> CJSON -> m ()
+runCmdFlowchart (cSFrom, cSTo) parseType = \case
+  CJSONDe cPrettify -> do
     bs <- rParseStream (fromOrig cPrettify) cSFrom
     rWriteStreamBin True cSTo bs
-  CJSONEn (cSFrom, cSTo) cPrintStdout -> do
+  CJSONEn cPrintStdout -> do
     bs <- rReadStream cSFrom
     fc <- rGetFc bs parseType
     let fcBytes = GAFc.sFlowchart fc GCB.binCfgSCP
@@ -87,16 +84,16 @@ runCmdFlowchart parseType = \case
       CParseTypeFull    -> GAFc.altFcToFc <$> rForceParseJSON bs
       CParseTypePartial ->                    rForceParseJSON bs
 
-runCmdPak :: (MonadIO m) => CPak -> m ()
-runCmdPak = \case
-  CPakUnpack (CS1N cS1 cSN) _ -> do
+runCmdPak :: (MonadIO m) => Bool -> CPak -> m ()
+runCmdPak cPrintStdout = \case
+  CPakUnpack (cS1, cSN) -> do
     pak <- rParseStream parseAndExtract cS1
     case cSN of
       CStreamsArchive fp -> do
         liftIO $ putStrLn $ "error: unimplemented: write pak to archive: " <> fp
         liftIO $ Exit.exitWith (Exit.ExitFailure 3)
       CStreamsFolder  fp -> rWritePakFolder pak fp
-  CPakPack   (CS1N cS1 cSN) cPrintStdout unk -> do
+  CPakPack (cS1, cSN) unk -> do
     case cSN of
       CStreamsArchive fp -> do
         liftIO $ putStrLn $ "error: unimplemented: write pak from archive: " <> fp

@@ -13,18 +13,63 @@ parseOpts = execParserWithDefaults desc pToolGroup
 
 pToolGroup :: Parser ToolGroup
 pToolGroup = hsubparser $
-    makeCmd "flowchart" descFlowchart (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCParseType)
-    <> makeCmd "scp"    descSCP       (TGSCP <$> pCJSON "SCP")
-    <> makeCmd "sl01"   descSL01      (TGSL01 <$> pCBin)
-    <> makeCmd "pak"    descPak       (TGPak <$> pCPak)
+       cmd "scp"    descSCP       (TGSCP <$> pCJSON "SCP" <*> pCStream2)
+    <> cmd "sl01"   descSL01      (TGSL01 <$> pCBin <*> pCStream2)
+    <> cmd "flowchart" descFlowchart
+        (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
+    <> cmd "pak"    descPak       (TGPak <$> pCPak <*> pAllowBinStdout)
   where
-    makeCmd name desc p = command name (info p (progDesc desc))
-    descSCP = "Game script file (SCP, script/*.scp) tools."
-    descSL01 = "SL01 (LZO1x-compressed file) tools."
-    descPak = ".pak (sound_se.pak) tools."
+    descSCP       = "Game script file (SCP, script/*.scp) tools."
+    descSL01      = "SL01 (LZO1x-compressed file) tools."
     descFlowchart = "flow_chart.bin tools."
+    descPak       = ".pak (sound_se.pak) tools."
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
+
+pCPak :: Parser CPak
+pCPak = hsubparser $
+       cmd "unpack" descUnpack pUnpack
+    <> cmd "pack"   descPack   pPack
+  where
+    descUnpack = "Unpack a pak archive."
+    descPack   = "Pack files to a new pak archive."
+    pUnpack = CPakUnpack <$> pCS1N CDirectionFromOrig CDirectionToOrig
+    pPack   = CPakPack   <$> pCS1N CDirectionToOrig CDirectionFromOrig <*> pUnk
+    pUnk = pW32 "header-unk" "Unknown header value. Note that it's read as big-endian, and doesn't limit to Word32. (TODO)"
+
+pCJSON :: String -> Parser CJSON
+pCJSON noun = hsubparser $
+       cmd "decode" descDe (CJSONDe <$> pPrettifyJSON)
+    <> cmd "encode" descEn (CJSONEn <$> pAllowBinStdout)
+  where
+    descDe = "Decode " <> noun <> " to JSON."
+    descEn = "Encode JSON to " <> noun <> "."
+
+pCBin :: Parser CBin
+pCBin = CBin <$> pSub <*> pAllowBinStdout
+  where
+    pSub = hsubparser $
+           cmd "decompress" "Decompress TODO" (pure CDirectionFromOrig)
+        <> cmd "compress"   "Compress TODO"   (pure CDirectionToOrig)
+
+pCStreams :: CDirection -> Parser CStreams
+pCStreams dir = pFolder <|> pArchive
+  where
+    pFolder  = CStreamsFolder  <$> strOption (metavar "FOLDER" <> long (dir' <> "-folder")  <> help (dir'' <> " folder"))
+    pArchive = CStreamsArchive <$> strOption (metavar "FILE" <> long (dir' <> "-archive") <> help (dir'' <> " archive"))
+    (dir', dir'')  =
+        case dir of
+          CDirectionFromOrig -> ("in", "Input")
+          CDirectionToOrig   -> ("out", "Output")
+
+pAllowBinStdout :: Parser Bool
+pAllowBinStdout = switch (long "print-binary" <> help "Allow printing binary to stdout")
+
+pPrettifyJSON :: Parser Bool
+pPrettifyJSON = switch (long "prettify" <> help "Prettify JSON")
+
+pCS1N :: CDirection -> CDirection -> Parser (CStream, CStreams)
+pCS1N d1 d2 = (,) <$> pCStream d1 <*> pCStreams d2
 
 pCStream :: CDirection -> Parser CStream
 pCStream = \case
@@ -42,47 +87,11 @@ pCStreamOut noun = pFileOpt <|> pure CStreamStd
   where
     pFileOpt = CStreamFile <$> strOption (metavar (map Char.toUpper noun) <> long "out-file" <> help ("Output " <> noun))
 
-pCStreams :: CDirection -> Parser CStreams
-pCStreams dir = pFolder <|> pArchive
-  where
-    pFolder  = CStreamsFolder  <$> strOption (metavar "FOLDER" <> long (dir' <> "-folder")  <> help (dir'' <> " folder"))
-    pArchive = CStreamsArchive <$> strOption (metavar "FILE" <> long (dir' <> "-archive") <> help (dir'' <> " archive"))
-    (dir', dir'')  =
-        case dir of
-          CDirectionFromOrig -> ("in", "Input")
-          CDirectionToOrig   -> ("out", "Output")
-
-pCBin :: Parser CBin
-pCBin = hsubparser $
-       command "decompress" (info (p CDirectionFromOrig) (progDesc "Decompress TODO"))
-    <> command "compress"   (info (p CDirectionToOrig)   (progDesc "Compress TODO"))
-  where
-    p d = CBin <$> pure d <*> pCStream2 <*> pAllowBinStdout
-
-pAllowBinStdout :: Parser Bool
-pAllowBinStdout = switch (long "print-binary" <> help "Allow printing binary to stdout")
-
-pPrettifyJSON :: Parser Bool
-pPrettifyJSON = switch (long "prettify" <> help "Prettify JSON")
-
-pCS1N :: CDirection -> CDirection -> Parser CS1N
-pCS1N d1 d2 = CS1N <$> pCStream d1 <*> pCStreams d2
-
-pCPak :: Parser CPak
-pCPak = hsubparser $
-       command "unpack" (info (CPakUnpack <$> pCS1N CDirectionFromOrig CDirectionToOrig <*> pAllowBinStdout) (progDesc "Unpack a pak archive."))
-    <> command "pack"   (info (CPakPack   <$> pCS1N CDirectionToOrig CDirectionFromOrig <*> pAllowBinStdout <*> pW32 "header-unk" "Unknown header value. Note that it's read as big-endian, and doesn't limit to Word32. (TODO)") (progDesc "Pack files to a pak archive."))
-
 pW32 :: String -> String -> Parser Word32
 pW32 noun h = option auto $
     metavar "NUM"
     <> long noun
     <> help (h <> ". 4-byte number (up to 0xFFFFFFFF)")
-
-pCJSON :: String -> Parser CJSON
-pCJSON noun = hsubparser $
-       command "decode" (info (CJSONDe <$> pCStream2 <*> pPrettifyJSON)   (progDesc ("Decode " <> noun <> " to JSON.")))
-    <> command "encode" (info (CJSONEn <$> pCStream2 <*> pAllowBinStdout) (progDesc ("Encode JSON to " <> noun <> ".")))
 
 -- | Defaults to file in, stdout out.
 pCStream2 :: Parser (CStream, CStream)
@@ -101,3 +110,7 @@ execParserWithDefaults :: MonadIO m => String -> Parser a -> m a
 execParserWithDefaults desc p = liftIO $ customExecParser
     (prefs $ showHelpOnError)
     (info (helper <*> p) (progDesc desc))
+
+-- | Shorthand for the way I always write commands.
+cmd :: String -> String -> Parser a -> Mod CommandFields a
+cmd name desc p = command name (info p (progDesc desc))
