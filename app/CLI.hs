@@ -20,7 +20,12 @@ pToolGroup = hsubparser $
         (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
     <> cmd "pak"    descPak   (TGPak <$> pCPak <*> pAllowBinStdout)
     <> cmd "patch"  descPatch
-        (TGPatch <$> pCReplace <*> pFileIn "PATCH-FILE" "patch file" <*> pCStream2 <*> pAllowBinStdout)
+          ( TGPatch
+        <$> pCReplace
+        <*> pFileIn "PATCH-FILE" "patch file"
+        <*> pCStream2
+        <*> pAllowBinStdout
+        <*> pCPatchType )
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
@@ -29,6 +34,8 @@ pToolGroup = hsubparser $
     descPatch     = "Patch bytestrings in a stream."
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
+    pCPatchType = flag CPatchTypeBin CPatchTypeString
+            (long "string-patch" <> help "Use alternate string patching format (a bit easier if you're patching strings)")
 
 pCReplace :: Parser CReplace
 pCReplace = CReplace <$> pAllowRepatch <*> pExpectExact

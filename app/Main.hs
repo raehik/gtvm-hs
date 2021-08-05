@@ -40,13 +40,12 @@ runCmd = \case
   TGSL01 cfg cS2 -> runCmdSL01 cS2 cfg
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
-  TGPatch cfg fpFrom cS2 cPrintStdout -> runCmdPatch cfg fpFrom cS2 cPrintStdout
+  TGPatch cfg fpFrom cS2 cPrintStdout cPatchType -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType
 
 runCmdPatch
-    :: MonadIO m => CReplace -> FilePath -> (CStream, CStream) -> Bool -> m ()
-runCmdPatch cReplace fpFrom (cSFrom, cSTo) cPrintStdout = do
-    bsPatch <- rReadFile fpFrom
-    patch   <- rForceParseYAML bsPatch
+    :: MonadIO m => CReplace -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
+runCmdPatch cReplace fpFrom (cSFrom, cSTo) cPrintStdout cPatchType = do
+    patch <- rReadFile fpFrom >>= rGetPatchScript
     case GAB.normalise patch of
       Left err -> liftIO $ print err
       Right patchScript -> do
@@ -54,6 +53,10 @@ runCmdPatch cReplace fpFrom (cSFrom, cSTo) cPrintStdout = do
         case GAB.replaceBytes patchScript bsFrom cReplace of
           Left err   -> liftIO $ print err
           Right bsTo -> rWriteStreamBin cPrintStdout cSTo bsTo
+  where
+    rGetPatchScript bs = case cPatchType of
+      CPatchTypeBin    ->                             rForceParseYAML bs
+      CPatchTypeString -> map GAB.parseStrReplace <$> rForceParseYAML bs
 
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case

@@ -8,7 +8,10 @@ data ToolGroup
   | TGSCP CJSON (CStream, CStream)
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
-  | TGPatch CReplace FilePath (CStream, CStream) Bool
+  | TGPatch CReplace FilePath (CStream, CStream) Bool CPatchType
+    deriving (Eq, Show)
+
+data CPatchType = CPatchTypeBin | CPatchTypeString
     deriving (Eq, Show)
 
 -- | orig one bin stream <-> one text stream

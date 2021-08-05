@@ -12,6 +12,8 @@ import           Control.Monad.State
 import           Control.Monad.Reader
 import           Data.List ( sortBy )
 import           Data.Maybe ( fromMaybe )
+import qualified Data.Text.Encoding      as Text
+import           Data.Text ( Text )
 
 import qualified Data.Aeson as Aeson
 import           Data.Aeson ( ToJSON, FromJSON )
@@ -29,9 +31,9 @@ data UserReplace = UserReplace
 
 -- user facing offset object (JSON) (meta is optional for that reason)
 data Offset = Offset
-  { offsetAddress :: Int
-  , offsetMaxLen  :: (Maybe Int)
-  , offsetMeta    :: Maybe ReplaceMeta
+  { offsetAddress    :: Int
+  , offsetMaxLength  :: (Maybe Int)
+  , offsetMeta       :: Maybe ReplaceMeta
   } deriving (Eq, Show, Generic)
 
 data ReplaceMeta = ReplaceMeta
@@ -230,3 +232,61 @@ rEx1ur2 = [u b123 Nothing [o 1 Nothing rm', o 5 Nothing rm', o 9 Nothing rm']]
     u = UserReplace
     o = Offset
     rm' = Nothing
+
+--------------------------------------------------------------------------------
+
+-- simplified string replace object (JSON)
+data StrReplace = StrReplace
+  { srText    :: Text
+  , srAddress :: Int
+  , srMeta    :: Maybe StrReplaceMeta
+  } deriving (Eq, Show, Generic)
+
+data StrReplaceMeta = StrReplaceMeta
+  { srmNullTerminates :: Maybe Int
+  , srmExpected       :: Maybe Bytes
+  , srmMaxLength      :: Maybe Int
+  } deriving (Eq, Show, Generic)
+
+jsonCfgStrReplace :: Aeson.Options
+jsonCfgStrReplace = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
+  , Aeson.rejectUnknownFields = True }
+
+instance ToJSON   StrReplace where
+    toJSON     = Aeson.genericToJSON     jsonCfgUserReplace
+    toEncoding = Aeson.genericToEncoding jsonCfgUserReplace
+instance FromJSON StrReplace where
+    parseJSON  = Aeson.genericParseJSON  jsonCfgUserReplace
+
+jsonCfgStrReplaceMeta :: Aeson.Options
+jsonCfgStrReplaceMeta = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 3
+  , Aeson.rejectUnknownFields = True }
+
+instance ToJSON   StrReplaceMeta where
+    toJSON     = Aeson.genericToJSON     jsonCfgUserReplace
+    toEncoding = Aeson.genericToEncoding jsonCfgUserReplace
+instance FromJSON StrReplaceMeta where
+    parseJSON  = Aeson.genericParseJSON  jsonCfgUserReplace
+
+parseStrReplace :: StrReplace -> UserReplace
+parseStrReplace sr = ur
+  where
+    ur = UserReplace
+        { urBytes       = BS.snoc (Text.encodeUtf8 (srText sr)) 0x00
+        , urExpectedLen = Nothing
+        , urOffsets     = [offset] }
+    offset = Offset
+        { offsetAddress   = srAddress sr
+        , offsetMaxLength = maxLen
+        , offsetMeta      = meta }
+    (meta, maxLen) =
+        case srMeta sr of
+          Nothing    -> (Nothing, Nothing)
+          Just sMeta ->
+            let rm = Just $ ReplaceMeta
+                        { rmNullTerminates = srmNullTerminates sMeta
+                        , rmExpected       = srmExpected sMeta }
+                ml = srmMaxLength sMeta
+            in (rm, ml)
