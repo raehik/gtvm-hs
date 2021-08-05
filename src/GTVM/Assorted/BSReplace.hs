@@ -36,17 +36,18 @@ data Offset = Offset
 
 data ReplaceMeta = ReplaceMeta
   { rmNullTerminates :: Maybe Int
-  , rmExpectedBytes :: Maybe Bytes
+  , rmExpected :: Maybe Bytes
   } deriving (Eq, Show, Generic)
 
 replaceMetaDef :: ReplaceMeta
 replaceMetaDef = ReplaceMeta
   { rmNullTerminates = Nothing
-  , rmExpectedBytes  = Nothing }
+  , rmExpected  = Nothing }
 
 jsonCfgUserReplace :: Aeson.Options
 jsonCfgUserReplace = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2 }
+  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
+  , Aeson.rejectUnknownFields = True }
 
 instance ToJSON   UserReplace where
     toJSON     = Aeson.genericToJSON     jsonCfgUserReplace
@@ -56,7 +57,8 @@ instance FromJSON UserReplace where
 
 jsonCfgOffset :: Aeson.Options
 jsonCfgOffset = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 6 }
+  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 6
+  , Aeson.rejectUnknownFields = True }
 
 instance ToJSON   Offset where
     toJSON     = Aeson.genericToJSON     jsonCfgOffset
@@ -66,7 +68,8 @@ instance FromJSON Offset where
 
 jsonCfgReplaceMeta :: Aeson.Options
 jsonCfgReplaceMeta = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2 }
+  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
+  , Aeson.rejectUnknownFields = True }
 
 instance ToJSON   ReplaceMeta where
     toJSON     = Aeson.genericToJSON     jsonCfgReplaceMeta
@@ -149,17 +152,6 @@ tryMakeSingleReplace bs (Offset addr mLen mMeta) =
     meta = fromMaybe replaceMetaDef mMeta
     go = Just (Replace1 bs addr meta)
 
-rEx1ur :: [UserReplace]
-rEx1ur = [u b123 Nothing [o 1 Nothing rm', o 5 Nothing rm', o 9 Nothing rm']]
-  where
-    b123 = BS.pack [0x31, 0x32, 0x33]
-    u = UserReplace
-    o = Offset
-    rm' = Nothing
-
-rEx1bs :: Bytes
-rEx1bs = BS.pack [0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C]
-
 --------------------------------------------------------------------------------
 
 data CReplace = CReplace
@@ -193,7 +185,7 @@ replaceBytes x1 x2 = go x2 mempty x1
         case trySplitOrigAndAfter bsOrigAndAfter (BS.length bsReplace) of
           Nothing -> return $ Left ErrReplaceOverlong
           Just (bsOrig, bsAfter) -> do
-            checkExpectedBytes bsOrig (rmExpectedBytes meta) >>= \case
+            checkExpected bsOrig (rmExpected meta) >>= \case
               False -> return $ Left ErrReplaceDidNotMatchExpected
               True  ->
                 checkNullTerminates bsOrig (rmNullTerminates meta) >>= \case
@@ -206,7 +198,7 @@ replaceBytes x1 x2 = go x2 mempty x1
          in if   BS.length bsOrig == origLen
             then Just (bsOrig, bsAfter)
             else Nothing
-    checkExpectedBytes bsOrig = \case
+    checkExpected bsOrig = \case
       Nothing -> return True
       Just bsExpected ->
         asks cReplaceAllowPartialExpected >>= \case
@@ -217,3 +209,24 @@ replaceBytes x1 x2 = go x2 mempty x1
       Just nullsFrom ->
         let bsOrigNulls = BS.drop nullsFrom bsOrig
          in return $ bsOrigNulls == BS.replicate (BS.length bsOrigNulls) 0x00
+
+--------------------------------------------------------------------------------
+
+rEx1ur :: [UserReplace]
+rEx1ur = [u b123 Nothing [o 1 Nothing rm', o 5 Nothing rm', o 9 Nothing rm']]
+  where
+    b123 = BS.pack [0x31, 0x32, 0x33]
+    u = UserReplace
+    o = Offset
+    rm' = Nothing
+
+rEx1bs :: Bytes
+rEx1bs = BS.pack [0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C]
+
+rEx1ur2 :: [UserReplace]
+rEx1ur2 = [u b123 Nothing [o 1 Nothing rm', o 5 Nothing rm', o 9 Nothing rm']]
+  where
+    b123 = BS.pack [0x31, 0x32, 0x33, 0x00]
+    u = UserReplace
+    o = Offset
+    rm' = Nothing

@@ -31,10 +31,10 @@ pToolGroup = hsubparser $
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
 
 pCReplace :: Parser CReplace
-pCReplace = CReplace <$> pAllowRepatch <*> pAllowPartial
+pCReplace = CReplace <$> pAllowRepatch <*> pExpectExact
   where
     pAllowRepatch = switch $ long "allow-repatch" <> help "Override safety checks and only warn if it appears we're repatching a patched file (CURRENTLY NONFUNCTIONAL)"
-    pAllowPartial = flag True False $ long "allow-partial-check" <> help "When checking expected bytes, allow the expected bytes being a prefix of actual (instead of matching exactly)"
+    pExpectExact = flag True False $ long "expect-exact" <> help "When checking expected bytes, require an exact match (rather than the expected being a prefix of the actual)"
 
 pCPak :: Parser CPak
 pCPak = hsubparser $
