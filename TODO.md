@@ -4,7 +4,25 @@
     * not too much & only facts, learner guide should be elsewhere
 
 ## Tools
+### SL01
+#### Improve compression
+The `lzo` package on Hackage is minilzo built *into* Haskell (since it's pretty
+much just `ghc minilzo.c`, doesn't need a Makefile). minilzo is apparently built
+from lzo2, and only provides LZO1X-1 (fastest compression) and the LZO1X
+decompressor (works for all LZO1X). I tested: `lzop -9` (= LZO1X-999) compresses
+down to around LZ4's size.
+
+I've tested: I'm able to bind to `lzo2`. However, only via dynamic linking,
+which I'd prefer not to do while I don't know its Windows prevalence (and
+generally I'd like to avoid dynamic linking if possible). It'd be nice if I
+could build the whole library into Haskell? But unlikely.
+
+In any case, they probably used `minilzo` for the game (my compressed files are
+only 1-2% larger). So I could make my piece. But I'd like to try...
+
 ### Bytestring inserter
+*2021-08-06: done*
+
 Insert bytestrings at offsets in stream. Intended for inserting any binary into
 any binary, but especially geared for C strings (null-terminated).
 
@@ -91,3 +109,5 @@ which means only theoretically only 1/256 to be a null.
   * [ ] Having ripped MonadReader out from my program, inject it back in
         (gradually).
   * [ ] Figure out JSON exceptions? MonadError (with no MonadIO)?
+  * [ ] Separate binary parsing etc. stuff (most of GTVM.Common) into it's own
+        Raehik.Binary set of modules or something

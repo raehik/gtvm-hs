@@ -25,25 +25,14 @@ dependencies:
 - lzo
 - filemanip
 - yaml
-  #- generic-lens
-  #- bytestring-strict-builder
-  #- streaming
-  #- streaming-bytestring >= 0.2.0
-  #- containers
-  #- recursion-schemes
-  #- data-fix >= 0.3.0 # renames cata -> foldFix etc.
-  #- free
-  #- streaming-attoparsec
-  #- attoparsec
-  #- binary
 
 library:
   source-dirs: src
 
 executables:
   gtvm-hs:
-    main: Main.hs
     source-dirs: app
+    main: Main.hs
     ghc-options:
     - -Wall
     - -threaded

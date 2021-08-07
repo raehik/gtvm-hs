@@ -170,9 +170,10 @@ data ErrReplace
   | ErrReplaceDidNotMatchExpected
     deriving (Eq, Show)
 
--- TODO: Lazy ByteStrings might make sense here.
 -- TODO: not doing likely reprocessing check (kind of a pain)
+-- TODO: output info in errors
 -- TODO: provide alternate IO solution (for arbitrary-size files)
+-- TODO: Lazy ByteStrings might make sense here.
 replaceBytes :: MonadReader CReplace m => ReplaceScript -> Bytes -> m (Either ErrReplace Bytes)
 replaceBytes x1 x2 = go x2 mempty x1
   where
