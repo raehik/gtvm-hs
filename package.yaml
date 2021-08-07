@@ -25,6 +25,8 @@ dependencies:
 - lzo
 - filemanip
 - yaml
+- cassava
+- utf8-string
 
 library:
   source-dirs: src

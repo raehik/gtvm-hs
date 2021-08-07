@@ -245,7 +245,7 @@ data StrReplace = StrReplace
 
 data StrReplaceMeta = StrReplaceMeta
   { srmNullTerminates :: Maybe Int
-  , srmExpected       :: Maybe Bytes
+  , srmExpected       :: Maybe Text
   , srmMaxLength      :: Maybe Int
   } deriving (Eq, Show, Generic)
 
@@ -274,8 +274,9 @@ instance FromJSON StrReplaceMeta where
 parseStrReplace :: StrReplace -> UserReplace
 parseStrReplace sr = ur
   where
+    textToCString t = BS.snoc (Text.encodeUtf8 t) 0x00
     ur = UserReplace
-        { urBytes       = BS.snoc (Text.encodeUtf8 (srText sr)) 0x00
+        { urBytes       = textToCString (srText sr)
         , urExpectedLen = Nothing
         , urOffsets     = [offset] }
     offset = Offset
@@ -288,6 +289,6 @@ parseStrReplace sr = ur
           Just sMeta ->
             let rm = Just $ ReplaceMeta
                         { rmNullTerminates = srmNullTerminates sMeta
-                        , rmExpected       = srmExpected sMeta }
+                        , rmExpected       = textToCString <$> srmExpected sMeta }
                 ml = srmMaxLength sMeta
             in (rm, ml)

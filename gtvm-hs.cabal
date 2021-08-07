@@ -20,6 +20,7 @@ source-repository head
 
 library
   exposed-modules:
+      CSV
       GTVM.Assorted.BSReplace
       GTVM.Assorted.Flowchart
       GTVM.Assorted.Pak
@@ -47,6 +48,7 @@ library
     , aeson-pretty
     , base
     , bytestring
+    , cassava
     , directory
     , either
     , filemanip
@@ -56,6 +58,7 @@ library
     , mtl
     , text
     , unicode-show
+    , utf8-string
     , yaml
   default-language: Haskell2010
 
@@ -77,6 +80,7 @@ executable gtvm-hs
     , aeson-pretty
     , base
     , bytestring
+    , cassava
     , directory
     , either
     , filemanip
@@ -88,5 +92,6 @@ executable gtvm-hs
     , optparse-applicative
     , text
     , unicode-show
+    , utf8-string
     , yaml
   default-language: Haskell2010
