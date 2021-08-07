@@ -1,4 +1,4 @@
-module CLI (parseOpts) where
+module CLI ( parseOpts ) where
 
 import           Config
 import           Options.Applicative
@@ -26,12 +26,14 @@ pToolGroup = hsubparser $
         <*> pCStream2
         <*> pAllowBinStdout
         <*> pCPatchType )
+    <> cmd "csv-patch"  descCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
     descFlowchart = "flow_chart.bin tools."
     descPak       = ".pak (sound_se.pak) tools."
     descPatch     = "Patch bytestrings in a stream."
+    descCSVPatch  = "Convert a string patch CSV to an applicable string patch."
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
     pCPatchType = flag CPatchTypeBin CPatchTypeString
@@ -119,7 +121,7 @@ pCStream2 = liftA2 (,) pCSIn pCSOut
   where
     pCSIn    = pFileArg <|> pStdin
     pFileArg = CStreamFile <$> strArgument (metavar "FILE" <> help "Input file")
-    pFileOpt = CStreamFile <$> strOption (metavar "FILE" <> long "out-file" <> help "Output file")
+    pFileOpt = CStreamFile <$> strOption (metavar "FILE" <> long "out-file" <> short 'o' <> help "Output file")
     pStdin   = flag' CStreamStd (long "stdin"  <> help "Use stdin")
     pCSOut   = pFileOpt <|> pure CStreamStd
 

@@ -9,6 +9,7 @@ data ToolGroup
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
   | TGPatch CReplace FilePath (CStream, CStream) Bool CPatchType
+  | TGCSVPatch (CStream, CStream)
     deriving (Eq, Show)
 
 data CPatchType = CPatchTypeBin | CPatchTypeString

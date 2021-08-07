@@ -2,9 +2,11 @@ module CSV where
 
 import           Data.Csv
 import           Data.Text            ( Text )
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.UTF8 as BSU8
 import           Text.Read            ( readMaybe )
 import           GTVM.Assorted.BSReplace
+import qualified Data.Vector          as Vector
 
 data CSVStrReplace = CSVStrReplace
   { csvSrOffset          :: ReadInt
@@ -44,3 +46,9 @@ csvToStrReplace csv = StrReplace
         as <- availableSpace
         ReadInt succeedingNulls <- csvSrSucceedingNulls csv
         return $ as - succeedingNulls
+
+csvDecode :: BL.ByteString -> Either String [CSVStrReplace]
+csvDecode bs =
+    case decodeByName bs of
+      Left err  -> Left err
+      Right (_, vec) -> Right $ Vector.toList vec

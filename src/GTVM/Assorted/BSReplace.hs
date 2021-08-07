@@ -167,7 +167,7 @@ data CReplace = CReplace
 data ErrReplace
   = ErrReplaceOverlong
   | ErrReplaceUnexpectedNonnull
-  | ErrReplaceDidNotMatchExpected
+  | ErrReplaceDidNotMatchExpected Bytes Bytes
     deriving (Eq, Show)
 
 -- TODO: not doing likely reprocessing check (kind of a pain)
@@ -184,34 +184,40 @@ replaceBytes x1 x2 = go x2 mempty x1
         let b' = b <> BB.byteString bs
         return $ Right $ BL.toStrict $ BB.toLazyByteString b'
       (skip, Replace bsReplace meta) : rs -> do
-        let (bsBefore, bsOrigAndAfter) = BS.splitAt skip bs
-        case trySplitOrigAndAfter bsOrigAndAfter (BS.length bsReplace) of
+        let (bsBefore, bsActualAndAfter) = BS.splitAt skip bs
+        case trySplitActualAndAfter bsActualAndAfter (BS.length bsReplace) of
           Nothing -> return $ Left ErrReplaceOverlong
-          Just (bsOrig, bsAfter) -> do
-            checkExpected bsOrig (rmExpected meta) >>= \case
-              False -> return $ Left ErrReplaceDidNotMatchExpected
-              True  ->
-                checkNullTerminates bsOrig (rmNullTerminates meta) >>= \case
+          Just (bsActual, bsAfter) -> do
+            checkExpected bsActual (rmExpected meta) >>= \case
+              Just (bsa, bse) -> return $ Left $ ErrReplaceDidNotMatchExpected bsa bse
+              Nothing ->
+                checkNullTerminates bsActual (rmNullTerminates meta) >>= \case
                   False -> return $ Left ErrReplaceUnexpectedNonnull
                   True  ->
                     let b' = b <> BB.byteString bsBefore <> BB.byteString bsReplace
                     in go bsAfter b' rs
-    trySplitOrigAndAfter bsOrigAndAfter origLen = do
-        let (bsOrig, bsAfter) = BS.splitAt origLen bsOrigAndAfter
-         in if   BS.length bsOrig == origLen
-            then Just (bsOrig, bsAfter)
+    trySplitActualAndAfter bsActualAndAfter replLen = do
+        let (bsActual, bsAfter) = BS.splitAt replLen bsActualAndAfter
+         in if   BS.length bsActual == replLen
+            then Just (bsActual, bsAfter)
             else Nothing
-    checkExpected bsOrig = \case
-      Nothing -> return True
+    checkExpected bsActual = \case
+      Nothing -> return Nothing
       Just bsExpected ->
         asks cReplaceAllowPartialExpected >>= \case
-          True  -> return $ BS.isPrefixOf bsExpected bsOrig
-          False -> return $ bsExpected == bsOrig
-    checkNullTerminates bsOrig = \case
+          True  ->
+            if   BS.isPrefixOf bsActual bsExpected
+            then return Nothing
+            else return $ Just (bsActual, bsExpected)
+          False ->
+            if   bsExpected == bsActual
+            then return Nothing
+            else return $ Just (bsActual, bsExpected)
+    checkNullTerminates bsActual = \case
       Nothing        -> return True
       Just nullsFrom ->
-        let bsOrigNulls = BS.drop nullsFrom bsOrig
-         in return $ bsOrigNulls == BS.replicate (BS.length bsOrigNulls) 0x00
+        let bsActualNulls = BS.drop nullsFrom bsActual
+         in return $ bsActualNulls == BS.replicate (BS.length bsActualNulls) 0x00
 
 --------------------------------------------------------------------------------
 
@@ -255,10 +261,10 @@ jsonCfgStrReplace = Aeson.defaultOptions
   , Aeson.rejectUnknownFields = True }
 
 instance ToJSON   StrReplace where
-    toJSON     = Aeson.genericToJSON     jsonCfgUserReplace
-    toEncoding = Aeson.genericToEncoding jsonCfgUserReplace
+    toJSON     = Aeson.genericToJSON     jsonCfgStrReplace
+    toEncoding = Aeson.genericToEncoding jsonCfgStrReplace
 instance FromJSON StrReplace where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgUserReplace
+    parseJSON  = Aeson.genericParseJSON  jsonCfgStrReplace
 
 jsonCfgStrReplaceMeta :: Aeson.Options
 jsonCfgStrReplaceMeta = Aeson.defaultOptions
@@ -266,10 +272,10 @@ jsonCfgStrReplaceMeta = Aeson.defaultOptions
   , Aeson.rejectUnknownFields = True }
 
 instance ToJSON   StrReplaceMeta where
-    toJSON     = Aeson.genericToJSON     jsonCfgUserReplace
-    toEncoding = Aeson.genericToEncoding jsonCfgUserReplace
+    toJSON     = Aeson.genericToJSON     jsonCfgStrReplaceMeta
+    toEncoding = Aeson.genericToEncoding jsonCfgStrReplaceMeta
 instance FromJSON StrReplaceMeta where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgUserReplace
+    parseJSON  = Aeson.genericParseJSON  jsonCfgStrReplaceMeta
 
 parseStrReplace :: StrReplace -> UserReplace
 parseStrReplace sr = ur

@@ -14,6 +14,7 @@ import qualified GTVM.SCP.Parse           as GSP
 import qualified GTVM.SCP.Serialize       as GSS
 import qualified GTVM.Assorted.BSReplace  as GAB
 import           GTVM.Assorted.BSReplace  ( CReplace )
+import qualified CSV                      as CSV
 
 import qualified Data.Aeson               as Aeson
 import qualified Data.Aeson.Encode.Pretty as DAEP
@@ -41,6 +42,16 @@ runCmd = \case
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
   TGPatch cfg fpFrom cS2 cPrintStdout cPatchType -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType
+  TGCSVPatch cS2 -> runCmdCSV cS2
+
+runCmdCSV :: MonadIO m => (CStream, CStream) -> m ()
+runCmdCSV (cSFrom, cSTo) = do
+    bs <- rReadStream' cSFrom
+    case CSV.csvDecode bs of
+      Left err -> liftIO $ print err
+      Right csv -> do
+        let sr = CSV.csvToStrReplace <$> csv
+        rWriteStreamBin True cSTo (Yaml.encode sr)
 
 runCmdPatch
     :: MonadIO m => CReplace -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
@@ -246,3 +257,17 @@ rReadFile = liftIO . BS.readFile
 
 rReadStdin :: MonadIO m => m BS.ByteString
 rReadStdin = liftIO BS.getContents
+
+-- | Read stream as lazy bytestring. (Sigh.)
+rReadStream' :: MonadIO m => CStream -> m BL.ByteString
+rReadStream' = \case
+  CStreamFile fp -> rReadFile' fp
+  CStreamStd     -> rReadStdin'
+
+-- | Read file as lazy bytestring. (Sigh.)
+rReadFile' :: MonadIO m => FilePath -> m BL.ByteString
+rReadFile' = liftIO . BL.readFile
+
+-- | Read stdin as lazy bytestring. (Sigh.)
+rReadStdin' :: MonadIO m => m BL.ByteString
+rReadStdin' = liftIO BL.getContents

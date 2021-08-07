@@ -59,6 +59,7 @@ library
     , text
     , unicode-show
     , utf8-string
+    , vector
     , yaml
   default-language: Haskell2010
 
@@ -93,5 +94,6 @@ executable gtvm-hs
     , text
     , unicode-show
     , utf8-string
+    , vector
     , yaml
   default-language: Haskell2010

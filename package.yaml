@@ -27,6 +27,7 @@ dependencies:
 - yaml
 - cassava
 - utf8-string
+- vector
 
 library:
   source-dirs: src
