@@ -2,6 +2,7 @@
 ## CLI
   * [ ] Add a few more docs in CLI (basic format explanations)
     * not too much & only facts, learner guide should be elsewhere
+  * [ ] csv-patch: add switch to discard safety info when generating patch
 
 ## Tools
 ### SL01
@@ -19,71 +20,6 @@ could build the whole library into Haskell? But unlikely.
 
 In any case, they probably used `minilzo` for the game (my compressed files are
 only 1-2% larger). So I could make my piece. But I'd like to try...
-
-### Bytestring inserter
-*2021-08-06: done*
-
-Insert bytestrings at offsets in stream. Intended for inserting any binary into
-any binary, but especially geared for C strings (null-terminated).
-
-  * In-place edits only (relative to stream length, not I/O).
-  * Non-linear, allowed to jump around file.
-    * Could make a normal form, but it'd have to look a lot different. No
-      offsets, just a "skip X", "write X" instruction list. (The normal form
-      would do most of the safety checks for us too, without I/O.)
-    * Actually that's sounding like an exceedingly Good Idea, if more effort
-
-Example spec:
-
-```yaml
-- bytes: FF FF FF FF FF FF FF 00 # arbitrarily long
-  length: 3 # optional
-  offsets:
-  - offset: 0x1234
-    length: # optional
-    null_terminates: # optional
-    original_bytes: # optional
-```
-
-  * `bytes` is a plain bytestring. Must include null byte for C strings.
-  * `length` is replacement bytestring length. Optional, if provided then
-    checked against `bytes`.
-  * `offsets` is a list of offsets to write the replacement bytestring at.
-
-The `offsets` list:
-
-  * `offset` is an address in the stream.
-  * `length` is total length allowed to write for this offset.
-  * `null_terminates` is the relative offset at which the original bytestring is
-    expected to terminate, and there to only be nulls from this cursor point on.
-  * `original_bytes` is the original bytes in the file, to check against while
-    writing. *NOT FOR PUBLIC PATCH!*
-
-Algorithm notes:
-
-  * while writing, keep track of "have I actually changed any bytes for the
-    current offset?", use this to attempt to determine if the offset has already
-    been replaced
-    * `null_terminates`: "well the next byte isn't a null but we haven't changed
-      a byte yet so I will allow it until we do"
-    * `original_bytes`: as regular but on non-match while unchanged, what
-      happens depends on config (immediate fail or warning) -- also no need to
-      re-run this after it fails, it can never recover after one difference
-
-Normal form calculation:
-
-  * Simplify to list of `(ByteString, offset_obj)`. For each:
-    * Assert any provided replacement byte lengths and discard (`ByteString` stores length)
-    * Expand `offsets` list
-      * Assert any provided offset byte lengths against replacement and discard
-        (normal form makes it useless other than for this assert)
-  * Sort list by `offset.offset`
-  * Replace each entry with `(consume_x :: Int, replace :: Replace)`, i.e.:
-    * Keep track of file cursor, assert that next offset is past cursor
-    * Remove offsets (keep the rest of the meta though)
-    * essentially for every `(o1:o2:os)`, assert that `o1` doesn't clobber `o2`
-      (`o1` offset+bytestring length < `o2` offset, though probably better to do
-      it statefully)
 
 ### `gb_param.bin`, `sd_param.bin`, `vj_param.bin`
 Each one appears to be a simple `[(header, contents)]` list archive, with the
