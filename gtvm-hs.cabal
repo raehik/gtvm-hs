@@ -73,7 +73,7 @@ library
     , either
     , filemanip
     , lens
-    , lzo
+    , lzo-hs
     , megaparsec
     , mtl
     , text
@@ -124,7 +124,7 @@ executable gtvm-hs
     , filemanip
     , gtvm-hs
     , lens
-    , lzo
+    , lzo-hs
     , megaparsec
     , mtl
     , optparse-applicative

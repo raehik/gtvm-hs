@@ -3,3 +3,5 @@ packages: [.]
 
 extra-deps:
 - lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
+- git: https://github.com/raehik/lzo-hs
+  commit: 4cec81a25a0a1033827fb95a82d78055d21f01ee
