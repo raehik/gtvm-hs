@@ -6,9 +6,27 @@ extra-source-files:
 - README.md
 - CHANGELOG.md
 
+# all unintrusive extensions from Alexis King's 2018 recommended defaults
+# https://lexi-lambda.github.io/blog/2018/02/10/an-opinionated-guide-to-haskell-in-2018/
 default-extensions:
-- OverloadedStrings
+- EmptyCase
+- FlexibleContexts
+- FlexibleInstances
+- InstanceSigs
+- MultiParamTypeClasses
 - LambdaCase
+- DeriveGeneric
+- DeriveFoldable
+- DeriveFunctor
+- DeriveGeneric
+- DeriveLift
+- DeriveTraversable
+- DerivingStrategies
+- GeneralizedNewtypeDeriving
+- StandaloneDeriving
+- BangPatterns
+- KindSignatures
+- TypeOperators
 
 dependencies:
 - base
@@ -28,6 +46,7 @@ dependencies:
 - cassava
 - utf8-string
 - vector
+- barbies
 
 library:
   source-dirs: src

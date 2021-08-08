@@ -1,5 +1,4 @@
-{-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module GTVM.Common.Binary.Util
   ( runParserBin

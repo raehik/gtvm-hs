@@ -1,6 +1,5 @@
-{-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveGeneric    #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GTVM.Assorted.Flowchart
   ( FlowchartEntryBlock

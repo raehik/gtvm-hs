@@ -1,5 +1,4 @@
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module GTVM.Common.Binary.Serialize

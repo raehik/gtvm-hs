@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Main (main) where
 
 import           Config
@@ -12,8 +10,11 @@ import qualified GTVM.Common.Binary.Parse as GCBP
 import qualified GTVM.Common.Binary       as GCB
 import qualified GTVM.SCP.Parse           as GSP
 import qualified GTVM.SCP.Serialize       as GSS
-import qualified GTVM.Assorted.BSReplace  as GAB
-import           GTVM.Assorted.BSReplace  ( CReplace )
+import qualified LinearPatch              as Patch
+import qualified LinearPatch.Patch        as Patch
+import qualified LinearPatch.Text         as Patch
+import           LinearPatch.Patch        ( CPatch )
+import           GTVM.Assorted.LinearPatchAeson()
 import qualified CSV                      as CSV
 
 import qualified Data.Aeson               as Aeson
@@ -54,20 +55,20 @@ runCmdCSV (cSFrom, cSTo) = do
         rWriteStreamBin True cSTo (Yaml.encode sr)
 
 runCmdPatch
-    :: MonadIO m => CReplace -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
-runCmdPatch cReplace fpFrom (cSFrom, cSTo) cPrintStdout cPatchType = do
+    :: MonadIO m => CPatch -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
+runCmdPatch cPatch fpFrom (cSFrom, cSTo) cPrintStdout cPatchType = do
     patch <- rReadFile fpFrom >>= rGetPatchScript
-    case GAB.normalise patch of
+    case Patch.normalize patch of
       Left err -> liftIO $ print err
       Right patchScript -> do
         bsFrom <- rReadStream cSFrom
-        case GAB.replaceBytes patchScript bsFrom cReplace of
+        case Patch.patch patchScript bsFrom cPatch of
           Left err   -> liftIO $ print err
           Right bsTo -> rWriteStreamBin cPrintStdout cSTo bsTo
   where
     rGetPatchScript bs = case cPatchType of
-      CPatchTypeBin    ->                             rForceParseYAML bs
-      CPatchTypeString -> map GAB.parseStrReplace <$> rForceParseYAML bs
+      CPatchTypeBin    ->                              rForceParseYAML bs
+      CPatchTypeString -> map Patch.textPatchToBin <$> rForceParseYAML bs
 
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case

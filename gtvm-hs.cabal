@@ -21,8 +21,8 @@ source-repository head
 library
   exposed-modules:
       CSV
-      GTVM.Assorted.BSReplace
       GTVM.Assorted.Flowchart
+      GTVM.Assorted.LinearPatchAeson
       GTVM.Assorted.Pak
       GTVM.Assorted.SL01
       GTVM.Common.Binary
@@ -35,17 +35,37 @@ library
       GTVM.SCP.Parse
       GTVM.SCP.Serialize
       GTVM.SCP.Test
+      LinearPatch
+      LinearPatch.Patch
+      LinearPatch.Text
       Text.Megaparsec.Byte.Binary
   other-modules:
       Paths_gtvm_hs
   hs-source-dirs:
       src
   default-extensions:
-      OverloadedStrings
+      EmptyCase
+      FlexibleContexts
+      FlexibleInstances
+      InstanceSigs
+      MultiParamTypeClasses
       LambdaCase
+      DeriveGeneric
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      StandaloneDeriving
+      BangPatterns
+      KindSignatures
+      TypeOperators
   build-depends:
       aeson
     , aeson-pretty
+    , barbies
     , base
     , bytestring
     , cassava
@@ -73,12 +93,29 @@ executable gtvm-hs
   hs-source-dirs:
       app
   default-extensions:
-      OverloadedStrings
+      EmptyCase
+      FlexibleContexts
+      FlexibleInstances
+      InstanceSigs
+      MultiParamTypeClasses
       LambdaCase
+      DeriveGeneric
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      GeneralizedNewtypeDeriving
+      StandaloneDeriving
+      BangPatterns
+      KindSignatures
+      TypeOperators
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , aeson-pretty
+    , barbies
     , base
     , bytestring
     , cassava

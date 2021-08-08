@@ -111,3 +111,4 @@ which means only theoretically only 1/256 to be a null.
   * [ ] Figure out JSON exceptions? MonadError (with no MonadIO)?
   * [ ] Separate binary parsing etc. stuff (most of GTVM.Common) into it's own
         Raehik.Binary set of modules or something
+  * [ ] QuickCheck tests for LinearPatch (would be very fun!)

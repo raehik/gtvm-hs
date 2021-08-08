@@ -1,20 +1,36 @@
-module CSV where
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module CSV
+  ( csvToStrReplace
+  , csvDecode
+  , colNames
+  , getColName
+  , CSVStrReplace(..)
+  ) where
+
+import           LinearPatch.Text
 
 import           Data.Csv
+import qualified Data.Text.Encoding   as Text
 import           Data.Text            ( Text )
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.UTF8 as BSU8
 import           Text.Read            ( readMaybe )
-import           GTVM.Assorted.BSReplace
 import qualified Data.Vector          as Vector
 
-data CSVStrReplace = CSVStrReplace
-  { csvSrOffset          :: ReadInt
-  , csvSrReplStr         :: Text
-  , csvSrAvailableSpace  :: Maybe ReadInt
-  , csvSrSucceedingNulls :: Maybe ReadInt
-  , csvSrOrigStr         :: Maybe Text
-  } deriving (Eq, Show)
+import           GHC.Generics         ( Generic )
+import           Barbies
+import           Data.Functor.Identity
+import           Data.Functor.Const
+
+data CSVStrReplace f = CSVStrReplace
+  { csvSrOffset          :: f ReadInt
+  , csvSrReplStr         :: f Text
+  , csvSrAvailableSpace  :: f (Maybe ReadInt)
+  , csvSrSucceedingNulls :: f (Maybe ReadInt)
+  , csvSrOrigStr         :: f (Maybe Text)
+  } deriving (Generic, FunctorB, TraversableB, ApplicativeB, ConstraintsB)
 
 newtype ReadInt = ReadInt { unReadInt :: Int } deriving (Eq, Show)
 instance FromField ReadInt where
@@ -23,31 +39,44 @@ instance FromField ReadInt where
           Nothing -> fail "integer read fail"
           Just x  -> return (ReadInt x)
 
-instance FromNamedRecord CSVStrReplace where
+instance FromNamedRecord (CSVStrReplace Identity) where
     parseNamedRecord m =
         CSVStrReplace
-        <$> m .: "Address"
-        <*> m .: "Translated"
-        <*> m .: "Available space"
-        <*> m .: "Succeeding null bytes"
-        <*> m .: "String"
+        <$> m .: fieldName csvSrOffset
+        <*> m .: fieldName csvSrReplStr
+        <*> m .: fieldName csvSrAvailableSpace
+        <*> m .: fieldName csvSrSucceedingNulls
+        <*> m .: fieldName csvSrOrigStr
+      where fieldName f = Text.encodeUtf8 (getColName f)
 
-csvToStrReplace :: CSVStrReplace -> StrReplace
-csvToStrReplace csv = StrReplace
-  { srText = csvSrReplStr csv
-  , srAddress = (unReadInt . csvSrOffset) csv
-  , srMeta = Just $ StrReplaceMeta
-      { srmNullTerminates = nullTerminatesAt
-      , srmExpected = csvSrOrigStr csv
-      , srmMaxLength = availableSpace } }
+colNames :: CSVStrReplace (Const Text)
+colNames = CSVStrReplace
+  { csvSrOffset          = "Address"
+  , csvSrReplStr         = "Translated"
+  , csvSrAvailableSpace  = "Available space"
+  , csvSrSucceedingNulls = "Succeeding null bytes"
+  , csvSrOrigStr         = "String"
+  }
+
+getColName :: (CSVStrReplace (Const Text) -> Const a b) -> a
+getColName f = getConst (f colNames)
+
+csvToStrReplace :: CSVStrReplace Identity -> TextPatch
+csvToStrReplace csv = TextPatch
+  { tpText = runIdentity (csvSrReplStr csv)
+  , tpAddress = (unReadInt . runIdentity . csvSrOffset) csv
+  , tpMeta = Just $ TextPatchMeta
+      { tpmNullTerminates = nullTerminatesAt
+      , tpmExpected = runIdentity (csvSrOrigStr csv)
+      , tpmMaxLength = availableSpace } }
   where
-    availableSpace = unReadInt <$> csvSrAvailableSpace csv
+    availableSpace = unReadInt <$> (runIdentity . csvSrAvailableSpace) csv
     nullTerminatesAt = do
         as <- availableSpace
-        ReadInt succeedingNulls <- csvSrSucceedingNulls csv
+        ReadInt succeedingNulls <- (runIdentity . csvSrSucceedingNulls) csv
         return $ as - succeedingNulls
 
-csvDecode :: BL.ByteString -> Either String [CSVStrReplace]
+csvDecode :: BL.ByteString -> Either String [CSVStrReplace Identity]
 csvDecode bs =
     case decodeByName bs of
       Left err  -> Left err

@@ -2,9 +2,8 @@
 --   paks. They should be separate in this tool, but I could provide some handy
 --   dandy connectors ("compress and archive", "dearchive and decompress").
 
-{-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveGeneric    #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GTVM.Assorted.Pak
   ( Pak(..)

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module GTVM.SCP
   ( SCPSegment(..)
   , Bytes
