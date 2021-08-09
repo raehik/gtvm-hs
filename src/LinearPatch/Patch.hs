@@ -78,14 +78,14 @@ patch x1 x2 = go x2 mempty x1
         case trySplitActualAndAfter bsActualAndAfter (BS.length bsReplace) of
           Nothing -> return $ Left ErrorPatchOverlong
           Just (bsActual, bsAfter) -> do
-            checkExpected bsActual (rmExpected meta) >>= \case
-              Just (bsa, bse) -> return $ Left $ ErrorPatchDidNotMatchExpected bsa bse
-              Nothing ->
-                checkNullTerminates bsActual (rmNullTerminates meta) >>= \case
-                  False -> return $ Left ErrorPatchUnexpectedNonnull
-                  True  ->
+            case checkNullTerminates bsActual (rmNullTerminates meta) of
+              Nothing -> return $ Left ErrorPatchUnexpectedNonnull
+              Just bsActual' ->
+                checkExpected bsActual' (rmExpected meta) >>= \case
+                  Just (bsa, bse) -> return $ Left $ ErrorPatchDidNotMatchExpected bsa bse
+                  Nothing ->
                     let b' = b <> BB.byteString bsBefore <> BB.byteString bsReplace
-                    in go bsAfter b' rs
+                     in go bsAfter b' rs
     trySplitActualAndAfter bsActualAndAfter replLen = do
         let (bsActual, bsAfter) = BS.splitAt replLen bsActualAndAfter
          in if   BS.length bsActual == replLen
@@ -104,7 +104,9 @@ patch x1 x2 = go x2 mempty x1
             then return Nothing
             else return $ Just (bsActual, bsExpected)
     checkNullTerminates bsActual = \case
-      Nothing        -> return True
+      Nothing        -> Just bsActual
       Just nullsFrom ->
-        let bsActualNulls = BS.drop nullsFrom bsActual
-         in return $ bsActualNulls == BS.replicate (BS.length bsActualNulls) 0x00
+        let (bsActual', bsNulls) = BS.splitAt nullsFrom bsActual
+         in if   bsNulls == BS.replicate (BS.length bsNulls) 0x00
+            then Just bsActual'
+            else Nothing
