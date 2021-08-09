@@ -23,6 +23,7 @@ library
       CSV
       GTVM.Assorted.Flowchart
       GTVM.Assorted.LinearPatchAeson
+      GTVM.Assorted.MDL
       GTVM.Assorted.Pak
       GTVM.Assorted.SL01
       GTVM.Common.Binary
@@ -35,6 +36,7 @@ library
       GTVM.SCP.Parse
       GTVM.SCP.Serialize
       GTVM.SCP.Test
+      HexByteString
       LinearPatch
       LinearPatch.Patch
       LinearPatch.Text

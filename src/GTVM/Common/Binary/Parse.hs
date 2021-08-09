@@ -56,8 +56,9 @@ pPascal = pW8 >>= \len -> pBS' (fromIntegral len)
 
 -- | Parse a fixed-length bytestring. Just pulls bytes from the stream with no
 --   checks.
-pBS' :: (MonadParsec e Bytes m) => Int -> m Bytes
-pBS' len = takeP (Just (show len <> "-byte bytestring")) len
+pBS' :: (MonadParsec e Bytes m, Integral a ) => a -> m Bytes
+pBS' len = takeP (Just (show len' <> "-byte bytestring")) len'
+  where len' = fromIntegral len
 
 -- | Parse a fixed-length bytestring and truncate to the first null.
 --

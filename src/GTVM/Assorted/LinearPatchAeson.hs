@@ -2,6 +2,7 @@
 --   This is my solution: throw it all in herew.
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TypeApplications     #-}
 
 module GTVM.Assorted.LinearPatchAeson () where
 
@@ -9,61 +10,75 @@ import           LinearPatch
 import           LinearPatch.Patch
 import           LinearPatch.Text
 
-import qualified Data.Aeson as Aeson
-import           Data.Aeson ( ToJSON, FromJSON )
-import           GTVM.Common.Orphans()
+import           Data.Aeson
+import           Data.Aeson.Encoding
+--import           GTVM.Common.Orphans()
+import           Text.Megaparsec
+import           HexByteString
+import qualified Data.ByteString        as BS
+import           Data.Void
 
-jsonCfgTextPatch :: Aeson.Options
-jsonCfgTextPatch = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
-  , Aeson.rejectUnknownFields = True }
+jsonCfgTextPatch :: Options
+jsonCfgTextPatch = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop 2
+  , rejectUnknownFields = True }
 
 instance ToJSON   TextPatch where
-    toJSON     = Aeson.genericToJSON     jsonCfgTextPatch
-    toEncoding = Aeson.genericToEncoding jsonCfgTextPatch
+    toJSON     = genericToJSON     jsonCfgTextPatch
+    toEncoding = genericToEncoding jsonCfgTextPatch
 instance FromJSON TextPatch where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgTextPatch
+    parseJSON  = genericParseJSON  jsonCfgTextPatch
 
-jsonCfgTextPatchMeta :: Aeson.Options
-jsonCfgTextPatchMeta = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 3
-  , Aeson.rejectUnknownFields = True }
+jsonCfgTextPatchMeta :: Options
+jsonCfgTextPatchMeta = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop 3
+  , rejectUnknownFields = True }
 
 instance ToJSON   TextPatchMeta where
-    toJSON     = Aeson.genericToJSON     jsonCfgTextPatchMeta
-    toEncoding = Aeson.genericToEncoding jsonCfgTextPatchMeta
+    toJSON     = genericToJSON     jsonCfgTextPatchMeta
+    toEncoding = genericToEncoding jsonCfgTextPatchMeta
 instance FromJSON TextPatchMeta where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgTextPatchMeta
+    parseJSON  = genericParseJSON  jsonCfgTextPatchMeta
 
-jsonCfgReplaceMany :: Aeson.Options
-jsonCfgReplaceMany = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
-  , Aeson.rejectUnknownFields = True }
+jsonCfgReplaceMany :: Options
+jsonCfgReplaceMany = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop 2
+  , rejectUnknownFields = True }
 
 instance ToJSON   ReplaceMany where
-    toJSON     = Aeson.genericToJSON     jsonCfgReplaceMany
-    toEncoding = Aeson.genericToEncoding jsonCfgReplaceMany
+    toJSON     = genericToJSON     jsonCfgReplaceMany
+    toEncoding = genericToEncoding jsonCfgReplaceMany
 instance FromJSON ReplaceMany where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgReplaceMany
+    parseJSON  = genericParseJSON  jsonCfgReplaceMany
 
-jsonCfgOffset :: Aeson.Options
-jsonCfgOffset = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 6
-  , Aeson.rejectUnknownFields = True }
+jsonCfgOffset :: Options
+jsonCfgOffset = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop 6
+  , rejectUnknownFields = True }
 
 instance ToJSON   Offset where
-    toJSON     = Aeson.genericToJSON     jsonCfgOffset
-    toEncoding = Aeson.genericToEncoding jsonCfgOffset
+    toJSON     = genericToJSON     jsonCfgOffset
+    toEncoding = genericToEncoding jsonCfgOffset
 instance FromJSON Offset where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgOffset
+    parseJSON  = genericParseJSON  jsonCfgOffset
 
-jsonCfgReplacementMeta :: Aeson.Options
-jsonCfgReplacementMeta = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
-  , Aeson.rejectUnknownFields = True }
+jsonCfgReplacementMeta :: Options
+jsonCfgReplacementMeta = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop 2
+  , rejectUnknownFields = True }
 
 instance ToJSON   ReplacementMeta where
-    toJSON     = Aeson.genericToJSON     jsonCfgReplacementMeta
-    toEncoding = Aeson.genericToEncoding jsonCfgReplacementMeta
+    toJSON     = genericToJSON     jsonCfgReplacementMeta
+    toEncoding = genericToEncoding jsonCfgReplacementMeta
 instance FromJSON ReplacementMeta where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgReplacementMeta
+    parseJSON  = genericParseJSON  jsonCfgReplacementMeta
+
+instance ToJSON   BS.ByteString where
+    toJSON     = String . prettyHexByteString
+    toEncoding = unsafeToEncoding . prettyHexByteString'
+
+instance FromJSON BS.ByteString where
+    parseJSON  = withText "hex bytestring" $ \v ->
+        case parseMaybe @Void pHexByteString v of
+          Nothing -> fail "failed to parse hex bytestring (TODO)"
+          Just v' -> pure v'
