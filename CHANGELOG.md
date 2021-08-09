@@ -1,3 +1,10 @@
+## 0.6.0 (2021-08-09)
+  * add CSV -> text patch file generator
+  * bytestrings in JSON/YAML must now use format `00 01 EF FF` etc.
+    *(I had no choice but to implement my own format, since JSON explicitly
+    disallows encoding byte arrays.)*
+  * refactor patcher internals (somewhat modular)
+
 ## 0.5.0 (2021-08-05)
 I don't expect to alter the CLI in any more major ways, so go mad with scripts.
 
