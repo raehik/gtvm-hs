@@ -38,7 +38,7 @@ library
       GTVM.SCP.Test
       HexByteString
       LinearPatch
-      LinearPatch.Patch
+      LinearPatch.LinearPatchExtra
       LinearPatch.Text
       Text.Megaparsec.Byte.Binary
   other-modules:
@@ -66,6 +66,7 @@ library
       TypeOperators
   build-depends:
       aeson
+    , aeson-combinators
     , aeson-pretty
     , barbies
     , base
@@ -79,6 +80,7 @@ library
     , megaparsec
     , mtl
     , text
+    , text-latin1
     , unicode-show
     , utf8-string
     , vector
@@ -116,6 +118,7 @@ executable gtvm-hs
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
+    , aeson-combinators
     , aeson-pretty
     , barbies
     , base
@@ -131,6 +134,7 @@ executable gtvm-hs
     , mtl
     , optparse-applicative
     , text
+    , text-latin1
     , unicode-show
     , utf8-string
     , vector

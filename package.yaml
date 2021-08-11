@@ -47,6 +47,8 @@ dependencies:
 - utf8-string
 - vector
 - barbies
+- aeson-combinators
+- text-latin1
 
 library:
   source-dirs: src

@@ -1,7 +1,7 @@
 module Config where
 
 import           Data.Word
-import           LinearPatch.Patch ( CPatch )
+import           LinearPatch ( CPatch )
 
 data ToolGroup
   = TGFlowchart CJSON (CStream, CStream) CParseType

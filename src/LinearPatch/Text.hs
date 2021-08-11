@@ -43,29 +43,3 @@ textPatchToBin tp = rs
                         , rmExpected       = textToCString <$> tpmExpected sMeta }
                 ml = tpmMaxLength sMeta
             in (rm, ml)
-
---------------------------------------------------------------------------------
-
-{-
-jsonCfgTextPatch :: Aeson.Options
-jsonCfgTextPatch = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 2
-  , Aeson.rejectUnknownFields = True }
-
-instance ToJSON   TextReplace where
-    toJSON     = Aeson.genericToJSON     jsonCfgTextPatch
-    toEncoding = Aeson.genericToEncoding jsonCfgTextPatch
-instance FromJSON TextReplace where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgTextPatch
-
-jsonCfgTextPatchMeta :: Aeson.Options
-jsonCfgTextPatchMeta = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . drop 3
-  , Aeson.rejectUnknownFields = True }
-
-instance ToJSON   TextPatchMeta where
-    toJSON     = Aeson.genericToJSON     jsonCfgTextPatchMeta
-    toEncoding = Aeson.genericToEncoding jsonCfgTextPatchMeta
-instance FromJSON TextPatchMeta where
-    parseJSON  = Aeson.genericParseJSON  jsonCfgTextPatchMeta
--}
