@@ -1,121 +1,139 @@
+-- | Linear patch algorithm.
+
 module LinearPatch
-  ( normalize
-  , ReplaceMany(..)
-  , Offset(..)
-  , ErrorNormalize(..)
+  ( patch
+  , Patch
+  , Replacement(..)
+  , ReplacementMeta(..)
+  , CPatch(..)
+  , Error(..)
   ) where
 
-import           LinearPatch.Patch
-
 import qualified Data.ByteString         as BS
-import           Control.Monad.State
-import           Data.List               ( sortBy )
-import           Data.Maybe              ( fromMaybe )
+import qualified Data.ByteString.Lazy    as BL
+import qualified Data.ByteString.Builder as BB
+import           Control.Monad.Reader
 
 import           GHC.Generics            ( Generic )
 
 type Bytes = BS.ByteString
 
--- | Write the given bytestring into the given offsets.
+-- | A list of "skip x bytes, write bytestring y" actions.
 --
--- Intended as a JSON intermediate type, so includes an "expected length" field
--- that is quickly compared with actual length and thrown out.
-data ReplaceMany = ReplaceMany
-  { rsBytes       :: Bytes
-  , rsExpectedLen :: Maybe Int
-  , rsOffsets     :: [Offset]
+-- A patch can be applied to any forward-seeking 'Word8' stream.
+type Patch = [(Int, Replacement)]
+
+-- | A single bytestring replacement.
+--
+-- Replacements may store extra metadata that can be used at patch time to
+-- validate input data (i.e. patching correct file).
+data Replacement = Replacement Bytes ReplacementMeta
+    deriving (Eq, Show, Generic)
+
+-- | Optional patch time data for a replacement.
+--
+-- TODO: for ultra power, rmValidate :: Maybe (Bytes -> Maybe UserError)
+data ReplacementMeta = ReplacementMeta
+  { rmNullTerminates :: Maybe Int
+  -- ^ The present bytestring should be null bytes (0x00) only from this index
+  -- onwards.
+  , rmExpected :: Maybe Bytes
+  -- ^ The present bytestring should be this.
   } deriving (Eq, Show, Generic)
 
--- | An offset in a stream, with metadata about it to use when preparing the
---   patch and at patch time.
---
--- Intended as a JSON intermediate type, so the meta field is "double" optional.
-data Offset = Offset
-  { offsetAddress    :: Int
-  , offsetMaxLength  :: Maybe Int
-  , offsetMeta       :: Maybe ReplacementMeta
+-- | Patch time config.
+data CPatch = CPatch
+  { cPatchWarnIfLikelyReprocessing :: Bool
+  -- ^ If we determine that we're repatching an already-patched stream, continue
+  --   with a warning instead of failing.
+  , cPatchAllowPartialExpected :: Bool
+  -- ^ If enabled, allow partial expected bytes checking. If disabled, then even
+  --   if the expected bytes are a prefix of the actual, fail.
   } deriving (Eq, Show, Generic)
 
--- | Write the given bytestring into the given offset.
-data Replace1 = Replace1 Bytes Int ReplacementMeta
-    deriving (Eq, Show, Generic)
-
--- | Errors encountered during patch script generation.
-data ErrorNormalize
-  = ErrorNormalizeClobber
-  -- ^ Two replacements overwrote the same byte(s).
-  --
-  -- TODO: we could allow this e.g. by selecting one replacement that "wins"
-  -- (likely via user annotation) and rewriting the other one to remove the
-  -- collision.
-
-  | ErrorNormalizeReplacement' ErrorNormalizeReplacement
-    deriving (Eq, Show, Generic)
-
--- | Errors encountered during patch script generation, related to a single
---   replacement.
-data ErrorNormalizeReplacement
-  = ErrorNormalizeReplacementNotLengthSpecified
-  | ErrorNormalizeReplacementTooLongForOffset
-    deriving (Eq, Show, Generic)
-
--- | Rewrite a list of multi-replacements (one string to many offsets) to a list
---   of individual replacements.
+-- | Errors encountered during patch time.
 --
--- In essence, it's patch script compilation. Or normalizing.
+-- TODO, needs more data inside it.
+data Error
+  = ErrorPatchOverlong
+  | ErrorPatchUnexpectedNonnull
+  | ErrorPatchDidNotMatchExpected Bytes Bytes
+    deriving (Eq, Show, Generic)
+
+-- | Purely apply a 'Patch' to a 'Data.ByteString.ByteString'.
 --
--- TODO do mapMs stop on first failure? (hoping so)
--- TODO provide [ErrorNormalize] error list! instead of just one
-normalize :: [ReplaceMany] -> Either ErrorNormalize PatchScript
-normalize urs =
-    case mapM concatReplaceMany urs of
-      Left err  -> Left (ErrorNormalizeReplacement' err)
-      Right r1s ->
-        let r1sOrdered = sortBy sortReplace1 (concat r1s)
-         in case execGo r1sOrdered of
-          Nothing -> Left ErrorNormalizeClobber
-          Just rs -> return rs
+-- We use 'Data.ByteString.Builder.Builder's so performance shouldn't be
+-- garbage.
+--
+-- An IO-based patcher could be plenty faster and work on much larger files, but
+-- while I'm interested in patching relatively small files, a fully pure
+-- patching process is leagues simpler to handle.
+--
+-- TODO: not doing "likely reprocessing" check (too much of a pain)
+-- TODO: Lazy ByteStrings might make sense here.
+patch :: MonadReader CPatch m => Patch -> Bytes -> m (Either Error Bytes)
+patch x1 x2 = go x2 mempty x1
   where
-    execGo :: [Replace1] -> Maybe PatchScript
-    execGo rs = evalState (go rs) (0, [])
-    sortReplace1 (Replace1 _ o1 _) (Replace1 _ o2 _) = compare o1 o2
-    go :: (MonadState (Int, PatchScript) m) => [Replace1] -> m (Maybe PatchScript)
-    go ((Replace1 bs o meta):r1s) = do
-        (cursor, rs) <- get
-        case trySkipTo o cursor of
-          Nothing -> return Nothing -- clobbered
-          Just skip -> do
-            let cursor' = cursor + skip + BS.length bs
-                r       = Replacement bs meta
-            put (cursor', (skip, r):rs)
-            go r1s
-    go [] = do
-        (_, rs) <- get
-        return (Just (reverse rs))
-    trySkipTo to from =
-        let diff = to - from in if diff >= 0 then Just diff else Nothing
+    go :: MonadReader CPatch m
+       => Bytes -> BB.Builder -> Patch -> m (Either Error Bytes)
+    go bs b = \case
+      -- successfully reached end of patch: execute the builder
+      [] -> do
+        let b' = b <> BB.byteString bs
+        return $ Right $ BL.toStrict $ BB.toLazyByteString b'
 
-concatReplaceMany :: ReplaceMany -> Either ErrorNormalizeReplacement [Replace1]
-concatReplaceMany (ReplaceMany bs mLen os) =
-    case mLen of
-      Just len -> if   BS.length bs /= len
-                  then Left ErrorNormalizeReplacementNotLengthSpecified
-                  else go
-      Nothing -> go
-  where
-    go =
-        case mapM (tryMakeSingleReplace bs) os of
-          Just r1s -> Right r1s
-          Nothing -> Left ErrorNormalizeReplacementTooLongForOffset
+      -- next replacement in the patch
+      (skip, Replacement bsReplace meta) : rs -> do
 
-tryMakeSingleReplace :: Bytes -> Offset -> Maybe Replace1
-tryMakeSingleReplace bs (Offset addr mLen mMeta) =
-    case mLen of
-      Just len -> if   BS.length bs > len
-                  then Nothing
-                  else go
-      Nothing -> go
-  where
-    go = Just (Replace1 bs addr meta)
-    meta = fromMaybe replaceMetaDef mMeta
-    replaceMetaDef = ReplacementMeta Nothing Nothing
+        -- split stream into 3: before replace, to-replace, after replace
+        case extractActual skip (BS.length bsReplace) bs of
+          Nothing -> return $ Left ErrorPatchOverlong
+          Just (bsBefore, bsActual, bsAfter) ->
+
+            -- if provided, strip trailing nulls from to-replace bytestring
+            case tryStripNulls bsActual (rmNullTerminates meta) of
+              Nothing -> return $ Left ErrorPatchUnexpectedNonnull
+              Just bsActual' ->
+
+                -- if provided, check that the to-replace bytestring matches the
+                -- expected one
+                checkExpected bsActual' (rmExpected meta) >>= \case
+                  Just (bsa, bse) -> return $ Left $ ErrorPatchDidNotMatchExpected bsa bse
+                  Nothing ->
+
+                    -- append to the builder and continue with next replacements
+                    let b' = b <> BB.byteString bsBefore <> BB.byteString bsReplace
+                     in go bsAfter b' rs
+
+    extractActual skip len bs =
+        let (bsBefore, bs')     = BS.splitAt skip bs
+            (bsActual, bsAfter) = BS.splitAt len  bs'
+         in if   BS.length bsActual == len
+            then Just (bsBefore, bsActual, bsAfter)
+            else Nothing
+
+    trySplitActualAndAfter bsActualAndAfter replLen = do
+        let (bsActual, bsAfter) = BS.splitAt replLen bsActualAndAfter
+         in if   BS.length bsActual == replLen
+            then Just (bsActual, bsAfter)
+            else Nothing
+
+    checkExpected bsActual = \case
+      Nothing -> return Nothing
+      Just bsExpected ->
+        asks cPatchAllowPartialExpected >>= \case
+          True  ->
+            if   BS.isPrefixOf bsActual bsExpected
+            then return Nothing
+            else return $ Just (bsActual, bsExpected)
+          False ->
+            if   bsExpected == bsActual
+            then return Nothing
+            else return $ Just (bsActual, bsExpected)
+    tryStripNulls bsActual = \case
+      Nothing        -> Just bsActual
+      Just nullsFrom ->
+        let (bsActual', bsNulls) = BS.splitAt nullsFrom bsActual
+         in if   bsNulls == BS.replicate (BS.length bsNulls) 0x00
+            then Just bsActual'
+            else Nothing
