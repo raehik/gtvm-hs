@@ -1,8 +1,9 @@
 -- | Simple "linear" (forwards-only) bytestream patcher.
 
 module BinaryPatch
+  (
   -- * Core patch algorithm
-  ( patch
+    patch
   , PatchScript
   , Replacement(..)
   , ReplacementMeta(..)
