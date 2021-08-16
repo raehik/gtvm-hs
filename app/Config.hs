@@ -1,18 +1,18 @@
 module Config where
 
 import           Data.Word
-import           LinearPatch ( CPatch )
+import qualified BinaryPatch
 
 data ToolGroup
   = TGFlowchart CJSON (CStream, CStream) CParseType
   | TGSCP CJSON (CStream, CStream)
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
-  | TGPatch CPatch FilePath (CStream, CStream) Bool CPatchType
+  | TGPatch BinaryPatch.Cfg FilePath (CStream, CStream) Bool CPatchType
   | TGCSVPatch (CStream, CStream)
     deriving (Eq, Show)
 
-data CPatchType = CPatchTypeBin | CPatchTypeString
+data CPatchType = CPatchTypeBin | CPatchTypeText
     deriving (Eq, Show)
 
 -- | orig one bin stream <-> one text stream

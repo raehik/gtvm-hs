@@ -1,37 +1,37 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Main (main) where
 
 import           Config
 import qualified CLI as CLI
 
-import qualified GTVM.Assorted.SL01       as GAS
-import qualified GTVM.Assorted.Flowchart  as GAFc
-import qualified GTVM.Assorted.Pak        as GAP
-import qualified GTVM.Common.Binary.Parse as GCBP
-import qualified GTVM.Common.Binary       as GCB
-import qualified GTVM.SCP.Parse           as GSP
-import qualified GTVM.SCP.Serialize       as GSS
-import qualified LinearPatch              as Patch
-import qualified LinearPatch.Patch        as Patch
-import qualified LinearPatch.Text         as Patch
-import           LinearPatch.Patch        ( CPatch )
-import           GTVM.Assorted.LinearPatchAeson()
-import qualified CSV                      as CSV
+import qualified GTVM.Assorted.SL01         as GAS
+import qualified GTVM.Assorted.Flowchart    as GAFc
+import qualified GTVM.Assorted.Pak          as GAP
+import qualified GTVM.Common.Binary.Parse   as GCBP
+import qualified GTVM.Common.Binary         as GCB
+import qualified GTVM.SCP.Parse             as GSP
+import qualified GTVM.SCP.Serialize         as GSS
+import qualified BinaryPatch                as BP
+import qualified BinaryPatch.Pretty         as BPP
+import           BinaryPatch.JSON()
+import           HexByteString
+--import qualified CSV                      as CSV
 
-import qualified Data.Aeson               as Aeson
-import qualified Data.Aeson.Encode.Pretty as DAEP
-import qualified Data.Yaml                as Yaml
-import qualified Data.ByteString.Lazy     as BL
-import qualified Data.ByteString          as BS
-import qualified Data.Text                as Text
-import qualified Data.Text.Encoding       as Text
-import           Data.Text                (Text)
-import qualified Data.List                as List
-import qualified System.Exit              as Exit
+import qualified Data.Aeson                 as Aeson
+import qualified Data.Aeson.Encode.Pretty   as DAEP
+import qualified Data.Yaml                  as Yaml
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.ByteString            as BS
+import qualified Data.Text                  as Text
+import qualified Data.Text.Encoding         as Text
+import           Data.Text                  ( Text )
+import qualified Data.List                  as List
+import qualified System.Exit                as Exit
 
 import           Control.Monad.IO.Class
 
-import qualified System.FilePath.Find as Filemanip
-
+import qualified System.FilePath.Find       as Filemanip
 
 main :: IO ()
 main = CLI.parseOpts >>= runCmd
@@ -43,8 +43,9 @@ runCmd = \case
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
   TGPatch cfg fpFrom cS2 cPrintStdout cPatchType -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType
-  TGCSVPatch cS2 -> runCmdCSV cS2
+  --TGCSVPatch cS2 -> runCmdCSV cS2
 
+{-
 runCmdCSV :: MonadIO m => (CStream, CStream) -> m ()
 runCmdCSV (cSFrom, cSTo) = do
     bs <- rReadStream' cSFrom
@@ -53,22 +54,32 @@ runCmdCSV (cSFrom, cSTo) = do
       Right csv -> do
         let sr = CSV.csvToStrReplace <$> csv
         rWriteStreamBin True cSTo (Yaml.encode sr)
+-}
 
 runCmdPatch
-    :: MonadIO m => CPatch -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
-runCmdPatch cPatch fpFrom (cSFrom, cSTo) cPrintStdout cPatchType = do
-    patch <- rReadFile fpFrom >>= rGetPatchScript
-    case Patch.normalize patch of
-      Left err -> liftIO $ print err
-      Right patchScript -> do
-        bsFrom <- rReadStream cSFrom
-        case Patch.patch patchScript bsFrom cPatch of
-          Left err   -> liftIO $ print err
-          Right bsTo -> rWriteStreamBin cPrintStdout cSTo bsTo
-  where
-    rGetPatchScript bs = case cPatchType of
-      CPatchTypeBin    ->                              rForceParseYAML bs
-      CPatchTypeString -> map Patch.textPatchToBin <$> rForceParseYAML bs
+    :: MonadIO m => BP.Cfg -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
+runCmdPatch cPatch fpFrom xs cPrintStdout cPatchType = do
+    case cPatchType of
+      CPatchTypeBin -> do
+        patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch HexByteString])
+        runCmdPatch' cPatch xs cPrintStdout patch
+      CPatchTypeText -> do
+        patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch Text])
+        runCmdPatch' cPatch xs cPrintStdout patch
+
+runCmdPatch'
+    :: (BPP.ToBinPatch a, MonadIO m) => BP.Cfg -> (CStream, CStream) -> Bool -> [BPP.MultiPatch a] -> m ()
+runCmdPatch' cPatch (cSFrom, cSTo) cPrintStdout patch = do
+    case BPP.normalize patch of
+      Nothing -> liftIO $ print "script normalization error (TODO)"
+      Just patches -> do
+        case BP.genPatchScript patches of
+          Left errorsGen -> liftIO $ print errorsGen
+          Right patchScript -> do
+            bsFrom <- rReadStream cSFrom
+            case BP.patch patchScript bsFrom cPatch of
+              Left err   -> liftIO $ print err
+              Right bsTo -> rWriteStreamBin cPrintStdout cSTo bsTo
 
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case
@@ -151,7 +162,7 @@ rForceParseJSON bs =
       Right decoded -> return decoded
 
 -- TODO: bad. decoding may fail, that's why we gotta do this.
-rForceParseYAML :: (MonadIO m, Aeson.FromJSON a) => BS.ByteString -> m a
+rForceParseYAML :: forall a m. (MonadIO m, Aeson.FromJSON a) => BS.ByteString -> m a
 rForceParseYAML bs =
     case Yaml.decodeEither' bs of
       Left err      -> do

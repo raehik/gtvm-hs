@@ -8,6 +8,7 @@ extra-source-files:
 
 # all unintrusive extensions from Alexis King's 2018 recommended defaults
 # https://lexi-lambda.github.io/blog/2018/02/10/an-opinionated-guide-to-haskell-in-2018/
+# plus TypeApplications (useful even without ScopedTypeVariables)
 default-extensions:
 - EmptyCase
 - FlexibleContexts
@@ -27,6 +28,7 @@ default-extensions:
 - BangPatterns
 - KindSignatures
 - TypeOperators
+- TypeApplications
 
 dependencies:
 - base
