@@ -23,6 +23,7 @@ library
       BinaryPatch
       BinaryPatch.JSON
       BinaryPatch.Pretty
+      CSV
       GTVM.Assorted.Flowchart
       GTVM.Assorted.MDL
       GTVM.Assorted.Pak

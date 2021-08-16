@@ -6,8 +6,8 @@ import           Control.Monad.IO.Class
 import qualified Data.Char                  as Char
 import           Data.Word
 import qualified BinaryPatch
---import qualified CSV                        as CSV
---import           CSV                        ( CSVStrReplace(..) )
+import qualified CSV                        as CSV
+import           CSV                        ( CSVTextReplace(..) )
 import qualified Data.Text                  as Text
 
 parseOpts :: MonadIO m => m ToolGroup
@@ -29,7 +29,7 @@ pToolGroup = hsubparser $
         <*> pCStream2
         <*> pAllowBinStdout
         <*> pCPatchType )
---    <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
+    <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
@@ -37,20 +37,18 @@ pToolGroup = hsubparser $
     descPak       = ".pak (sound_se.pak) tools."
     descPatch     = "Patch bytestrings in a stream."
     descCSVPatch  = "Convert a string patch CSV to an applicable string patch."
-        {-
     headerCSVPatch =
         "Your CSV file must start with a line of headers, which must include the following names: "
         <> csvColName csvSrOffset
-        <> ", " <> csvColName csvSrReplStr
+        <> ", " <> csvColName csvSrReplText
         <> ", " <> csvColName csvSrAvailableSpace
         <> ", " <> csvColName csvSrSucceedingNulls
-        <> ", " <> csvColName csvSrOrigStr
-        -}
+        <> ", " <> csvColName csvSrOrigText
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
     pCPatchType = flag CPatchTypeBin CPatchTypeText
             (long "string-patch" <> help "Use alternate text patching format (a bit easier if you're patching strings)")
-    --csvColName = Text.unpack . CSV.getColName
+    csvColName = Text.unpack . CSV.getColName
 
 pBinaryPatchCfg :: Parser BinaryPatch.Cfg
 pBinaryPatchCfg = BinaryPatch.Cfg <$> pAllowRepatch <*> pExpectExact

@@ -16,7 +16,7 @@ import qualified BinaryPatch                as BP
 import qualified BinaryPatch.Pretty         as BPP
 import           BinaryPatch.JSON()
 import           HexByteString
---import qualified CSV                      as CSV
+import qualified CSV                      as CSV
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as DAEP
@@ -43,18 +43,16 @@ runCmd = \case
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
   TGPatch cfg fpFrom cS2 cPrintStdout cPatchType -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType
-  --TGCSVPatch cS2 -> runCmdCSV cS2
+  TGCSVPatch cS2 -> runCmdCSV cS2
 
-{-
 runCmdCSV :: MonadIO m => (CStream, CStream) -> m ()
 runCmdCSV (cSFrom, cSTo) = do
     bs <- rReadStream' cSFrom
     case CSV.csvDecode bs of
       Left err -> liftIO $ print err
       Right csv -> do
-        let sr = CSV.csvToStrReplace <$> csv
+        let sr = CSV.csvToTextReplace <$> csv
         rWriteStreamBin True cSTo (Yaml.encode sr)
--}
 
 runCmdPatch
     :: MonadIO m => BP.Cfg -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
