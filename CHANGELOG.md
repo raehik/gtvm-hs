@@ -1,3 +1,9 @@
+## 0.7.0 (2021-08-16)
+  * fix patcher runtime checks
+  * refactor patcher: internals more generic & useful, text/binary patch formats
+    now the same (no "simplified" one offset format), better potential error
+    reporting (not yet implemented)
+
 ## 0.6.0 (2021-08-09)
   * add CSV -> text patch file generator
   * bytestrings in JSON/YAML must now use format `00 01 EF FF` etc.

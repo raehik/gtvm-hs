@@ -1,5 +1,5 @@
 name: gtvm-hs
-version: "0.6.0"
+version: "0.7.0"
 synopsis: "Various tools for reversing and using assets from Golden Time: Vivid Memories."
 github: raehik/gtvm-hs
 extra-source-files:
