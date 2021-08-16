@@ -47,7 +47,7 @@ pToolGroup = hsubparser $
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
     pCPatchType = flag CPatchTypeBin CPatchTypeText
-            (long "string-patch" <> help "Use alternate text patching format (a bit easier if you're patching strings)")
+            (long "text-patch" <> help "Use text patching format instead of binary")
     csvColName = Text.unpack . CSV.getColName
 
 pBinaryPatchCfg :: Parser BinaryPatch.Cfg
