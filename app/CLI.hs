@@ -5,9 +5,9 @@ import           Options.Applicative
 import           Control.Monad.IO.Class
 import qualified Data.Char                  as Char
 import           Data.Word
-import           LinearPatch.Patch          ( CPatch(..) )
-import qualified CSV                        as CSV
-import           CSV                        ( CSVStrReplace(..) )
+import qualified BinaryPatch
+--import qualified CSV                        as CSV
+--import           CSV                        ( CSVStrReplace(..) )
 import qualified Data.Text                  as Text
 
 parseOpts :: MonadIO m => m ToolGroup
@@ -24,12 +24,12 @@ pToolGroup = hsubparser $
     <> cmd "pak"    descPak   (TGPak <$> pCPak <*> pAllowBinStdout)
     <> cmd "patch"  descPatch
           ( TGPatch
-        <$> pCPatch
+        <$> pBinaryPatchCfg
         <*> pFileIn "PATCH-FILE" "patch file"
         <*> pCStream2
         <*> pAllowBinStdout
         <*> pCPatchType )
-    <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
+--    <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
@@ -37,6 +37,7 @@ pToolGroup = hsubparser $
     descPak       = ".pak (sound_se.pak) tools."
     descPatch     = "Patch bytestrings in a stream."
     descCSVPatch  = "Convert a string patch CSV to an applicable string patch."
+        {-
     headerCSVPatch =
         "Your CSV file must start with a line of headers, which must include the following names: "
         <> csvColName csvSrOffset
@@ -44,14 +45,15 @@ pToolGroup = hsubparser $
         <> ", " <> csvColName csvSrAvailableSpace
         <> ", " <> csvColName csvSrSucceedingNulls
         <> ", " <> csvColName csvSrOrigStr
+        -}
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
-    pCPatchType = flag CPatchTypeBin CPatchTypeString
-            (long "string-patch" <> help "Use alternate string patching format (a bit easier if you're patching strings)")
-    csvColName = Text.unpack . CSV.getColName
+    pCPatchType = flag CPatchTypeBin CPatchTypeText
+            (long "string-patch" <> help "Use alternate text patching format (a bit easier if you're patching strings)")
+    --csvColName = Text.unpack . CSV.getColName
 
-pCPatch :: Parser CPatch
-pCPatch = CPatch <$> pAllowRepatch <*> pExpectExact
+pBinaryPatchCfg :: Parser BinaryPatch.Cfg
+pBinaryPatchCfg = BinaryPatch.Cfg <$> pAllowRepatch <*> pExpectExact
   where
     pAllowRepatch = switch $ long "allow-repatch" <> help "Override safety checks and only warn if it appears we're repatching a patched file (CURRENTLY NONFUNCTIONAL)"
     pExpectExact = flag True False $ long "expect-exact" <> help "When checking expected bytes, require an exact match (rather than the expected being a prefix of the actual)"

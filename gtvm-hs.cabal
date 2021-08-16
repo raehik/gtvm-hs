@@ -20,9 +20,10 @@ source-repository head
 
 library
   exposed-modules:
-      CSV
+      BinaryPatch
+      BinaryPatch.JSON
+      BinaryPatch.Pretty
       GTVM.Assorted.Flowchart
-      GTVM.Assorted.LinearPatchAeson
       GTVM.Assorted.MDL
       GTVM.Assorted.Pak
       GTVM.Assorted.SL01
@@ -37,9 +38,6 @@ library
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       HexByteString
-      LinearPatch
-      LinearPatch.LinearPatchExtra
-      LinearPatch.Text
       Text.Megaparsec.Byte.Binary
   other-modules:
       Paths_gtvm_hs
@@ -64,6 +62,7 @@ library
       BangPatterns
       KindSignatures
       TypeOperators
+      TypeApplications
   build-depends:
       aeson
     , aeson-combinators
@@ -115,6 +114,7 @@ executable gtvm-hs
       BangPatterns
       KindSignatures
       TypeOperators
+      TypeApplications
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
