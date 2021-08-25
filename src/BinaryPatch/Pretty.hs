@@ -1,5 +1,17 @@
 -- | Small interface on top of the linear binary patch algorithm.
-module BinaryPatch.Pretty where
+module BinaryPatch.Pretty
+  ( MultiPatches(..)
+  , MultiPatch(..)
+  , Offset(..)
+  , Cfg(..)
+  , PatchType(..)
+  , applyBaseOffset
+  , listAlgebraConcatEtc
+  , normalize
+  , ToBinPatch(..)
+
+  , BP.ReplacementMeta(..)
+  ) where
 
 import qualified BinaryPatch            as BP
 
@@ -10,6 +22,8 @@ import           Data.Maybe             ( fromMaybe )
 import           GHC.Generics           ( Generic )
 import           HexByteString
 import           Util
+
+type Bytes = BS.ByteString
 
 -- | A list of patches sharing a configuration, each applied at a list of
 --   offsets, abstracted over patch type.
@@ -48,20 +62,24 @@ data MultiPatch a = MultiPatch
 
 -- | An offset in a stream, with metadata about it to use when preparing the
 --   patch and at patch time.
---
--- Meta is 'Maybe'd solely for an easier Aeson experience. Grrrr.
 data Offset a = Offset
-  { oOffset :: Int
+  { oOffset         :: Int
   -- ^ Stream offset to patch at.
-  , oMeta :: Maybe (OffsetMeta a)
-  } deriving (Eq, Show, Generic)
 
-data OffsetMeta a = OffsetMeta
-  { omMaxLength      :: Maybe Int
+  , oAbsoluteOffset :: Maybe Int
+  -- ^ Absolute stream offset to patch at. Compared with actual offset
+  --   (calculated from offset and base offset).
+
+  , oMaxLength      :: Maybe Int
   -- ^ Maximum bytestring length allowed to patch in at this offset.
   -- TODO: use single range/span instead (default 0->x, also allow y->x)
-  , omNullTerminates :: Maybe Int
-  , omExpected       :: Maybe a
+
+  , oPatchMeta      :: Maybe (BP.ReplacementMeta a)
+  -- ^ Patch-time info for the replacement at this offset.
+  --
+  -- Named "patch meta" instead of the more correct "replacement meta" for more
+  -- friendly JSON field naming. We wrap it in a 'Maybe' for similar reasons,
+  -- plus it means the default can be inserted later on.
   } deriving (Eq, Show, Generic)
 
 data Cfg = Cfg
@@ -109,28 +127,27 @@ recalculateOffsets baseOffset = partitionMaybe go
     go o = if actualOffset >= 0 then Just (o { oOffset = actualOffset }) else Nothing
       where actualOffset = oOffset o - baseOffset
 
-normalize :: ToBinPatch a => [MultiPatch a] -> Maybe [BP.Patch]
+normalize :: ToBinPatch a => [MultiPatch a] -> Maybe [BP.Patch Bytes]
 normalize xs = concat <$> mapM go xs
   where
     go (MultiPatch contents os) = mapM (tryMakeSingleReplace contents) os
 
-tryMakeSingleReplace :: ToBinPatch a => a -> Offset a -> Maybe BP.Patch
-tryMakeSingleReplace contents (Offset addr mometa) =
-    case omMaxLength ometa of
-      Just len -> if BS.length bs > len then Nothing else go
-      Nothing  -> go
+tryMakeSingleReplace :: ToBinPatch a => a -> Offset a -> Maybe (BP.Patch Bytes)
+tryMakeSingleReplace contents (Offset os maos maxLen mMeta) =
+    if offsetIsCorrect
+    then case maxLen of
+           Just len -> if BS.length bs > len then Nothing else go
+           Nothing  -> go
+    else Nothing
   where
+    go = Just (BP.Patch bs os metaBin)
+    metaBin = fmap toBinPatch meta
     bs = toBinPatch contents
-    ometa = fromMaybe offsetMetaDefault mometa
-    rmeta = offsetMetaToReplacementMeta ometa
-    go = Just (BP.Patch bs addr rmeta)
-    offsetMetaDefault = OffsetMeta Nothing Nothing Nothing
-
-offsetMetaToReplacementMeta :: ToBinPatch a => OffsetMeta a -> BP.ReplacementMeta
-offsetMetaToReplacementMeta o = BP.ReplacementMeta
-  { BP.rmNullTerminates = omNullTerminates o
-  , BP.rmExpected       = toBinPatch <$> omExpected o
-  }
+    meta = fromMaybe metaDefault mMeta
+    metaDefault = BP.ReplacementMeta Nothing Nothing
+    offsetIsCorrect = case maos of
+      Nothing -> True
+      Just aos -> os == aos
 
 -- | How to turn a given type into a binary patch.
 class ToBinPatch a where

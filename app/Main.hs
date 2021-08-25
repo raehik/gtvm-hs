@@ -91,7 +91,7 @@ runCmdPatch'
     :: (BPP.ToBinPatch a, MonadIO m) => BP.Cfg -> (CStream, CStream) -> Bool -> [BPP.MultiPatch a] -> m ()
 runCmdPatch' cPatch (cSFrom, cSTo) cPrintStdout patch = do
     case BPP.normalize patch of
-      Nothing -> liftIO $ print "script normalization error (TODO)"
+      Nothing -> liftIO $ putStrLn "script normalization error (TODO)"
       Just patches -> do
         case BP.genPatchScript patches of
           Left errorsGen -> liftIO $ print errorsGen

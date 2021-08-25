@@ -4,6 +4,7 @@
 module BinaryPatch.JSON where
 
 import           Data.Aeson
+import           GHC.Generics       (Generic)
 import           HexByteString
 import           Text.Megaparsec
 import           Data.Void
@@ -40,8 +41,9 @@ instance ToJSON   a => ToJSON   (Offset a) where
 instance FromJSON a => FromJSON (Offset a) where
     parseJSON  = genericParseJSON  (jsonCfgCamelDrop 1)
 
-instance ToJSON   a => ToJSON   (OffsetMeta a) where
+deriving instance Generic (ReplacementMeta a)
+instance ToJSON   a => ToJSON   (ReplacementMeta a) where
     toJSON     = genericToJSON     (jsonCfgCamelDrop 2)
     toEncoding = genericToEncoding (jsonCfgCamelDrop 2)
-instance FromJSON a => FromJSON (OffsetMeta a) where
+instance FromJSON a => FromJSON (ReplacementMeta a) where
     parseJSON  = genericParseJSON  (jsonCfgCamelDrop 2)

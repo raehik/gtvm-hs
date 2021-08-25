@@ -1,4 +1,7 @@
 -- | Simple "linear" (forwards-only) bytestream patcher.
+--
+-- There is some work done on abstracting over the patch & stream type. I wonder
+-- how far I can take it?
 
 module BinaryPatch
   (
@@ -30,25 +33,25 @@ type Bytes = BS.ByteString
 -- | A list of "skip x bytes, write bytestring y" actions.
 --
 -- A patch can be applied to any forward-seeking 'Word8' stream.
-type PatchScript = [(Int, Replacement)]
+type PatchScript a = [(Int, Replacement a)]
 
 -- | A single bytestring replacement.
 --
 -- Replacements may store extra metadata that can be used at patch time to
 -- validate input data (i.e. patching correct file).
-data Replacement = Replacement Bytes ReplacementMeta
+data Replacement a = Replacement a (ReplacementMeta a)
     deriving (Eq, Show)
 
--- | Optional patch time data for a replacement.
+-- | Optional patch-time data for a replacement.
 --
--- TODO: for ultra power, rmValidate :: Maybe (Bytes -> Maybe UserError)
-data ReplacementMeta = ReplacementMeta
+-- TODO: for ultra power, mValidate :: Maybe (a -> Maybe UserError)
+data ReplacementMeta a = ReplacementMeta
   { rmNullTerminates :: Maybe Int
-  -- ^ The present bytestring should be null bytes (0x00) only from this index
-  -- onwards.
-  , rmExpected :: Maybe Bytes
-  -- ^ The present bytestring should be this.
-  } deriving (Eq, Show)
+  -- ^ Stream segment should be null bytes (0x00) only from this index onwards.
+  --
+  , rmExpected       :: Maybe a
+  -- ^ Stream segment should be this.
+  } deriving (Eq, Show, Functor)
 
 -- | Patch time config.
 data Cfg = Cfg
@@ -80,11 +83,11 @@ data Error
 --
 -- TODO: not doing "likely reprocessing" check (too much of a pain)
 -- TODO: Lazy ByteStrings might make sense here.
-patch :: MonadReader Cfg m => PatchScript -> Bytes -> m (Either Error Bytes)
+patch :: MonadReader Cfg m => PatchScript Bytes -> Bytes -> m (Either Error Bytes)
 patch x1 x2 = go x2 mempty x1
   where
     go :: MonadReader Cfg m
-       => Bytes -> BB.Builder -> PatchScript -> m (Either Error Bytes)
+       => Bytes -> BB.Builder -> PatchScript Bytes -> m (Either Error Bytes)
     go bs b = \case
       -- successfully reached end of patch: execute the builder
       [] -> do
@@ -144,13 +147,13 @@ patch x1 x2 = go x2 mempty x1
 
 --------------------------------------------------------------------------------
 
--- | Write the given bytestring into the given offset.
-data Patch = Patch Bytes Int ReplacementMeta
+-- | Write the given data into the given offset.
+data Patch a = Patch a Int (ReplacementMeta a)
     deriving (Eq, Show)
 
 -- | Error encountered during patchscript generation.
-data ErrorGen
-  = ErrorGenOverlap Patch Patch
+data ErrorGen a
+  = ErrorGenOverlap (Patch a) (Patch a)
   -- ^ Two patches wrote to the same offset.
   --
   -- TODO: we could allow this e.g. by selecting one replacement that "wins"
@@ -158,7 +161,7 @@ data ErrorGen
   -- collision.
     deriving (Eq, Show)
 
-genPatchScript :: [Patch] -> Either (NonEmpty ErrorGen) PatchScript
+genPatchScript :: [Patch Bytes] -> Either (NonEmpty (ErrorGen Bytes)) (PatchScript Bytes)
 genPatchScript pList =
     let pList'                  = sortBy comparePatchOffsets pList
         (_, script, mErrors, _) = execState (go pList') (0, [], Nothing, undefined)
@@ -169,7 +172,7 @@ genPatchScript pList =
           Just errors -> Left (NE.reverse errors)
   where
     comparePatchOffsets (Patch _ o1 _) (Patch _ o2 _) = compare o1 o2
-    go :: (MonadState (Int, PatchScript, Maybe (NonEmpty ErrorGen), Patch) m) => [Patch] -> m ()
+    go :: (MonadState (Int, PatchScript Bytes, Maybe (NonEmpty (ErrorGen Bytes)), Patch Bytes) m) => [Patch Bytes] -> m ()
     go [] = return ()
     go (p@(Patch bs o meta):ps) = do
         (cursor, script, mErrors, prevPatch) <- get

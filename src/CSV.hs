@@ -26,10 +26,10 @@ import           Data.Functor.Const
 
 data CSVTextReplace f = CSVTextReplace
   { csvSrOffset          :: f ReadInt
-  , csvSrReplText         :: f Text
+  , csvSrReplText        :: f Text
   , csvSrAvailableSpace  :: f (Maybe ReadInt)
   , csvSrSucceedingNulls :: f (Maybe ReadInt)
-  , csvSrOrigText         :: f (Maybe Text)
+  , csvSrOrigText        :: f (Maybe Text)
   } deriving (Generic, FunctorB, TraversableB, ApplicativeB, ConstraintsB)
 
 newtype ReadInt = ReadInt { unReadInt :: Int } deriving (Eq, Show)
@@ -67,10 +67,11 @@ csvToTextReplace csv = MultiPatch
   , mpOffsets =
       [ Offset
         { oOffset = (unReadInt . runIdentity . csvSrOffset) csv
-        , oMeta = Just $ OffsetMeta
-          { omMaxLength = availableSpace
-          , omNullTerminates = nullTerminatesAt
-          , omExpected = runIdentity (csvSrOrigText csv) }}]}
+        , oAbsoluteOffset = Nothing -- TODO
+        , oMaxLength = availableSpace
+        , oPatchMeta = Just $ ReplacementMeta
+          { rmNullTerminates = nullTerminatesAt
+          , rmExpected = runIdentity (csvSrOrigText csv) }}]}
   where
     availableSpace = unReadInt <$> (runIdentity . csvSrAvailableSpace) csv
     nullTerminatesAt = do
