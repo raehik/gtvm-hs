@@ -33,23 +33,34 @@ data MultiPatches a = MultiPatches
   --   offset value to obtain the actual offset. Any offset located before the
   --   base offset (x where x < base) is discarded as erroneous.
   --
-  --   This feature enables us to allow negative offsets. For example, say you
-  --   set the base offset to @-10@. This is equivalent to stating that every
-  --   offset in the list is to be shifted +10 bytes. Thus, all offsets x where
-  --   x >= -10 are now valid.
+  -- This feature enables us to allow negative offsets. For example, say you set
+  -- the base offset to @-10@. This is equivalent to stating that every offset
+  -- in the list is to be shifted +10 bytes. Thus, all offsets x where x >= -10
+  -- are now valid.
   --
-  --   The original rationale behind this feature was to ease assembly patches
-  --   on ELFs. Decompilers apparently don't like giving you physical file
-  --   offsets, only virtual addresses. However, the physical file offset can be
-  --   recovered via the following steps:
+  -- The original rationale behind this feature was to ease assembly patches on
+  -- ELFs. Decompilers focus on virtual addresses, and apparently (in my
+  -- experience) don't like to divulge physical file offsets. However, we can
+  -- recover the physical offset of any virtual address via the following steps:
   --
-  --     1.      add the containing ELF segment's physical offset
-  --     2. subtract the containing ELF segment's virtual address
+  --   1. subtract the containing ELF segment's virtual address
+  --   2.      add the containing ELF segment's physical offset
   --
-  --   Now by doing that once for every segment you're interested in, you can
-  --   use your decompiler addresses instead of doing the maths for each patch
-  --   manually! And you can use the same safety checks as always to ensure
-  --   correctness.
+  -- So we can prepare a base offset @elf_vaddr - elf_phys_offset@, which we can
+  -- subtract from any virtual address inside that segment to retrieve its
+  -- related byte offset in the ELF file. Thus, you need do that calculation
+  -- manually once for every segment you patch, then you can use your
+  -- decompiler's virtual addresses!
+  --
+  -- You can even specify absolute offsets, which are compared to the calculated
+  -- actual offsets. So you get the best of both worlds!
+  --
+  -- Absolute offsets are only used for asserting correctness of calculated
+  -- actual offsets. If you want to mix absolute and base-relative offsets...
+  -- don't. I'm loath to support that, because I believe it would serve only to
+  -- confuse the patch file interface. Instead, group patches into absolute
+  -- (base offset = 0) and base-relative lists.
+
   , mpsPatches :: [MultiPatch a]
   } deriving (Eq, Show, Generic)
 

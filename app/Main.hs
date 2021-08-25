@@ -21,6 +21,7 @@ import qualified CSV                      as CSV
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as DAEP
 import qualified Data.Yaml                  as Yaml
+import qualified Data.Yaml.Pretty           as YamlPretty
 import qualified Data.ByteString.Lazy       as BL
 import qualified Data.ByteString            as BS
 import qualified Data.Text                  as Text
@@ -51,8 +52,12 @@ runCmdCSV (cSFrom, cSTo) = do
     case CSV.csvDecode bs of
       Left err -> liftIO $ print err
       Right csv -> do
-        let sr = CSV.csvToTextReplace <$> csv
-        rWriteStreamBin True cSTo (Yaml.encode sr)
+        let mps = CSV.csvToTextReplace <$> csv
+            mps' = BPP.MultiPatches { BPP.mpsBaseOffset = Just 0, BPP.mpsPatches = mps }
+        rWriteStreamBin True cSTo (YamlPretty.encodePretty yamlPrettyCfg [mps'])
+  where
+    yamlPrettyCfg :: YamlPretty.Config
+    yamlPrettyCfg = YamlPretty.setConfDropNull True YamlPretty.defConfig
 
 runCmdPatch
     :: MonadIO m
