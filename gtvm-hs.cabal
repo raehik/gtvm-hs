@@ -40,6 +40,7 @@ library
       GTVM.SCP.Test
       HexByteString
       Text.Megaparsec.Byte.Binary
+      Util
   other-modules:
       Paths_gtvm_hs
   hs-source-dirs:

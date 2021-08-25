@@ -8,11 +8,14 @@ data ToolGroup
   | TGSCP CJSON (CStream, CStream)
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
-  | TGPatch BinaryPatch.Cfg FilePath (CStream, CStream) Bool CPatchType
+  | TGPatch BinaryPatch.Cfg FilePath (CStream, CStream) Bool CPatchType CPatchFormat
   | TGCSVPatch (CStream, CStream)
     deriving (Eq, Show)
 
 data CPatchType = CPatchTypeBin | CPatchTypeText
+    deriving (Eq, Show)
+
+data CPatchFormat = CPatchFormatPlain | CPatchFormatFull
     deriving (Eq, Show)
 
 -- | orig one bin stream <-> one text stream
@@ -23,6 +26,12 @@ data CJSON
   -- ^ bool = prettify
   | CJSONEn Bool
   -- ^ bool = print binary to stdout
+    deriving (Eq, Show)
+
+data CYAML
+  = CYAMLDe
+    { _cYamlHexIntegralLits :: Bool
+    }
     deriving (Eq, Show)
 
 -- | orig one bin stream <-> one bin stream

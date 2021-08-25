@@ -42,7 +42,7 @@ runCmd = \case
   TGSL01 cfg cS2 -> runCmdSL01 cS2 cfg
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
-  TGPatch cfg fpFrom cS2 cPrintStdout cPatchType -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType
+  TGPatch cfg fpFrom cS2 cPrintStdout cPatchType cPatchFormat -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType cPatchFormat
   TGCSVPatch cS2 -> runCmdCSV cS2
 
 runCmdCSV :: MonadIO m => (CStream, CStream) -> m ()
@@ -55,15 +55,37 @@ runCmdCSV (cSFrom, cSTo) = do
         rWriteStreamBin True cSTo (Yaml.encode sr)
 
 runCmdPatch
-    :: MonadIO m => BP.Cfg -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> m ()
-runCmdPatch cPatch fpFrom xs cPrintStdout cPatchType = do
-    case cPatchType of
-      CPatchTypeBin -> do
-        patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch HexByteString])
-        runCmdPatch' cPatch xs cPrintStdout patch
-      CPatchTypeText -> do
-        patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch Text])
-        runCmdPatch' cPatch xs cPrintStdout patch
+    :: MonadIO m
+    => BP.Cfg -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> CPatchFormat
+    -> m ()
+runCmdPatch cPatch fpFrom xs cPrintStdout cPatchType cPatchFormat = do
+    case cPatchFormat of
+      CPatchFormatFull ->
+        case cPatchType of
+          CPatchTypeBin -> do
+            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatches HexByteString])
+            let (patch', errors) = (BPP.listAlgebraConcatEtc . BPP.applyBaseOffset) patch
+            case errors of
+              [] -> runCmdPatch' cPatch xs cPrintStdout patch'
+              _  -> do
+                liftIO $ putStrLn "offset error boyo"
+                liftIO $ print errors
+          CPatchTypeText -> do
+            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatches Text])
+            let (patch', errors) = (BPP.listAlgebraConcatEtc . BPP.applyBaseOffset) patch
+            case errors of
+              [] -> runCmdPatch' cPatch xs cPrintStdout patch'
+              _  -> do
+                liftIO $ putStrLn "offset error boyo"
+                liftIO $ print errors
+      CPatchFormatPlain ->
+        case cPatchType of
+          CPatchTypeBin -> do
+            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch HexByteString])
+            runCmdPatch' cPatch xs cPrintStdout patch
+          CPatchTypeText -> do
+            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch Text])
+            runCmdPatch' cPatch xs cPrintStdout patch
 
 runCmdPatch'
     :: (BPP.ToBinPatch a, MonadIO m) => BP.Cfg -> (CStream, CStream) -> Bool -> [BPP.MultiPatch a] -> m ()

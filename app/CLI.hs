@@ -28,7 +28,8 @@ pToolGroup = hsubparser $
         <*> pFileIn "PATCH-FILE" "patch file"
         <*> pCStream2
         <*> pAllowBinStdout
-        <*> pCPatchType )
+        <*> pCPatchType
+        <*> pCPatchFormat )
     <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
@@ -48,6 +49,8 @@ pToolGroup = hsubparser $
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
     pCPatchType = flag CPatchTypeBin CPatchTypeText
             (long "text-patch" <> help "Use text patching format instead of binary")
+    pCPatchFormat = flag CPatchFormatFull CPatchFormatPlain
+            (long "plain" <> help "Use old patch format (no offset)")
     csvColName = Text.unpack . CSV.getColName
 
 pBinaryPatchCfg :: Parser BinaryPatch.Cfg

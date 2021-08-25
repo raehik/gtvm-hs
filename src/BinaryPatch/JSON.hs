@@ -22,6 +22,12 @@ jsonCfgCamelDrop x = defaultOptions
   { fieldLabelModifier = camelTo2 '_' . drop x
   , rejectUnknownFields = True }
 
+instance ToJSON   a => ToJSON   (MultiPatches a) where
+    toJSON     = genericToJSON     (jsonCfgCamelDrop 3)
+    toEncoding = genericToEncoding (jsonCfgCamelDrop 3)
+instance FromJSON a => FromJSON (MultiPatches a) where
+    parseJSON  = genericParseJSON  (jsonCfgCamelDrop 3)
+
 instance ToJSON   a => ToJSON   (MultiPatch a) where
     toJSON     = genericToJSON     (jsonCfgCamelDrop 2)
     toEncoding = genericToEncoding (jsonCfgCamelDrop 2)

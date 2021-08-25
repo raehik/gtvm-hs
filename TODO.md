@@ -9,6 +9,10 @@
   * [ ] patching: newtype for display-as-hex ints?
 
 ## Tools
+### Patching
+#### Add more metadata: actual offset
+So we can use both, and check them against eachother.
+
 ### SL01
 #### Improve compression
 The `lzo` package on Hackage is minilzo built *into* Haskell (since it's pretty
