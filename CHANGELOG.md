@@ -1,3 +1,13 @@
+## 0.8.0 (2021-08-26)
+  * patch offsets now work from a base offset
+    * prompting story: by calculating the relevant base offset, a user patching
+      an ELF can now write offsets as virtual addresses and have them translated
+      to physical file offsets!
+    * absolute offsets can also be specified to confirm correct offset
+      calculation
+  * further patcher refactoring: partially generic over patch/stream type,
+    patch-time meta is reused instead of wrapped in pretty patch format
+
 ## 0.7.0 (2021-08-16)
   * fix patcher runtime checks
   * refactor patcher: internals more generic & useful, text/binary patch formats
