@@ -8,26 +8,51 @@
   * [ ] csv-patch: add switch to discard safety info when generating patch
   * [ ] patching: newtype for display-as-hex ints?
 
+### Better errors
+Biiig story. I hardly try to report useful errors at all.
+
 ## Tools
 ### Patching
-#### Add more metadata: actual offset
-So we can use both, and check them against eachother.
+#### Generalize, generalize, generalize
+I'm slowly approaching a general "patch a stream S of type T" patch algorithm.
+It's worth investigating further, see what I can figure out. I feel like it
+could be massaged into a useful library+CLI tool. It gives fun safety guarantees
+and enables pure and impure patcher implementations.
+
+I feel like the logical conclusion to the algorithm is something that allows
+arbitrary forwards-only stream operations. So:
+
+```haskell
+type PatchScript a = [Op a]
+data Op a
+  = OpCopy Int
+  | OpAdd a
+  | OpDel Int
+```
+
+My current approach essentially combines all these into a single step, where
+OpDel is the length of OpAdd (thus in-place). I could keep them squished into
+one step for type-enforced normalization, just would need to add an `Int` for
+`OpDel` (instead of using the length from `OpAdd`). Buuuut at the end of the
+day, there's no further use for a data type like this. What use other than
+binary-based replacements would actually be useful? It'd be nice to maximally
+generalize the stream concept, but I sadly don't see it being useful -- at least
+not yet.
 
 ### SL01
 #### Improve compression
-The `lzo` package on Hackage is minilzo built *into* Haskell (since it's pretty
-much just `ghc minilzo.c`, doesn't need a Makefile). minilzo is apparently built
-from lzo2, and only provides LZO1X-1 (fastest compression) and the LZO1X
-decompressor (works for all LZO1X). I tested: `lzop -9` (= LZO1X-999) compresses
-down to around LZ4's size.
+Use LZO1X-999 compression instead of LZO1X-1. Decompression *should* be the
+same.
 
-I've tested: I'm able to bind to `lzo2`. However, only via dynamic linking,
-which I'd prefer not to do while I don't know its Windows prevalence (and
-generally I'd like to avoid dynamic linking if possible). It'd be nice if I
-could build the whole library into Haskell? But unlikely.
+*Update:* I tried this. I successfully wrapped lzo2 into Haskell. But alas,
+Golden Time isn't able to decompress. My minilzo decompressor is fine. I imagine
+it's incomplete decompressor that for some reason can't handle LZO1X-999.
 
-In any case, they probably used `minilzo` for the game (my compressed files are
-only 1-2% larger). So I could make my piece. But I'd like to try...
+Now there *is* still hope, if this mattered the tiniest bit (it doesn't). I
+could hook the decompression function and replace it with a better one. Or, I
+could use an entirely different compression format. Some one wrote a *super*
+speedy LZ4 decompression routine for various ARM platforms!
+https://community.arm.com/developer/ip-products/processors/b/processors-ip-blog/posts/lz4-decompression-routine-for-cortex-m0-and-later
 
 ### `gb_param.bin`, `sd_param.bin`, `vj_param.bin`
 Each one appears to be a simple `[(header, contents)]` list archive, with the
