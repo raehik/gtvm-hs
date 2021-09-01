@@ -32,12 +32,12 @@ library
       GTVM.Common.Binary.Parse
       GTVM.Common.Binary.Serialize
       GTVM.Common.Binary.Util
-      GTVM.Common.Orphans
+      GTVM.Common.JSONByteStringOrphanToDelete
       GTVM.SCP
-      GTVM.SCP.Examples
       GTVM.SCP.Parse
       GTVM.SCP.Serialize
       GTVM.SCP.Test
+      GTVM.SCP.Util
       HexByteString
       Text.Megaparsec.Byte.Binary
       Util
@@ -93,7 +93,6 @@ executable gtvm-hs
   other-modules:
       CLI
       Config
-      Util
       Paths_gtvm_hs
   hs-source-dirs:
       app

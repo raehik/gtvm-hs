@@ -54,7 +54,10 @@ runCmdCSV (cSFrom, cSTo) = do
       Right csv -> do
         let mps = CSV.csvToTextReplace <$> csv
             mps' = BPP.MultiPatches { BPP.mpsBaseOffset = Just 0, BPP.mpsPatches = mps }
-        rWriteStreamBin True cSTo (YamlPretty.encodePretty yamlPrettyCfg [mps'])
+        rWriteStreamBin True cSTo (yamlEncodePretty [mps'])
+
+yamlEncodePretty :: Aeson.ToJSON a => a -> BS.ByteString
+yamlEncodePretty = YamlPretty.encodePretty yamlPrettyCfg
   where
     yamlPrettyCfg :: YamlPretty.Config
     yamlPrettyCfg = YamlPretty.setConfDropNull True YamlPretty.defConfig
@@ -98,9 +101,10 @@ runCmdPatch' cPatch (cSFrom, cSTo) cPrintStdout patch = do
     case BPP.normalize patch of
       Nothing -> liftIO $ putStrLn "script normalization error (TODO)"
       Just patches -> do
-        case BP.genPatchScript patches of
-          Left errorsGen -> liftIO $ print errorsGen
-          Right patchScript -> do
+        let (patchScript, errorsGen) = BP.genPatchScript patches
+        case errorsGen of
+          _:_ -> liftIO $ print errorsGen
+          []  -> do
             bsFrom <- rReadStream cSFrom
             case BP.patch patchScript bsFrom cPatch of
               Left err   -> liftIO $ print err

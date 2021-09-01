@@ -3,22 +3,15 @@
 
 module GTVM.Assorted.MDL where
 
-import           GTVM.Common.Orphans()
 import           GTVM.Common.Binary
 import           GTVM.Common.Binary.Parse
-import           GTVM.Common.Binary.Serialize
 import           Text.Megaparsec
 import qualified Data.ByteString as BS
 import           Data.Void
 import           Data.Word
 import           Control.Monad.Reader
-import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
-import           Data.Text (Text)
-import           Control.Monad.State
 
-import           Data.Aeson
-import           GHC.Generics
+import           GHC.Generics   ( Generic )
 
 import           GTVM.Common.Binary.Util -- TODO TMP
 

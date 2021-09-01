@@ -1,31 +1,29 @@
 module GTVM.SCP
   ( SCPSegment(..)
-  , Bytes
   ) where
 
-import qualified Data.ByteString    as BS
 import           Data.Word
 import           GHC.Generics
-import qualified Data.Aeson         as Aeson
-import           GTVM.Common.Orphans()
-
-type Bytes = BS.ByteString
+import           Data.Aeson
 
 -- TODO: Annotate data with meaning. We shouldn't hardcode this into the AST
--- during parsing like `SCPStr Bytes UserFacing`, but how to do it post-parse?
+-- during parsing like `SCPStr bs UserFacing`, but how to do it post-parse?
 
 -- | A standalone segment of an SCP file. Essentially tokens from a byte lexer.
-data SCPSegment
+--
+-- Generalized over the bytestring representation (for easier coercing between
+-- 'ByteString' and 'Text').
+data SCPSegment bs
   = SCPSeg00
-  | SCPSeg01BG Bytes Word8 Word8
-  | SCPSeg02SFX Bytes Word8
-  | SCPSeg03 Word8 Bytes Word8
+  | SCPSeg01BG bs Word8 Word8
+  | SCPSeg02SFX bs Word8
+  | SCPSeg03 Word8 bs Word8
   | SCPSeg04 Word8 Word8
-  | SCPSeg05Textbox Word8 Word32 Bytes Bytes Word32
+  | SCPSeg05Textbox Word8 Word32 bs bs Word32
   -- no 0x06
-  | SCPSeg07SCP Bytes
+  | SCPSeg07SCP bs
   | SCPSeg08
-  | SCPSeg09 Word8 [(Bytes, Word32)]
+  | SCPSeg09 Word8 [(bs, Word32)]
   | SCPSeg0A Word8 Word8 Word32 Word32 Word32
   -- ^ TODO: decomp code a bit confusing for this command, be aware
   | SCPSeg0B Word8 Word8
@@ -34,9 +32,9 @@ data SCPSegment
   | SCPSeg0E Word8
   | SCPSeg0F
   | SCPSeg10 Word8 Word8 Word8
-  | SCPSeg11EventCG Bytes
+  | SCPSeg11EventCG bs
   | SCPSeg12
-  | SCPSeg13 Word8 Bytes Word8 Word32
+  | SCPSeg13 Word8 bs Word8 Word32
   | SCPSeg14 Word8
   | SCPSeg15
   | SCPSeg16Wadai
@@ -51,18 +49,18 @@ data SCPSegment
   | SCPSeg1FDelay
   | SCPSeg20 Word8
   | SCPSeg21
-  | SCPSeg22 Bytes [(Bytes, Word32)]
+  | SCPSeg22 bs [(bs, Word32)]
   | SCPSeg23SFX
-  | SCPSeg24 Bytes
+  | SCPSeg24 bs
   | SCPSeg25
   | SCPSeg26
-  | SCPSeg27 Bytes Word8 Word8
-  | SCPSeg28 Bytes Word8 Word8
-  | SCPSeg29 Bytes Word8 Word8
+  | SCPSeg27 bs Word8 Word8
+  | SCPSeg28 bs Word8 Word8
+  | SCPSeg29 bs Word8 Word8
   | SCPSeg2A Word8 Word8
-  | SCPSeg2B Word8 Word8 Word8 Bytes Word8
+  | SCPSeg2B Word8 Word8 Word8 bs Word8
   | SCPSeg2CMap
-  | SCPSeg2D Bytes Word8 Word8
+  | SCPSeg2D bs Word8 Word8
   | SCPSeg2E Word8 Word8 Word32 Word32
   | SCPSeg2F Word8
   | SCPSeg30 Word8
@@ -70,7 +68,7 @@ data SCPSegment
   | SCPSeg32 Word32 Word8
   | SCPSeg33 Word8 Word8
   | SCPSeg34 Word32
-  | SCPSeg35 Bytes
+  | SCPSeg35 bs
   | SCPSeg36 Word8 Word32
   | SCPSeg37 Word8 Word32
   | SCPSeg38 Word8 Word32
@@ -85,23 +83,23 @@ data SCPSegment
   | SCPSeg41 Word8 Word32 Word32
   | SCPSeg42 Word8
   -- these don't appear very SFXy in code, but did in data
-  | SCPSeg43SFX Bytes
-  | SCPSeg44SFX Bytes
-  | SCPSeg45SFX Bytes Word8
+  | SCPSeg43SFX bs
+  | SCPSeg44SFX bs
+  | SCPSeg45SFX bs Word8
   | SCPSeg46 Word8 Word8
   | SCPSeg47 Word8 Word8
   | SCPSeg48
   | SCPSeg49
   | SCPSeg4A
   | SCPSeg4B
-  | SCPSeg4C Bytes
+  | SCPSeg4C bs
   | SCPSeg4D
   | SCPSeg4E
-  | SCPSeg4F Bytes Word8 Word8
-  | SCPSeg50 Bytes Word8 Word8
-  | SCPSeg51 Bytes Word8 Word8
-  | SCPSeg52 Bytes
-  | SCPSeg53 Bytes Word8 Word8
+  | SCPSeg4F bs Word8 Word8
+  | SCPSeg50 bs Word8 Word8
+  | SCPSeg51 bs Word8 Word8
+  | SCPSeg52 bs
+  | SCPSeg53 bs Word8 Word8
   | SCPSeg54 Word8 Word8
   | SCPSeg55 Word8 Word8
   | SCPSeg56 Word8 Word8
@@ -138,7 +136,7 @@ data SCPSegment
   | SCPSeg75 Word8
   | SCPSeg76
   | SCPSeg77SCP Word8
-    deriving (Eq, Show, Generic)
+    deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 
 -- | Lexed SCP JSON en/decoding config.
 --
@@ -147,16 +145,15 @@ data SCPSegment
 -- to change.)
 --
 -- Also, "tag" -> "command_byte", "contents" -> "arguments".
-configJSON :: Aeson.Options
-configJSON = Aeson.defaultOptions
-  { Aeson.constructorTagModifier = take 2 . drop 6
-  , Aeson.sumEncoding =
-      Aeson.defaultTaggedObject
-        { Aeson.tagFieldName = "command_byte"
-        , Aeson.contentsFieldName = "arguments" }}
+configJSON :: Options
+configJSON = defaultOptions
+  { constructorTagModifier = take 2 . drop 6
+  , sumEncoding = defaultTaggedObject
+    { tagFieldName = "command_byte"
+    , contentsFieldName = "arguments" }}
 
-instance Aeson.ToJSON SCPSegment where
-    toJSON     = Aeson.genericToJSON configJSON
-    toEncoding = Aeson.genericToEncoding configJSON
-instance Aeson.FromJSON SCPSegment where
-    parseJSON  = Aeson.genericParseJSON configJSON
+instance ToJSON   a => ToJSON   (SCPSegment a) where
+    toJSON     = genericToJSON     configJSON
+    toEncoding = genericToEncoding configJSON
+instance FromJSON a => FromJSON (SCPSegment a) where
+    parseJSON  = genericParseJSON  configJSON

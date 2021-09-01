@@ -14,7 +14,6 @@ module GTVM.Assorted.Pak
   , nextMultiple
   ) where
 
-import           GTVM.Common.Orphans()
 import           GTVM.Common.Binary
 import           GTVM.Common.Binary.Parse
 import           GTVM.Common.Binary.Serialize

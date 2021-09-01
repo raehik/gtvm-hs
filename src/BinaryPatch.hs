@@ -25,8 +25,6 @@ import qualified Data.ByteString.Builder    as BB
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.List                  ( sortBy )
-import qualified Data.List.NonEmpty         as NE
-import           Data.List.NonEmpty         ( NonEmpty(..) )
 
 type Bytes = BS.ByteString
 
@@ -161,35 +159,31 @@ data ErrorGen a
   -- collision.
     deriving (Eq, Show)
 
-genPatchScript :: [Patch Bytes] -> Either (NonEmpty (ErrorGen Bytes)) (PatchScript Bytes)
+genPatchScript :: [Patch Bytes] -> (PatchScript Bytes, [ErrorGen Bytes])
 genPatchScript pList =
     let pList'                  = sortBy comparePatchOffsets pList
-        (_, script, mErrors, _) = execState (go pList') (0, [], Nothing, undefined)
+        (_, script, errors, _) = execState (go pList') (0, [], [], undefined)
         -- I believe the undefined is inaccessible providing the first patch has
         -- a non-negative offset (negative offsets are forbidden)
-     in case mErrors of
-          Nothing     -> Right (reverse script)
-          Just errors -> Left (NE.reverse errors)
+     in (reverse script, reverse errors)
   where
     comparePatchOffsets (Patch _ o1 _) (Patch _ o2 _) = compare o1 o2
-    go :: (MonadState (Int, PatchScript Bytes, Maybe (NonEmpty (ErrorGen Bytes)), Patch Bytes) m) => [Patch Bytes] -> m ()
+    go :: (MonadState (Int, PatchScript Bytes, [ErrorGen Bytes], Patch Bytes) m) => [Patch Bytes] -> m ()
     go [] = return ()
     go (p@(Patch bs o meta):ps) = do
-        (cursor, script, mErrors, prevPatch) <- get
+        (cursor, script, errors, prevPatch) <- get
         case trySkipTo o cursor of
           -- next offset is behind current cursor: overlapping patches
           -- record error, recover via dropping patch
           Left _ -> do
             let e = ErrorGenOverlap p prevPatch
-                errors = case mErrors of
-                           Nothing     -> e :| []
-                           Just es -> NE.cons e es
-            put (cursor, script, Just errors, p)
+            let errors' = e : errors
+            put (cursor, script, errors', p)
             go ps
           Right skip -> do
             let cursor' = cursor + skip + BS.length bs
                 r       = Replacement bs meta
-            put (cursor', (skip, r):script, mErrors, p)
+            put (cursor', (skip, r):script, errors, p)
             go ps
     trySkipTo to from =
         let diff = to - from in if diff >= 0 then Right diff else Left (-diff)

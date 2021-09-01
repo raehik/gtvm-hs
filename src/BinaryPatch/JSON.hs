@@ -9,6 +9,7 @@ import           HexByteString
 import           Text.Megaparsec
 import           Data.Void
 import           BinaryPatch.Pretty
+import           BinaryPatch
 
 instance FromJSON HexByteString where
     parseJSON = withText "hex bytestring" $ \t ->
@@ -47,3 +48,10 @@ instance ToJSON   a => ToJSON   (ReplacementMeta a) where
     toEncoding = genericToEncoding (jsonCfgCamelDrop 2)
 instance FromJSON a => FromJSON (ReplacementMeta a) where
     parseJSON  = genericParseJSON  (jsonCfgCamelDrop 2)
+
+deriving instance Generic (Replacement a)
+instance ToJSON   a => ToJSON   (Replacement a) where
+    toJSON     = genericToJSON     defaultOptions
+    toEncoding = genericToEncoding defaultOptions
+instance FromJSON a => FromJSON (Replacement a) where
+    parseJSON  = genericParseJSON  defaultOptions
