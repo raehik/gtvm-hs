@@ -42,7 +42,8 @@ dependencies:
 - aeson
 - aeson-pretty
 - lens
-- lzo
+#- lzo
+- lzo-hs
 - filemanip
 - yaml
 - cassava

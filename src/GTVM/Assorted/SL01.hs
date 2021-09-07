@@ -7,7 +7,7 @@ module GTVM.Assorted.SL01
   , sSL01
   ) where
 
-import qualified Codec.Compression.Lzo as LZO
+import qualified Codec.Compression.Lzo.Block as LZO
 import qualified Data.ByteString as BS
 import           Control.Monad.Reader
 import           Data.Void
@@ -25,7 +25,7 @@ compress :: Bytes -> SL01
 compress bs =
     case integralToBounded (BS.length bs) of
       Nothing     -> error "that's a YUGE file friend, no can do"
-      Just lenW32 -> SL01 lenW32 (LZO.compress bs)
+      Just lenW32 -> SL01 lenW32 (LZO.compress9 bs)
 
 decompress :: SL01 -> Bytes
 decompress (SL01 decompressedSize compressedBytes) =
