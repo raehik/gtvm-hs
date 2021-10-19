@@ -17,7 +17,8 @@ parseOpts = execParserWithDefaults desc pToolGroup
 
 pToolGroup :: Parser ToolGroup
 pToolGroup = hsubparser $
-       cmd "scp"    descSCP   (TGSCP <$> pCJSON "SCP" <*> pCStream2)
+       cmd "scp"    descSCP   (TGSCP  <$> pCJSON "SCP" <*> pCStream2)
+    <> cmd "scpx"   descSCPX  (TGSCPX <$> pCStream2)
     <> cmd "sl01"   descSL01  (TGSL01 <$> pCBin <*> pCStream2)
     <> cmd "flowchart" descFlowchart
         (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
@@ -33,6 +34,7 @@ pToolGroup = hsubparser $
     <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
+    descSCPX      = "Convert extended SCP to regular SCP (YAML both ways)."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
     descFlowchart = "flow_chart.bin tools."
     descPak       = ".pak (sound_se.pak) tools."

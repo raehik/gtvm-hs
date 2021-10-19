@@ -1,15 +1,11 @@
 module GTVM.SCP
   ( SCPSegment(..)
   , SCPSeg05Textbox(..)
-  , SCPXText(..)
-  , Speaker(..)
-  , speakerInfo
   ) where
 
 import           Data.Word
 import           GHC.Generics
 import           Data.Aeson
-import           Data.Text      (Text)
 
 data SCPSeg05Textbox bs = SCPSeg05Textbox'
   { scpSeg05TextboxSpeakerUnkCharID :: Word8
@@ -50,53 +46,7 @@ instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
 instance FromJSON a => FromJSON (SCPSeg05Textbox a) where
     parseJSON  = genericParseJSON  jcSCPSeg05Textbox
 
-data SCPXText = SCPXText'
-  { scpXTextText      :: Text
-  , scpXTextSpeaker   :: Speaker
-  , scpXTextVoiceLine :: Maybe Text
-  } deriving (Eq, Show, Generic)
-
-jcSCPXText :: Options
-jcSCPXText = defaultOptions
-  { fieldLabelModifier = camelTo2 '_' . drop (length "scpXText") }
-
-instance ToJSON   SCPXText where
-    toJSON     = genericToJSON     jcSCPXText
-    toEncoding = genericToEncoding jcSCPXText
-instance FromJSON SCPXText where
-    parseJSON  = genericParseJSON  jcSCPXText
-
--- QM = question mark (at end)
--- Unk = unknown (written as full ???)
-data Speaker
-  = SpeakerBanri
-  | SpeakerSao
-  | SpeakerReikonBanriUnk
-  | SpeakerReikonBanriQM
-  | SpeakerReikonBanri
-    deriving (Eq, Show, Generic)
-
-jcSpeaker :: Options
-jcSpeaker = defaultOptions { constructorTagModifier = camelTo2 ' ' . drop 7 }
-
-instance ToJSON   Speaker where
-    toJSON     = genericToJSON     jcSpeaker
-    toEncoding = genericToEncoding jcSpeaker
-instance FromJSON Speaker where
-    parseJSON  = genericParseJSON  jcSpeaker
-
-speakerInfo :: Speaker -> (Word8, Word32)
-speakerInfo = \case
-  SpeakerBanri          -> (5, 5)
-  SpeakerSao            -> (8, 8)
-  SpeakerReikonBanriUnk -> (16, 17)
-  SpeakerReikonBanriQM  -> (16, 18)
-  SpeakerReikonBanri    -> (16, 16)
-
--- TODO: Annotate data with meaning. We shouldn't hardcode this into the AST
--- during parsing like `SCPStr bs UserFacing`, but how to do it post-parse?
-
--- | A standalone segment of an SCP file. Essentially tokens from a byte lexer.
+-- | A standalone segment of an SCP file.
 --
 -- Generalized over the bytestring representation (for easier coercing between
 -- 'ByteString' and 'Text').
@@ -225,22 +175,18 @@ data SCPSegment bs
   | SCPSeg77SCP Word8
     deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 
--- | Lexed SCP JSON en/decoding config.
+-- | SCP segment JSON en/decoding config.
 --
--- JSON tag names are derived by dropping the @SCPSeg@ and taking just the 2 hex
--- digits. (The suffix is just internal best-guesses at what they mean, subject
--- to change.)
---
--- Also, "tag" -> "command_byte", "contents" -> "arguments".
-configJSON :: Options
-configJSON = defaultOptions
+-- For selecting the constructor, only the 2 hex digits are used.
+jcSCPSeg :: Options
+jcSCPSeg = defaultOptions
   { constructorTagModifier = take 2 . drop 6
   , sumEncoding = defaultTaggedObject
     { tagFieldName = "command_byte"
     , contentsFieldName = "arguments" }}
 
 instance ToJSON   a => ToJSON   (SCPSegment a) where
-    toJSON     = genericToJSON     configJSON
-    toEncoding = genericToEncoding configJSON
+    toJSON     = genericToJSON     jcSCPSeg
+    toEncoding = genericToEncoding jcSCPSeg
 instance FromJSON a => FromJSON (SCPSegment a) where
-    parseJSON  = genericParseJSON  configJSON
+    parseJSON  = genericParseJSON  jcSCPSeg

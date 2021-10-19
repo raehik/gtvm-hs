@@ -6,6 +6,7 @@ import qualified BinaryPatch
 data ToolGroup
   = TGFlowchart CJSON (CStream, CStream) CParseType
   | TGSCP CJSON (CStream, CStream)
+  | TGSCPX (CStream, CStream)
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
   | TGPatch BinaryPatch.Cfg FilePath (CStream, CStream) Bool CPatchType CPatchFormat
