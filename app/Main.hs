@@ -12,6 +12,8 @@ import qualified GTVM.Common.Binary.Parse   as GCBP
 import qualified GTVM.Common.Binary         as GCB
 import qualified GTVM.SCP.Parse             as GSP
 import qualified GTVM.SCP.Serialize         as GSS
+import qualified GTVM.SCP.SCPX              as GSX
+import qualified GTVM.SCP.Util              as GSU
 import qualified BinaryPatch                as BP
 import qualified BinaryPatch.Pretty         as BPP
 import           BinaryPatch.JSON()
@@ -40,6 +42,7 @@ main = CLI.parseOpts >>= runCmd
 runCmd :: ToolGroup -> IO ()
 runCmd = \case
   TGSCP cfg cS2 -> runCmdSCP cS2 cfg
+  TGSCPX cS2 -> runCmdSCPX cS2
   TGSL01 cfg cS2 -> runCmdSL01 cS2 cfg
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
@@ -54,13 +57,7 @@ runCmdCSV (cSFrom, cSTo) = do
       Right csv -> do
         let mps = CSV.csvToTextReplace <$> csv
             mps' = BPP.MultiPatches { BPP.mpsBaseOffset = Just 0, BPP.mpsPatches = mps }
-        rWriteStreamBin True cSTo (yamlEncodePretty [mps'])
-
-yamlEncodePretty :: Aeson.ToJSON a => a -> BS.ByteString
-yamlEncodePretty = YamlPretty.encodePretty yamlPrettyCfg
-  where
-    yamlPrettyCfg :: YamlPretty.Config
-    yamlPrettyCfg = YamlPretty.setConfDropNull True YamlPretty.defConfig
+        rWriteStreamBin True cSTo (encodeYamlPretty [mps'])
 
 runCmdPatch
     :: MonadIO m
@@ -113,15 +110,36 @@ runCmdPatch' cPatch (cSFrom, cSTo) cPrintStdout patch = do
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case
   CJSONDe cPrettify -> do
-    bs <- rParseStream (fromOrig cPrettify) cSFrom
-    rWriteStreamBin True cSTo bs
+    scpBS <- rParseStream (GCBP.parseBin GSP.pSCP GCB.binCfgSCP) cSFrom
+    let (scpTextErrs, scpText) = eitherListHandle $ GSU.scpTextify scpBS
+    case scpTextErrs of
+      []    ->
+        let scpTextJsonBs = encodeYamlPretty scpText
+         in rWriteStreamBin True cSTo scpTextJsonBs
+      (_:_) -> do
+        liftIO $ putStrLn $ "error: bad bytestrings in SCP: "
+        liftIO $ putStrLn $ show scpTextErrs
+        liftIO $ Exit.exitWith (Exit.ExitFailure 4)
   CJSONEn cPrintStdout -> do
     bs <- rReadStream cSFrom
     scp <- rForceParseJSON bs
-    let scpBytes = GSS.sSCP scp GCB.binCfgSCP
-    rWriteStreamBin cPrintStdout cSTo scpBytes
+    let scpBs = GSS.sSCP scp GCB.binCfgSCP
+    rWriteStreamBin cPrintStdout cSTo scpBs
+
+eitherListHandle :: [Either a b] -> ([a], [b])
+eitherListHandle = go ([], [])
   where
-    fromOrig cPrettify fp bs = rEncodeJSON cPrettify <$> GCBP.parseBin GSP.pSCP GCB.binCfgSCP fp bs
+    go (a, b) []     = (reverse a, reverse b)
+    go (a, b) (Left  x:xs) = go (x:a, b) xs
+    go (a, b) (Right x:xs) = go (a, x:b) xs
+
+runCmdSCPX :: MonadIO m => (CStream, CStream) -> m ()
+runCmdSCPX (cSFrom, cSTo) = do
+    bs       <- rReadStream cSFrom
+    scpxText <- rForceParseYAML @[GSX.SCPX Text] bs
+    let scpText = GSX.evalSCPX scpxText
+        scpTextJsonBs = encodeYamlPretty scpText
+    rWriteStreamBin True cSTo scpTextJsonBs
 
 runCmdSL01 :: MonadIO m => (CStream, CStream) -> CBin -> m ()
 runCmdSL01 (cSFrom, cSTo) (CBin cDir cPrintStdout) = readBytes cDir >>= writeBytes
@@ -150,8 +168,8 @@ runCmdFlowchart (cSFrom, cSTo) parseType = \case
     fromOrig cPrettify fp bs = do
         fc <- GCBP.parseBin GAFc.pFlowchart GCB.binCfgSCP fp bs
         case parseType of
-          CParseTypeFull    -> return $ rEncodeJSON cPrettify (GAFc.fcToAltFc fc)
-          CParseTypePartial -> return $ rEncodeJSON cPrettify fc
+          CParseTypeFull    -> return $ encodeJson cPrettify (GAFc.fcToAltFc fc)
+          CParseTypePartial -> return $ encodeJson cPrettify fc
     rGetFc bs = \case
       CParseTypeFull    -> GAFc.altFcToFc <$> rForceParseJSON bs
       CParseTypePartial ->                    rForceParseJSON bs
@@ -239,15 +257,23 @@ rWriteStreamBin printStdout s bs =
             liftIO $ putStrLn "warning: refusing to print binary to stdout"
             liftIO $ putStrLn "(write to a file with --out-file FILE, or use --print-binary flag to override)"
 
-rEncodeJSON :: Aeson.ToJSON a => Bool -> a -> BS.ByteString
-rEncodeJSON prettify =
-    case prettify of
-      True  -> BL.toStrict . DAEP.encodePretty' prettyCfg
-      False -> BL.toStrict . Aeson.encode
+-- | Encode a value of a type with a JSON representation to a 'BS.ByteString'.
+--
+-- The Bool determines whether to pretty print the JSON.
+encodeJson :: Aeson.ToJSON a => Bool -> a -> BS.ByteString
+encodeJson = \case
+  True  -> BL.toStrict . DAEP.encodePretty' prettyCfg
+  False -> BL.toStrict . Aeson.encode
   where
     prettyCfg = DAEP.defConfig
       { DAEP.confIndent = DAEP.Spaces 2
       , DAEP.confTrailingNewline = True }
+
+encodeYamlPretty :: Aeson.ToJSON a => a -> BS.ByteString
+encodeYamlPretty = YamlPretty.encodePretty yamlPrettyCfg
+  where
+    yamlPrettyCfg :: YamlPretty.Config
+    yamlPrettyCfg = YamlPretty.setConfDropNull True YamlPretty.defConfig
 
 -- TODO: bad error...
 rParseStream :: MonadIO m => (FilePath -> BS.ByteString -> Either String a) -> CStream -> m a

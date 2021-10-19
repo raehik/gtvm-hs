@@ -52,7 +52,8 @@ dependencies:
 - aeson-combinators
 - text-latin1
 #- compdata
-#- union
+- union
+- world-peace
 
 library:
   source-dirs: src
