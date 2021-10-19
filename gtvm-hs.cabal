@@ -35,6 +35,7 @@ library
       GTVM.Common.JSONByteStringOrphanToDelete
       GTVM.SCP
       GTVM.SCP.Parse
+      GTVM.SCP.Raehik
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       GTVM.SCP.Util

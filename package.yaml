@@ -51,6 +51,8 @@ dependencies:
 - barbies
 - aeson-combinators
 - text-latin1
+#- compdata
+#- union
 
 library:
   source-dirs: src

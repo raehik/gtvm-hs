@@ -34,7 +34,7 @@ bSCPSeg = \case
   SCPSeg02SFX bs1 b1 -> rB [bW8 0x02, bBS bs1, bW8 b1]
   SCPSeg03 b1 bs1 b2 -> rB [bW8 0x03, bW8 b1, bBS bs1, bW8 b2]
   SCPSeg04 b1 b2 -> rB [bW8 0x04, bW8 b1, bW8 b2]
-  SCPSeg05Textbox b1 u1 bs1 bs2 u2 -> rB [bW8 0x05, bW8 b1, bW32 u1, bBS bs1, bBS bs2, bW32 u2]
+  SCPSeg05Textbox (SCPSeg05Textbox' b1 u1 bs1 bs2 u2) -> rB [bW8 0x05, bW8 b1, bW32 u1, bBS bs1, bBS bs2, bW32 u2]
   -- no 0x06
   SCPSeg07SCP bs1 -> rB [bW8 0x07, bBS bs1]
   SCPSeg08 -> r1 0x08

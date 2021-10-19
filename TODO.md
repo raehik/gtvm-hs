@@ -1,4 +1,8 @@
 # To-dos
+## Formats (JSON)
+  * allow easy compile-time switching between `-` and `_`
+  * Better parsing for `Speaker`s (allow many styles)
+
 ## CLI
   * [ ] Add `patch-dir` command that concatenates all `.bin.yaml` in a directory
     (recursively) and applies, then for `.text.yaml`. So no pain over patch

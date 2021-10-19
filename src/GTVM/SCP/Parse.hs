@@ -53,7 +53,7 @@ textboxesInSCP :: [SCPSegment Bytes] -> Int
 textboxesInSCP segs = foldr go 0 (map isTextbox segs)
   where
     isTextbox (SCPSeg05Textbox{}) = True
-    isTextbox _                   = True
+    isTextbox _                    = True
     go True  i = i+1
     go False i = i
 
@@ -69,7 +69,7 @@ pSCPSeg = pW8 >>= \case
   0x02 -> SCPSeg02SFX <$> pBS <*> pW8
   0x03 -> SCPSeg03 <$> pW8 <*> pBS <*> pW8
   0x04 -> SCPSeg04 <$> pW8 <*> pW8
-  0x05 -> SCPSeg05Textbox <$> pW8 <*> pW32 <*> pBS <*> pBS <*> pW32
+  0x05 -> SCPSeg05Textbox <$> (SCPSeg05Textbox' <$> pW8 <*> pW32 <*> pBS <*> pBS <*> pW32)
   -- no 0x06
   0x07 -> SCPSeg07SCP <$> pBS
   0x08 -> SCPSeg08 & return

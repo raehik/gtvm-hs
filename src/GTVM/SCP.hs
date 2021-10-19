@@ -1,10 +1,97 @@
 module GTVM.SCP
   ( SCPSegment(..)
+  , SCPSeg05Textbox(..)
+  , SCPXText(..)
+  , Speaker(..)
+  , speakerInfo
   ) where
 
 import           Data.Word
 import           GHC.Generics
 import           Data.Aeson
+import           Data.Text      (Text)
+
+data SCPSeg05Textbox bs = SCPSeg05Textbox'
+  { scpSeg05TextboxSpeakerUnkCharID :: Word8
+  -- ^ Unknown identifier. Game SCP parser uses it (places in memory, uses in a
+  --   call to set a value). Appears to be a "character ID" -- stronger than a
+  --   speaker ID, which can change between the same character to display their
+  --   name differently (e.g. if the player hasn't been introduced).
+  --
+  --   @0@ is shared by multiple non-important characters (e.g. random unnamed
+  --   university kids).
+
+  , scpSeg05TextboxSpeakerID :: Word32
+  -- ^ Speaker ID. Selects the textbox name graphic and name used in backlog.
+  --   @0@ is apparently invalid (points to an empty string in one of (?) the
+  --   speaker ID arrays).
+
+  , scpSeg05TextboxText :: bs
+  -- ^ Textbox text. (Warning: Game imposes harsh length limitations.)
+
+  , scpSeg05TextboxVoiceLine :: bs
+  -- ^ No voice line is allowed, and indicated by the empty string.
+
+  , scpSeg05TextboxCounter :: Word32
+  -- ^ Some sort of counter used throughout all SCPs.
+  --
+  --   TODO: May be globally unique. In which case, we want to determine the
+  --   "canonical" route through the SCPs, to potentially recalculate them.
+
+  } deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
+
+jcSCPSeg05Textbox :: Options
+jcSCPSeg05Textbox = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop (length "scpSeg05Textbox") }
+
+instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
+    toJSON     = genericToJSON     jcSCPSeg05Textbox
+    toEncoding = genericToEncoding jcSCPSeg05Textbox
+instance FromJSON a => FromJSON (SCPSeg05Textbox a) where
+    parseJSON  = genericParseJSON  jcSCPSeg05Textbox
+
+data SCPXText = SCPXText'
+  { scpXTextText      :: Text
+  , scpXTextSpeaker   :: Speaker
+  , scpXTextVoiceLine :: Maybe Text
+  } deriving (Eq, Show, Generic)
+
+jcSCPXText :: Options
+jcSCPXText = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop (length "scpXText") }
+
+instance ToJSON   SCPXText where
+    toJSON     = genericToJSON     jcSCPXText
+    toEncoding = genericToEncoding jcSCPXText
+instance FromJSON SCPXText where
+    parseJSON  = genericParseJSON  jcSCPXText
+
+-- QM = question mark (at end)
+-- Unk = unknown (written as full ???)
+data Speaker
+  = SpeakerBanri
+  | SpeakerSao
+  | SpeakerReikonBanriUnk
+  | SpeakerReikonBanriQM
+  | SpeakerReikonBanri
+    deriving (Eq, Show, Generic)
+
+jcSpeaker :: Options
+jcSpeaker = defaultOptions { constructorTagModifier = camelTo2 ' ' . drop 7 }
+
+instance ToJSON   Speaker where
+    toJSON     = genericToJSON     jcSpeaker
+    toEncoding = genericToEncoding jcSpeaker
+instance FromJSON Speaker where
+    parseJSON  = genericParseJSON  jcSpeaker
+
+speakerInfo :: Speaker -> (Word8, Word32)
+speakerInfo = \case
+  SpeakerBanri          -> (5, 5)
+  SpeakerSao            -> (8, 8)
+  SpeakerReikonBanriUnk -> (16, 17)
+  SpeakerReikonBanriQM  -> (16, 18)
+  SpeakerReikonBanri    -> (16, 16)
 
 -- TODO: Annotate data with meaning. We shouldn't hardcode this into the AST
 -- during parsing like `SCPStr bs UserFacing`, but how to do it post-parse?
@@ -19,7 +106,7 @@ data SCPSegment bs
   | SCPSeg02SFX bs Word8
   | SCPSeg03 Word8 bs Word8
   | SCPSeg04 Word8 Word8
-  | SCPSeg05Textbox Word8 Word32 bs bs Word32
+  | SCPSeg05Textbox (SCPSeg05Textbox bs)
   -- no 0x06
   | SCPSeg07SCP bs
   | SCPSeg08
