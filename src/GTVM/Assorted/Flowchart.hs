@@ -12,7 +12,6 @@ module GTVM.Assorted.Flowchart
   , altFcToFc
   ) where
 
-import           GTVM.Common.JSONByteStringOrphanToDelete()
 import           GTVM.Common.Binary
 import           GTVM.Common.Binary.Parse
 import           GTVM.Common.Binary.Serialize
@@ -110,3 +109,8 @@ instance ToJSON   a => ToJSON   (FlowchartEntryBlock a)
 instance FromJSON a => FromJSON (FlowchartEntryBlock a)
 instance ToJSON   a => ToJSON   (FlowchartEntry a)
 instance FromJSON a => FromJSON (FlowchartEntry a)
+
+instance FromJSON BS.ByteString where
+    parseJSON = error "STOP PARSING BYTESTRINGS DIRECTLY FROM JSON"
+instance ToJSON   BS.ByteString where
+    toJSON    = error "STOP WRITING BYTESTRINGS DIRECTLY INTO JSON"

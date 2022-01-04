@@ -5,9 +5,8 @@ import           Options.Applicative
 import           Control.Monad.IO.Class
 import qualified Data.Char                  as Char
 import           Data.Word
-import qualified BinaryPatch
-import qualified CSV                        as CSV
-import           CSV                        ( CSVTextReplace(..) )
+--import qualified CSV                        as CSV
+--import           CSV                        ( CSVTextReplace(..) )
 import qualified Data.Text                  as Text
 
 parseOpts :: MonadIO m => m ToolGroup
@@ -23,23 +22,17 @@ pToolGroup = hsubparser $
     <> cmd "flowchart" descFlowchart
         (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
     <> cmd "pak"    descPak   (TGPak <$> pCPak <*> pAllowBinStdout)
-    <> cmd "patch"  descPatch
-          ( TGPatch
-        <$> pBinaryPatchCfg
-        <*> pFileIn "PATCH-FILE" "patch file"
-        <*> pCStream2
-        <*> pAllowBinStdout
-        <*> pCPatchType
-        <*> pCPatchFormat )
-    <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
+    -- <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSCPX      = "Convert extended SCP to regular SCP (YAML both ways)."
     descSL01      = "SL01 (LZO1x-compressed file) tools."
     descFlowchart = "flow_chart.bin tools."
     descPak       = ".pak (sound_se.pak) tools."
-    descPatch     = "Patch bytestrings in a stream."
     descCSVPatch  = "Convert a string patch CSV to an applicable string patch."
+    pCParseType = flag CParseTypeFull CParseTypePartial
+            (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
+{-
     headerCSVPatch =
         "Your CSV file must start with a line of headers, which must include the following names: "
         <> csvColName csvSrOffset
@@ -47,19 +40,8 @@ pToolGroup = hsubparser $
         <> ", " <> csvColName csvSrAvailableSpace
         <> ", " <> csvColName csvSrSucceedingNulls
         <> ", " <> csvColName csvSrOrigText
-    pCParseType = flag CParseTypeFull CParseTypePartial
-            (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
-    pCPatchType = flag CPatchTypeBin CPatchTypeText
-            (long "text-patch" <> help "Use text patching format instead of binary")
-    pCPatchFormat = flag CPatchFormatFull CPatchFormatPlain
-            (long "plain" <> help "Use old patch format (no offset)")
     csvColName = Text.unpack . CSV.getColName
-
-pBinaryPatchCfg :: Parser BinaryPatch.Cfg
-pBinaryPatchCfg = BinaryPatch.Cfg <$> pAllowRepatch <*> pExpectExact
-  where
-    pAllowRepatch = switch $ long "allow-repatch" <> help "Override safety checks and only warn if it appears we're repatching a patched file (CURRENTLY NONFUNCTIONAL)"
-    pExpectExact = flag True False $ long "expect-exact" <> help "When checking expected bytes, require an exact match (rather than the expected being a prefix of the actual)"
+-}
 
 pCPak :: Parser CPak
 pCPak = hsubparser $
