@@ -14,11 +14,7 @@ import qualified GTVM.SCP.Parse             as GSP
 import qualified GTVM.SCP.Serialize         as GSS
 import qualified GTVM.SCP.SCPX              as GSX
 import qualified GTVM.SCP.Util              as GSU
-import qualified BinaryPatch                as BP
-import qualified BinaryPatch.Pretty         as BPP
-import           BinaryPatch.JSON()
-import           HexByteString
-import qualified CSV                      as CSV
+--import qualified CSV                      as CSV
 
 import qualified Data.Aeson                 as Aeson
 import qualified Data.Aeson.Encode.Pretty   as DAEP
@@ -46,10 +42,11 @@ runCmd = \case
   TGSL01 cfg cS2 -> runCmdSL01 cS2 cfg
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
-  TGPatch cfg fpFrom cS2 cPrintStdout cPatchType cPatchFormat -> runCmdPatch cfg fpFrom cS2 cPrintStdout cPatchType cPatchFormat
   TGCSVPatch cS2 -> runCmdCSV cS2
 
 runCmdCSV :: MonadIO m => (CStream, CStream) -> m ()
+runCmdCSV = error "unimplemented"
+{-
 runCmdCSV (cSFrom, cSTo) = do
     bs <- rReadStream' cSFrom
     case CSV.csvDecode bs of
@@ -58,54 +55,7 @@ runCmdCSV (cSFrom, cSTo) = do
         let mps = CSV.csvToTextReplace <$> csv
             mps' = BPP.MultiPatches { BPP.mpsBaseOffset = Just 0, BPP.mpsPatches = mps }
         rWriteStreamBin True cSTo (encodeYamlPretty [mps'])
-
-runCmdPatch
-    :: MonadIO m
-    => BP.Cfg -> FilePath -> (CStream, CStream) -> Bool -> CPatchType -> CPatchFormat
-    -> m ()
-runCmdPatch cPatch fpFrom xs cPrintStdout cPatchType cPatchFormat = do
-    case cPatchFormat of
-      CPatchFormatFull ->
-        case cPatchType of
-          CPatchTypeBin -> do
-            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatches HexByteString])
-            let (patch', errors) = (BPP.listAlgebraConcatEtc . BPP.applyBaseOffset) patch
-            case errors of
-              [] -> runCmdPatch' cPatch xs cPrintStdout patch'
-              _  -> do
-                liftIO $ putStrLn "offset error boyo"
-                liftIO $ print errors
-          CPatchTypeText -> do
-            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatches Text])
-            let (patch', errors) = (BPP.listAlgebraConcatEtc . BPP.applyBaseOffset) patch
-            case errors of
-              [] -> runCmdPatch' cPatch xs cPrintStdout patch'
-              _  -> do
-                liftIO $ putStrLn "offset error boyo"
-                liftIO $ print errors
-      CPatchFormatPlain ->
-        case cPatchType of
-          CPatchTypeBin -> do
-            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch HexByteString])
-            runCmdPatch' cPatch xs cPrintStdout patch
-          CPatchTypeText -> do
-            patch <- rReadFile fpFrom >>= rForceParseYAML @([BPP.MultiPatch Text])
-            runCmdPatch' cPatch xs cPrintStdout patch
-
-runCmdPatch'
-    :: (BPP.ToBinPatch a, MonadIO m) => BP.Cfg -> (CStream, CStream) -> Bool -> [BPP.MultiPatch a] -> m ()
-runCmdPatch' cPatch (cSFrom, cSTo) cPrintStdout patch = do
-    case BPP.normalize patch of
-      Nothing -> liftIO $ putStrLn "script normalization error (TODO)"
-      Just patches -> do
-        let (patchScript, errorsGen) = BP.genPatchScript patches
-        case errorsGen of
-          _:_ -> liftIO $ print errorsGen
-          []  -> do
-            bsFrom <- rReadStream cSFrom
-            case BP.patch patchScript bsFrom cPatch of
-              Left err   -> liftIO $ print err
-              Right bsTo -> rWriteStreamBin cPrintStdout cSTo bsTo
+-}
 
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case

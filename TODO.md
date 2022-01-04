@@ -1,7 +1,21 @@
 # To-dos
-## Formats (JSON)
+## SCPX
+So I looked into writing a generic scenario format. The main problem applying it
+to GTVM is that this game focuses on commands separate to text, rather than
+in-text commands/macros, and I can't think of much useful stuff I can do for the
+"structure" parts like that.
+
+By having SCPX build *over* the main scenario format, we get clarity and
+flexibility and don't have to write as much transformation code. We potentially
+have a busier user-facing format, but I have ideas for that.
+
+I need to explore scripts more so I can build up more useful "named" SCPX
+commands, rather than using the direct SCP commands all the time.
+
   * allow easy compile-time switching between `-` and `_`
-  * Better parsing for `Speaker`s (allow many styles)
+  * better parsing for `Speaker`s (allow many styles)
+  * text should have `Maybe Text` for ID, opens up automated checking against
+    original scenarios
 
 ## CLI
   * [ ] Add `patch-dir` command that concatenates all `.bin.yaml` in a directory
