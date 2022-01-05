@@ -34,7 +34,6 @@ library
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       GTVM.SCP.Tmp
-      GTVM.SCP.Util
       Text.Megaparsec.Byte.Binary
       Util
   other-modules:
@@ -63,7 +62,6 @@ library
       TypeApplications
   build-depends:
       aeson
-    , aeson-combinators
     , aeson-pretty
     , barbies
     , base
@@ -74,7 +72,7 @@ library
     , filemanip
     , lens
     , lzo
-    , megaparsec
+    , megaparsec >=9.2.0 && <9.3
     , mtl
     , text
     , text-latin1
@@ -117,7 +115,6 @@ executable gtvm-hs
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
-    , aeson-combinators
     , aeson-pretty
     , barbies
     , base
@@ -129,7 +126,7 @@ executable gtvm-hs
     , gtvm-hs
     , lens
     , lzo
-    , megaparsec
+    , megaparsec >=9.2.0 && <9.3
     , mtl
     , optparse-applicative
     , text

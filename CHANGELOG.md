@@ -1,3 +1,11 @@
+## 0.9.0 (Unreleased)
+  * remove patch feature: moved to own library+executable at
+    https://github.com/raehik/bytepatch ,
+    https://hackage.haskell.org/package/bytepatch
+  * CSV feature temporarily disabled (need to bring bytepatch in again)
+  * remove Megaparsec additions; use new release where they're merged upstream :)
+  * cleanup
+
 ## 0.8.0 (2021-08-26)
   * patch offsets now work from a base offset
     * prompting story: by calculating the relevant base offset, a user patching
