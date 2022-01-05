@@ -5,6 +5,13 @@
 
 packages:
 - completed:
+    hackage: megaparsec-9.2.0@sha256:0c272aa13b9f663dbd7b74ef81e9b1f9f05cafde50f5362ce87ffd4913046e0b,3213
+    pantry-tree:
+      size: 1518
+      sha256: 7ca5da73a72d6242375e6bf16f6868e16f5f7f02dd27a0ff12cf7a9422cf2c71
+  original:
+    hackage: megaparsec-9.2.0@sha256:0c272aa13b9f663dbd7b74ef81e9b1f9f05cafde50f5362ce87ffd4913046e0b,3213
+- completed:
     hackage: lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
     pantry-tree:
       size: 754

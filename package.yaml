@@ -34,7 +34,7 @@ dependencies:
 - base
 - bytestring
 - text
-- megaparsec
+- megaparsec ^>= 9.2.0 # for my binary number parsing additions
 - mtl
 - either
 - directory
@@ -49,7 +49,6 @@ dependencies:
 - utf8-string
 - vector
 - barbies
-- aeson-combinators
 - text-latin1
 #- compdata
 - union

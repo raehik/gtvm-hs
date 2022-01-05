@@ -10,10 +10,10 @@ import qualified GTVM.Assorted.Flowchart    as GAFc
 import qualified GTVM.Assorted.Pak          as GAP
 import qualified GTVM.Common.Binary.Parse   as GCBP
 import qualified GTVM.Common.Binary         as GCB
+import           GTVM.SCP
 import qualified GTVM.SCP.Parse             as GSP
 import qualified GTVM.SCP.Serialize         as GSS
 import qualified GTVM.SCP.SCPX              as GSX
-import qualified GTVM.SCP.Util              as GSU
 --import qualified CSV                      as CSV
 
 import qualified Data.Aeson                 as Aeson
@@ -60,33 +60,24 @@ runCmdCSV (cSFrom, cSTo) = do
 runCmdSCP :: MonadIO m => (CStream, CStream) -> CJSON -> m ()
 runCmdSCP (cSFrom, cSTo) = \case
   CJSONDe cPrettify -> do
-    scpBS <- rParseStream (GCBP.parseBin GSP.pSCP GCB.binCfgSCP) cSFrom
-    let (scpTextErrs, scpText) = eitherListHandle $ GSU.scpTextify scpBS
-    case scpTextErrs of
-      []    ->
+    scpBs <- rParseStream (GCBP.parseBin GSP.pSCP GCB.binCfgSCP) cSFrom
+    case scpBsToText scpBs of
+      Left err -> do
+        liftIO $ putStrLn $ "error: Unicode exception while decoding UTF-8 bytestring: " <> show err
+        liftIO $ Exit.exitWith (Exit.ExitFailure 4)
+      Right scpText ->
         let scpTextJsonBs = encodeYamlPretty scpText
          in rWriteStreamBin True cSTo scpTextJsonBs
-      (_:_) -> do
-        liftIO $ putStrLn $ "error: bad bytestrings in SCP: "
-        liftIO $ putStrLn $ show scpTextErrs
-        liftIO $ Exit.exitWith (Exit.ExitFailure 4)
   CJSONEn cPrintStdout -> do
     bs <- rReadStream cSFrom
-    scp <- rForceParseJSON bs
-    let scpBs = GSS.sSCP scp GCB.binCfgSCP
+    scp <- rForceParseYAML @(SCP Text) bs
+    let scpBs = GSS.sSCP (scpTextToBs scp) GCB.binCfgSCP
     rWriteStreamBin cPrintStdout cSTo scpBs
-
-eitherListHandle :: [Either a b] -> ([a], [b])
-eitherListHandle = go ([], [])
-  where
-    go (a, b) []     = (reverse a, reverse b)
-    go (a, b) (Left  x:xs) = go (x:a, b) xs
-    go (a, b) (Right x:xs) = go (a, x:b) xs
 
 runCmdSCPX :: MonadIO m => (CStream, CStream) -> m ()
 runCmdSCPX (cSFrom, cSTo) = do
     bs       <- rReadStream cSFrom
-    scpxText <- rForceParseYAML @[GSX.SCPX Text] bs
+    scpxText <- rForceParseYAML @(GSX.SCPX Text) bs
     let scpText = GSX.evalSCPX scpxText
         scpTextJsonBs = encodeYamlPretty scpText
     rWriteStreamBin True cSTo scpTextJsonBs

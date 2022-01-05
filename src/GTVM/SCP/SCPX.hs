@@ -10,59 +10,61 @@ import           Data.Maybe     ( fromMaybe )
 
 import           GTVM.SCP
 
-data SCPX bs
-  = SCPXPrimitive     (SCPSegment bs)
-  | SCPXPrimitiveList [SCPSegment bs] -- ^ (speedup because this is common)
-  | SCPXText SCPXText
+type SCPX bs = [SCPXSeg bs]
+
+data SCPXSeg bs
+  = SCPXSegPrimitive     (SCPSegment bs)
+  | SCPXSegPrimitiveList [SCPSegment bs] -- ^ (speedup because this is common)
+  | SCPXSegText SCPXSegText
     deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 
-jcSCPX :: Options
-jcSCPX = defaultOptions
+jcSCPXSeg :: Options
+jcSCPXSeg = defaultOptions
   { constructorTagModifier = camelTo2 '_' . drop 4
   , sumEncoding = defaultTaggedObject
     { tagFieldName = "command"
     , contentsFieldName = "arguments" }}
 
-instance ToJSON   a => ToJSON   (SCPX a) where
-    toJSON     = genericToJSON     jcSCPX
-    toEncoding = genericToEncoding jcSCPX
-instance FromJSON a => FromJSON (SCPX a) where
-    parseJSON  = genericParseJSON  jcSCPX
+instance ToJSON   a => ToJSON   (SCPXSeg a) where
+    toJSON     = genericToJSON     jcSCPXSeg
+    toEncoding = genericToEncoding jcSCPXSeg
+instance FromJSON a => FromJSON (SCPXSeg a) where
+    parseJSON  = genericParseJSON  jcSCPXSeg
 
-data SCPXText = SCPXText'
-  { scpXTextText      :: Text
-  , scpXTextSpeaker   :: Speaker
-  , scpXTextVoiceLine :: Maybe Text
+data SCPXSegText = SCPXSegText'
+  { scpXSegTextText      :: Text
+  , scpXSegTextSpeaker   :: Speaker
+  , scpXSegTextVoiceLine :: Maybe Text
   } deriving (Eq, Show, Generic)
 
 jcSCPXText :: Options
 jcSCPXText = defaultOptions
   { fieldLabelModifier = camelTo2 '_' . drop (length "scpXText") }
 
-instance ToJSON   SCPXText where
+instance ToJSON   SCPXSegText where
     toJSON     = genericToJSON     jcSCPXText
     toEncoding = genericToEncoding jcSCPXText
-instance FromJSON SCPXText where
+instance FromJSON SCPXSegText where
     parseJSON  = genericParseJSON  jcSCPXText
 
-scpXTextTransform :: IsString bs => SCPXText -> SCPSeg05Textbox bs
-scpXTextTransform x = SCPSeg05Textbox'
+scpXSegTextTransform :: IsString bs => SCPXSegText -> SCPSeg05Textbox bs
+scpXSegTextTransform x = SCPSeg05Textbox'
     { scpSeg05TextboxSpeakerUnkCharID = speakerUnkCharId
     , scpSeg05TextboxSpeakerID        = speakerId
-    , scpSeg05TextboxText             = fromString $ Text.unpack $ scpXTextText x
-    , scpSeg05TextboxVoiceLine        = fromString $ Text.unpack $ fromMaybe Text.empty $ scpXTextVoiceLine x
+    , scpSeg05TextboxText             = fromString $ Text.unpack $ scpXSegTextText x
+    , scpSeg05TextboxVoiceLine        = fromString $ Text.unpack $ fromMaybe Text.empty $ scpXSegTextVoiceLine x
     , scpSeg05TextboxCounter          = 0 -- TODO
     }
   where
-    (speakerUnkCharId, speakerId) = speakerInfo (scpXTextSpeaker x)
+    (speakerUnkCharId, speakerId) = speakerInfo (scpXSegTextSpeaker x)
 
-evalSCPX :: IsString bs => [SCPX bs] -> [SCPSegment bs]
+evalSCPX :: IsString bs => SCPX bs -> SCP bs
 evalSCPX []     = []
 evalSCPX (x:xs) =
     case x of
-      SCPXPrimitive     seg  -> seg : evalSCPX xs
-      SCPXPrimitiveList segs -> foldr (:) (evalSCPX xs) segs
-      SCPXText          scpx -> SCPSeg05Textbox (scpXTextTransform scpx) : evalSCPX xs
+      SCPXSegPrimitive     seg  -> seg : evalSCPX xs
+      SCPXSegPrimitiveList segs -> foldr (:) (evalSCPX xs) segs
+      SCPXSegText          scpx -> SCPSeg05Textbox (scpXSegTextTransform scpx) : evalSCPX xs
 
 -- QM = question mark (at end)
 -- Unk = unknown (written as full ???)

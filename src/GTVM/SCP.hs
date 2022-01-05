@@ -1,11 +1,18 @@
 module GTVM.SCP
-  ( SCPSegment(..)
+  ( SCP
+  , SCPSegment(..)
   , SCPSeg05Textbox(..)
+  , scpBsToText
+  , scpTextToBs
   ) where
 
 import           Data.Word
 import           GHC.Generics
 import           Data.Aeson
+import qualified Data.ByteString          as BS
+import qualified Data.Text.Encoding       as Text
+import qualified Data.Text.Encoding.Error as Text
+import           Data.Text                ( Text )
 
 data SCPSeg05Textbox bs = SCPSeg05Textbox'
   { scpSeg05TextboxSpeakerUnkCharID :: Word8
@@ -190,3 +197,13 @@ instance ToJSON   a => ToJSON   (SCPSegment a) where
     toEncoding = genericToEncoding jcSCPSeg
 instance FromJSON a => FromJSON (SCPSegment a) where
     parseJSON  = genericParseJSON  jcSCPSeg
+
+type SCP a = [SCPSegment a]
+
+
+
+scpBsToText :: SCP BS.ByteString -> Either Text.UnicodeException (SCP Text)
+scpBsToText = traverse (traverse Text.decodeUtf8')
+
+scpTextToBs :: SCP Text -> SCP BS.ByteString
+scpTextToBs = map (fmap Text.encodeUtf8)
