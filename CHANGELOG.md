@@ -4,7 +4,7 @@
     https://hackage.haskell.org/package/bytepatch
   * CSV feature temporarily disabled (need to bring bytepatch in again)
   * remove Megaparsec additions; use new release where they're merged upstream :)
-  * cleanup
+  * codebase cleanup
 
 ## 0.8.0 (2021-08-26)
   * patch offsets now work from a base offset
