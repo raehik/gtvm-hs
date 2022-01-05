@@ -26,16 +26,16 @@ import           Data.Either.Combinators ( mapLeft )
 type Bytes = BS.ByteString
 
 -- | Parse any byte.
-pW8 :: (MonadParsec e s m, Token s ~ Word8) => m Word8
-pW8 = anyW8
+pW8 :: (MonadParsec e s m, BinaryChunk (Tokens s)) => m Word8
+pW8 = word8
 
 -- | Parse any 'Word32' (4-byte unsigned int) with given endianness.
 pW32 :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m Word32
-pW32 = binCfgCaseEndianness anyW32LE anyW32BE
+pW32 = binCfgCaseEndianness word32le word32be
 
 -- | Parse any 'Word64' (8-byte unsigned int) with given endianness.
 pW64 :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m Word64
-pW64 = binCfgCaseEndianness anyW64LE anyW64BE
+pW64 = binCfgCaseEndianness word64le word64be
 
 -- | Parse a bytestring.
 --

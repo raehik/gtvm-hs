@@ -34,7 +34,6 @@ library
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       GTVM.SCP.Tmp
-      Text.Megaparsec.Byte.Binary
       Util
   other-modules:
       Paths_gtvm_hs
