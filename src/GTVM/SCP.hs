@@ -1,6 +1,6 @@
 module GTVM.SCP
   ( SCP
-  , SCPSegment(..)
+  , SCPSeg(..)
   , SCPSeg05Textbox(..)
   , scpBsToText
   , scpTextToBs
@@ -14,50 +14,13 @@ import qualified Data.Text.Encoding       as Text
 import qualified Data.Text.Encoding.Error as Text
 import           Data.Text                ( Text )
 
-data SCPSeg05Textbox bs = SCPSeg05Textbox'
-  { scpSeg05TextboxSpeakerUnkCharID :: Word8
-  -- ^ Unknown identifier. Game SCP parser uses it (places in memory, uses in a
-  --   call to set a value). Appears to be a "character ID" -- stronger than a
-  --   speaker ID, which can change between the same character to display their
-  --   name differently (e.g. if the player hasn't been introduced).
-  --
-  --   @0@ is shared by multiple non-important characters (e.g. random unnamed
-  --   university kids).
-
-  , scpSeg05TextboxSpeakerID :: Word32
-  -- ^ Speaker ID. Selects the textbox name graphic and name used in backlog.
-  --   @0@ is apparently invalid (points to an empty string in one of (?) the
-  --   speaker ID arrays).
-
-  , scpSeg05TextboxText :: bs
-  -- ^ Textbox text. (Warning: Game imposes harsh length limitations.)
-
-  , scpSeg05TextboxVoiceLine :: bs
-  -- ^ No voice line is allowed, and indicated by the empty string.
-
-  , scpSeg05TextboxCounter :: Word32
-  -- ^ Some sort of counter used throughout all SCPs.
-  --
-  --   TODO: May be globally unique. In which case, we want to determine the
-  --   "canonical" route through the SCPs, to potentially recalculate them.
-
-  } deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
-
-jcSCPSeg05Textbox :: Options
-jcSCPSeg05Textbox = defaultOptions
-  { fieldLabelModifier = camelTo2 '_' . drop (length "scpSeg05Textbox") }
-
-instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
-    toJSON     = genericToJSON     jcSCPSeg05Textbox
-    toEncoding = genericToEncoding jcSCPSeg05Textbox
-instance FromJSON a => FromJSON (SCPSeg05Textbox a) where
-    parseJSON  = genericParseJSON  jcSCPSeg05Textbox
+type SCP bs = [SCPSeg bs]
 
 -- | A standalone segment of an SCP file.
 --
 -- Generalized over the bytestring representation (for easier coercing between
 -- 'ByteString' and 'Text').
-data SCPSegment bs
+data SCPSeg bs
   = SCPSeg00
   | SCPSeg01BG bs Word8 Word8
   | SCPSeg02SFX bs Word8
@@ -192,18 +155,53 @@ jcSCPSeg = defaultOptions
     { tagFieldName = "command_byte"
     , contentsFieldName = "arguments" }}
 
-instance ToJSON   a => ToJSON   (SCPSegment a) where
+instance ToJSON   a => ToJSON   (SCPSeg a) where
     toJSON     = genericToJSON     jcSCPSeg
     toEncoding = genericToEncoding jcSCPSeg
-instance FromJSON a => FromJSON (SCPSegment a) where
+instance FromJSON a => FromJSON (SCPSeg a) where
     parseJSON  = genericParseJSON  jcSCPSeg
-
-type SCP a = [SCPSegment a]
-
-
 
 scpBsToText :: SCP BS.ByteString -> Either Text.UnicodeException (SCP Text)
 scpBsToText = traverse (traverse Text.decodeUtf8')
 
 scpTextToBs :: SCP Text -> SCP BS.ByteString
 scpTextToBs = map (fmap Text.encodeUtf8)
+
+data SCPSeg05Textbox bs = SCPSeg05Textbox'
+  { scpSeg05TextboxSpeakerUnkCharID :: Word8
+  -- ^ Unknown identifier. Game SCP parser uses it (places in memory, uses in a
+  --   call to set a value). Appears to be a "character ID" -- stronger than a
+  --   speaker ID, which can change between the same character to display their
+  --   name differently (e.g. if the player hasn't been introduced).
+  --
+  --   @0@ is shared by multiple non-important characters (e.g. random unnamed
+  --   university kids).
+
+  , scpSeg05TextboxSpeakerID :: Word32
+  -- ^ Speaker ID. Selects the textbox name graphic and name used in backlog.
+  --   @0@ is apparently invalid (points to an empty string in one of (?) the
+  --   speaker ID arrays).
+
+  , scpSeg05TextboxText :: bs
+  -- ^ Textbox text. (Warning: Game imposes harsh length limitations.)
+
+  , scpSeg05TextboxVoiceLine :: bs
+  -- ^ No voice line is allowed, and indicated by the empty string.
+
+  , scpSeg05TextboxCounter :: Word32
+  -- ^ Some sort of counter used throughout all SCPs.
+  --
+  --   TODO: May be globally unique. In which case, we want to determine the
+  --   "canonical" route through the SCPs, to potentially recalculate them.
+
+  } deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
+
+jcSCPSeg05Textbox :: Options
+jcSCPSeg05Textbox = defaultOptions
+  { fieldLabelModifier = camelTo2 '_' . drop (length "scpSeg05Textbox") }
+
+instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
+    toJSON     = genericToJSON     jcSCPSeg05Textbox
+    toEncoding = genericToEncoding jcSCPSeg05Textbox
+instance FromJSON a => FromJSON (SCPSeg05Textbox a) where
+    parseJSON  = genericParseJSON  jcSCPSeg05Textbox

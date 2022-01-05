@@ -18,16 +18,16 @@ import qualified Data.ByteString         as BS
 
 type Bytes = BS.ByteString
 
-sSCP :: MonadReader BinaryCfg m => [SCPSegment Bytes] -> m Bytes
+sSCP :: MonadReader BinaryCfg m => [SCPSeg Bytes] -> m Bytes
 sSCP = serialize bSCP
 
 bBSW32 :: MonadReader BinaryCfg m => (Bytes, Word32) -> m Builder
 bBSW32 (bs, u) = liftA2 (<>) (bBS bs) (bW32 u)
 
-bSCP :: MonadReader BinaryCfg m => [SCPSegment Bytes] -> m Builder
+bSCP :: MonadReader BinaryCfg m => [SCPSeg Bytes] -> m Builder
 bSCP = concatM . fmap bSCPSeg
 
-bSCPSeg :: MonadReader BinaryCfg m => SCPSegment Bytes -> m Builder
+bSCPSeg :: MonadReader BinaryCfg m => SCPSeg Bytes -> m Builder
 bSCPSeg = \case
   SCPSeg00 -> r1 0x00
   SCPSeg01BG bs1 b1 b2 -> rB [bW8 0x01, bBS bs1, bW8 b1, bW8 b2]

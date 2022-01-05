@@ -25,13 +25,13 @@ import qualified System.Directory as Dir
 
 type Bytes = BS.ByteString
 
-parseSCPBytes :: Bytes -> Either String [SCPSegment Bytes]
+parseSCPBytes :: Bytes -> Either String [SCPSeg Bytes]
 parseSCPBytes = parseSCPBytes' binCfgSCP ""
 
-parseSCPBytes' :: BinaryCfg -> String -> Bytes -> Either String [SCPSegment Bytes]
+parseSCPBytes' :: BinaryCfg -> String -> Bytes -> Either String [SCPSeg Bytes]
 parseSCPBytes' = parseBin (many pSCPSeg)
 
-parseSCPFile :: MonadIO m => FilePath -> m (Either String [SCPSegment Bytes])
+parseSCPFile :: MonadIO m => FilePath -> m (Either String [SCPSeg Bytes])
 parseSCPFile fp = do
     bs <- liftIO $ BS.readFile fp
     return $ parseSCPBytes' binCfgSCP fp bs
@@ -49,7 +49,7 @@ checkSCPDir dir = do
                 outStr = fp <> "," <> show textboxCount
             liftIO $ putStrLn outStr
 
-textboxesInSCP :: [SCPSegment Bytes] -> Int
+textboxesInSCP :: [SCPSeg Bytes] -> Int
 textboxesInSCP segs = foldr go 0 (map isTextbox segs)
   where
     isTextbox (SCPSeg05Textbox{}) = True
@@ -59,10 +59,10 @@ textboxesInSCP segs = foldr go 0 (map isTextbox segs)
 
 --------------------------------------------------------------------------------
 
-pSCP :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m [SCPSegment Bytes]
+pSCP :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m [SCPSeg Bytes]
 pSCP = many pSCPSeg <* eof
 
-pSCPSeg :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m (SCPSegment Bytes)
+pSCPSeg :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m (SCPSeg Bytes)
 pSCPSeg = pW8 >>= \case
   0x00 -> SCPSeg00 & return
   0x01 -> SCPSeg01BG <$> pBS <*> pW8 <*> pW8

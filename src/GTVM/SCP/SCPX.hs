@@ -13,8 +13,8 @@ import           GTVM.SCP
 type SCPX bs = [SCPXSeg bs]
 
 data SCPXSeg bs
-  = SCPXSegPrimitive     (SCPSegment bs)
-  | SCPXSegPrimitiveList [SCPSegment bs] -- ^ (speedup because this is common)
+  = SCPXSegPrimitive     (SCPSeg bs)
+  | SCPXSegPrimitiveList [SCPSeg bs] -- ^ (speedup because this is common)
   | SCPXSegText SCPXSegText
     deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 

@@ -33,8 +33,6 @@ library
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize
       GTVM.SCP.Test
-      GTVM.SCP.Tmp
-      Util
   other-modules:
       Paths_gtvm_hs
   hs-source-dirs:

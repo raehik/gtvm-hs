@@ -14,6 +14,17 @@ are available.
 Invoke on command line. The CLI is intended to be a discoverable "toolbox", so
 try invoking different commands and viewing the help.
 
+As of 0.9.0, patching (`gtvm-hs patch`) is handled by another tool. See
+[bytepatch](https://github.com/raehik/bytepatch).
+
 ## Building
-Use Stack or Cabal, GHC 8.6 or newer. No real setup needed. (Send me a ping or
+Use Stack or Cabal, GHC 8.10 or newer. No real setup needed. (Send me a ping or
 make an issue if you need more help.)
+
+## Working with the codebase
+Quick notes:
+
+  * We do a lot of binary format parsing, specifically to JSON-friendly types.
+    When I say "parse", I mean parsing binary data to a Haskell data type. When
+    I say "serialize", I mean the reverse. ("Printing" is essentially covered
+    via encoding to JSON.)
