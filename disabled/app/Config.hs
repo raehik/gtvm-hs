@@ -9,6 +9,11 @@ data CStream
   | CStreamStd
     deriving (Eq, Show, Generic)
 
+data CStream' (s :: Symbol)
+  = CStream'File FilePath
+  | CStream'Std
+    deriving (Eq, Show, Generic)
+
 data CStreamPair = CStreamPair
   { cStreamPairIn  :: CStream
   , cStreamPairOut :: CStream

@@ -97,11 +97,12 @@ library
 executable gtvm-hs
   main-is: Main.hs
   other-modules:
-      CLI
-      CLI.Command
-      Config
+      Common.CLIOptions
+      Common.Config
+      Common.Util
+      Tool.SCP.Code
       Tool.SCP.Replace
-      Util
+      Tool.SL01
       Paths_gtvm_hs
   hs-source-dirs:
       app

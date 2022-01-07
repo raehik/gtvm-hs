@@ -14,7 +14,7 @@ import qualified CLI.Command
 
 data ToolGroup
   = TGFlowchart CJSON (CStream, CStream) CParseType
-  | TGSCP CJSON (CStream, CStream)
+  | TGSCP Tool.SCP.Cfg
   | TGSCPX (CStream, CStream)
   | TGSL01 CBin (CStream, CStream)
   | TGPak CPak Bool
@@ -29,7 +29,7 @@ parseOpts = execParserWithDefaults desc pToolGroup
 
 pToolGroup :: Parser ToolGroup
 pToolGroup = hsubparser $
-       cmd "scp"    descSCP   (TGSCP  <$> pCJSON "SCP" <*> pCStream2)
+       expandCmd TGSCP Tool.SCP.cmd
     <> cmd "scpx"   descSCPX  (TGSCPX <$> pCStream2)
     <> cmd "sl01"   descSL01  (TGSL01 <$> pCBin <*> pCStream2)
     <> cmd "flowchart" descFlowchart
@@ -146,6 +146,17 @@ pCStream2 = liftA2 (,) pCSIn pCSOut
     pFileOpt = CStreamFile <$> strOption (metavar "FILE" <> long "out-file" <> short 'o' <> help "Output file")
     pStdin   = flag' CStreamStd (long "stdin"  <> help "Use stdin")
     pCSOut   = pFileOpt <|> pure CStreamStd
+
+pCStream'In
+    :: (KnownSymbol sName, KnownSymbol sMetavar)
+    => Parser (CStream' 'StreamIn sName sMetavar)
+pCStream'In = pFileArg <|> pStdin
+  where
+    pFileArg = CStream'File <$> strArgument (metavar (map Char.toUpper noun) <> help ("Input " <> noun))
+    pStdin   = flag' CStreamStd (long "stdin"  <> help "Use stdin")
+
+symbolVal'' :: forall s. KnownSymbol s => String
+symbolVal'' = symbolVal' (proxy# :: Proxy# s)
 
 --------------------------------------------------------------------------------
 
