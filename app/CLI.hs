@@ -1,5 +1,6 @@
-module CLI ( parseOpts ) where
+module CLI ( parseOpts, ToolGroup(..) ) where
 
+import           GHC.Generics
 import           Config
 import           Options.Applicative
 import           Control.Monad.IO.Class
@@ -8,6 +9,18 @@ import           Data.Word
 --import qualified CSV                        as CSV
 --import           CSV                        ( CSVTextReplace(..) )
 import qualified Data.Text                  as Text
+import qualified Tool.SCP.Replace
+import qualified CLI.Command
+
+data ToolGroup
+  = TGFlowchart CJSON (CStream, CStream) CParseType
+  | TGSCP CJSON (CStream, CStream)
+  | TGSCPX (CStream, CStream)
+  | TGSL01 CBin (CStream, CStream)
+  | TGPak CPak Bool
+  | TGCSVPatch (CStream, CStream)
+  | TGSCPReplace Tool.SCP.Replace.Cfg
+    deriving (Eq, Show, Generic)
 
 parseOpts :: MonadIO m => m ToolGroup
 parseOpts = execParserWithDefaults desc pToolGroup
@@ -22,6 +35,7 @@ pToolGroup = hsubparser $
     <> cmd "flowchart" descFlowchart
         (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
     <> cmd "pak"    descPak   (TGPak <$> pCPak <*> pAllowBinStdout)
+    <> expandCmd TGSCPReplace Tool.SCP.Replace.cmd
     -- <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
@@ -30,6 +44,7 @@ pToolGroup = hsubparser $
     descFlowchart = "flow_chart.bin tools."
     descPak       = ".pak (sound_se.pak) tools."
     descCSVPatch  = "Convert a string patch CSV to an applicable string patch."
+    descScpReplace = "Replace textboxes in an SCP."
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
 {-
@@ -42,6 +57,15 @@ pToolGroup = hsubparser $
         <> ", " <> csvColName csvSrOrigText
     csvColName = Text.unpack . CSV.getColName
 -}
+
+pCStreamPair :: Parser CStreamPair
+pCStreamPair = CStreamPair <$> pCSIn <*> pCSOut
+  where
+    pCSIn    = pFileArg <|> pStdin
+    pCSOut   = pFileOpt <|> pure CStreamStd
+    pFileArg = CStreamFile <$> strArgument (metavar "FILE" <> help "Input file")
+    pFileOpt = CStreamFile <$> strOption (metavar "FILE" <> long "out-file" <> short 'o' <> help "Output file")
+    pStdin   = flag' CStreamStd (long "stdin"  <> help "Use stdin")
 
 pCPak :: Parser CPak
 pCPak = hsubparser $
@@ -137,3 +161,10 @@ cmd name desc p = command name (info p (progDesc desc))
 
 cmd' :: String -> String -> String -> Parser a -> Mod CommandFields a
 cmd' name desc h p = command name (info p (progDesc desc <> header h))
+
+expandCmd :: (a -> ToolGroup) -> CLI.Command.Cmd a -> Mod CommandFields ToolGroup
+expandCmd f c =
+    cmd
+        (CLI.Command.cmdName c)
+        (CLI.Command.cmdDesc c)
+        (f <$> CLI.Command.cmdParser c)

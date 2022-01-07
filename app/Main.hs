@@ -4,6 +4,7 @@ module Main (main) where
 
 import           Config
 import qualified CLI as CLI
+import           CLI ( ToolGroup(..) )
 
 import qualified GTVM.Assorted.SL01         as GAS
 import qualified GTVM.Assorted.Flowchart    as GAFc
@@ -31,6 +32,7 @@ import qualified System.Exit                as Exit
 import           Control.Monad.IO.Class
 
 import qualified System.FilePath.Find       as Filemanip
+import qualified Tool.SCP.Replace
 
 main :: IO ()
 main = CLI.parseOpts >>= runCmd
@@ -43,6 +45,7 @@ runCmd = \case
   TGFlowchart cfg cS2 parseType -> runCmdFlowchart cS2 parseType cfg
   TGPak cfg cPrintStdout -> runCmdPak cPrintStdout cfg
   TGCSVPatch cS2 -> runCmdCSV cS2
+  TGSCPReplace cfg -> Tool.SCP.Replace.run cfg
 
 runCmdCSV :: MonadIO m => (CStream, CStream) -> m ()
 runCmdCSV = error "unimplemented"
@@ -162,7 +165,11 @@ rForceParseYAML bs =
 -- Only gets stuff with content (files).
 getDirContentsWithFilenameRecursive :: FilePath -> IO [(Text, BS.ByteString)]
 getDirContentsWithFilenameRecursive fp = do
-    fileList <- Filemanip.find (pure True) (Filemanip.fileType Filemanip.==? Filemanip.RegularFile) fp
+    fileList <-
+        Filemanip.find
+            (pure True)
+            (Filemanip.fileType Filemanip.==? Filemanip.RegularFile)
+            fp
     mapM f fileList
   where
     f fp' = do

@@ -1,4 +1,14 @@
 # To-dos
+## Thoughts on distribution
+What if instead of checking original strings/bytestrings, I checked their
+*hash*? Could I generalize that part to be swappable? Could I have some
+automation that swaps the original for its calculated hash (without checking the
+real file)? bytepatch would be very interested in all this.
+
+How does the binary stuff in bytepatch work with this idea? Does it conflict at
+all? (Do we just have to make sure we hash the right bit, before adding nulls
+everywhere?)
+
 ## SCPX
 So I looked into writing a generic scenario format. The main problem applying it
 to GTVM is that this game focuses on commands separate to text, rather than
@@ -18,6 +28,9 @@ commands, rather than using the direct SCP commands all the time.
     original scenarios
 
 ## CLI
+  * [ ] major cleanup. Make commands self-contained to simplify. Not as if it
+        realistically adds any logistics concerns e.g. no easy checking for
+        overlapping CLI opts. I should just, write clean code :/
   * [ ] Add `patch-dir` command that concatenates all `.bin.yaml` in a directory
     (recursively) and applies, then for `.text.yaml`. So no pain over patch
     ordering!

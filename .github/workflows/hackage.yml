@@ -11,7 +11,7 @@ on:
 env:
   # ghcup needs full version string (e.g. 9.0.1, not 9.0)
   ghc: "9.0.1"
-  EXE_NAME: bytepatch
+  EXE_NAME: gtvm-hs
 
 jobs:
   hackage:

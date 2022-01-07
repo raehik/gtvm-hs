@@ -1,15 +1,18 @@
 module Config where
 
 import           Data.Word
+import           GHC.Generics
 
-data ToolGroup
-  = TGFlowchart CJSON (CStream, CStream) CParseType
-  | TGSCP CJSON (CStream, CStream)
-  | TGSCPX (CStream, CStream)
-  | TGSL01 CBin (CStream, CStream)
-  | TGPak CPak Bool
-  | TGCSVPatch (CStream, CStream)
-    deriving (Eq, Show)
+-- | "Single file" stream.
+data CStream
+  = CStreamFile FilePath
+  | CStreamStd
+    deriving (Eq, Show, Generic)
+
+data CStreamPair = CStreamPair
+  { cStreamPairIn  :: CStream
+  , cStreamPairOut :: CStream
+  } deriving (Eq, Show, Generic)
 
 -- | orig one bin stream <-> one text stream
 --
@@ -19,13 +22,13 @@ data CJSON
   -- ^ bool = prettify
   | CJSONEn Bool
   -- ^ bool = print binary to stdout
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 data CYAML
   = CYAMLDe
     { _cYamlHexIntegralLits :: Bool
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | orig one bin stream <-> one bin stream
 data CBin = CBin
@@ -43,13 +46,7 @@ data CPak
   = CPakUnpack (CStream, CStreams)
   | CPakPack (CStream, CStreams) Word32
   -- ^ W32 = unknown value
-    deriving (Eq, Show)
-
--- | "Single file" stream.
-data CStream
-  = CStreamFile FilePath
-  | CStreamStd
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | "Multi-file" stream.
 --
@@ -58,7 +55,7 @@ data CStream
 data CStreams
   = CStreamsFolder FilePath
   | CStreamsArchive FilePath
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | Direction from/to original.
 --
@@ -68,7 +65,7 @@ data CStreams
 data CDirection
   = CDirectionFromOrig
   | CDirectionToOrig
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | Are we dealing with fully-parsed files, or only "partially" parsed?
 --
@@ -78,4 +75,4 @@ data CDirection
 data CParseType
   = CParseTypeFull
   | CParseTypePartial
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
