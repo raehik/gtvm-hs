@@ -3,6 +3,7 @@ module GTVM.SCP.SCPX where
 import           GHC.Generics
 import           Data.Word
 import           Data.Aeson
+import           GTVM.Common.Json
 import qualified Data.Text      as Text
 import           Data.Text      ( Text )
 import           Data.String    ( IsString(..) )
@@ -38,8 +39,7 @@ data SCPXSegText = SCPXSegText'
   } deriving (Eq, Show, Generic)
 
 jcSCPXText :: Options
-jcSCPXText = defaultOptions
-  { fieldLabelModifier = camelTo2 '_' . drop (length "scpXText") }
+jcSCPXText = jsonCfgSepUnderscoreDropN (fromIntegral (length "scpXText"))
 
 instance ToJSON   SCPXSegText where
     toJSON     = genericToJSON     jcSCPXText

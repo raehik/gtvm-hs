@@ -28,11 +28,15 @@ library
       GTVM.Common.Binary.Parse
       GTVM.Common.Binary.Serialize
       GTVM.Common.Binary.Util
+      GTVM.Common.Json
       GTVM.SCP
       GTVM.SCP.Parse
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize
       GTVM.SCP.Test
+      GTVM.SCP.TextReplace
+      Raehik.Check
+      Raehik.HexBytestring
   other-modules:
       Paths_gtvm_hs
   hs-source-dirs:
@@ -57,20 +61,29 @@ library
       KindSignatures
       TypeOperators
       TypeApplications
+      DataKinds
+      TypeFamilies
+      UndecidableInstances
+      StandaloneKindSignatures
+      RankNTypes
+      ScopedTypeVariables
   build-depends:
       aeson
     , aeson-pretty
     , barbies
     , base
+    , blake3
     , bytestring
     , cassava
     , directory
     , either
     , filemanip
-    , lens
+    , generic-optics
     , lzo
     , megaparsec >=9.2.0 && <9.3
+    , memory
     , mtl
+    , optics
     , text
     , text-latin1
     , unicode-show
@@ -85,7 +98,10 @@ executable gtvm-hs
   main-is: Main.hs
   other-modules:
       CLI
+      CLI.Command
       Config
+      Tool.SCP.Replace
+      Util
       Paths_gtvm_hs
   hs-source-dirs:
       app
@@ -109,22 +125,31 @@ executable gtvm-hs
       KindSignatures
       TypeOperators
       TypeApplications
+      DataKinds
+      TypeFamilies
+      UndecidableInstances
+      StandaloneKindSignatures
+      RankNTypes
+      ScopedTypeVariables
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , aeson-pretty
     , barbies
     , base
+    , blake3
     , bytestring
     , cassava
     , directory
     , either
     , filemanip
+    , generic-optics
     , gtvm-hs
-    , lens
     , lzo
     , megaparsec >=9.2.0 && <9.3
+    , memory
     , mtl
+    , optics
     , optparse-applicative
     , text
     , text-latin1

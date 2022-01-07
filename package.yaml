@@ -6,9 +6,8 @@ extra-source-files:
 - README.md
 - CHANGELOG.md
 
-# all unintrusive extensions from Alexis King's 2018 recommended defaults
-# https://lexi-lambda.github.io/blog/2018/02/10/an-opinionated-guide-to-haskell-in-2018/
-# plus TypeApplications (useful even without ScopedTypeVariables)
+# mostly Alexis King's 2018 recommended defaults
+# (most can be replaced with GHC 9.2's GHC2021 language extension
 default-extensions:
 - EmptyCase
 - FlexibleContexts
@@ -30,6 +29,14 @@ default-extensions:
 - TypeOperators
 - TypeApplications
 
+# we do a little type tomfoolery
+- DataKinds
+- TypeFamilies
+- UndecidableInstances
+- StandaloneKindSignatures
+- RankNTypes
+- ScopedTypeVariables
+
 dependencies:
 - base
 - bytestring
@@ -41,7 +48,6 @@ dependencies:
 - unicode-show
 - aeson
 - aeson-pretty
-- lens
 - lzo
 - filemanip
 - yaml
@@ -50,6 +56,10 @@ dependencies:
 - vector
 - barbies
 - text-latin1
+- blake3
+- memory
+- optics
+- generic-optics
 #- compdata
 - union
 - world-peace

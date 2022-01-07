@@ -9,6 +9,7 @@ module GTVM.SCP
 import           Data.Word
 import           GHC.Generics
 import           Data.Aeson
+import           GTVM.Common.Json
 import qualified Data.ByteString          as BS
 import qualified Data.Text.Encoding       as Text
 import qualified Data.Text.Encoding.Error as Text
@@ -197,8 +198,8 @@ data SCPSeg05Textbox bs = SCPSeg05Textbox'
   } deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 
 jcSCPSeg05Textbox :: Options
-jcSCPSeg05Textbox = defaultOptions
-  { fieldLabelModifier = camelTo2 '_' . drop (length "scpSeg05Textbox") }
+jcSCPSeg05Textbox =
+    jsonCfgSepUnderscoreDropN (fromIntegral (length "scpSeg05Textbox"))
 
 instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
     toJSON     = genericToJSON     jcSCPSeg05Textbox
