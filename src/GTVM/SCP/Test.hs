@@ -2,13 +2,13 @@
 
 module GTVM.SCP.Test where
 
-import           GTVM.Common.Binary
-import           GTVM.SCP.Parse
-import           GTVM.SCP.Serialize
-import           Control.Monad.Reader
-import qualified Data.ByteString as BS
-import qualified System.Directory as Dir
-import qualified Data.List as List
+import GTVM.Common.Binary
+import GTVM.SCP.Parse
+import GTVM.SCP.Serialize
+import Control.Monad.Reader
+import Data.ByteString qualified as BS
+import System.Directory qualified as Dir
+import Data.List qualified as List
 
 type Bytes = BS.ByteString
 

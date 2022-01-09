@@ -1,8 +1,8 @@
 module Tool.SL01 where
 
-import           GHC.Generics
-import           Control.Monad.IO.Class
-import           Common.Config
+import GHC.Generics
+import Control.Monad.IO.Class
+import Common.Config
 
 data Cfg = Cfg
   { cfgIn          :: Stream 'StreamIn  "data"

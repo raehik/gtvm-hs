@@ -6,14 +6,14 @@ module GTVM.SCP
   , scpTextToBs
   ) where
 
-import           Data.Word
-import           GHC.Generics
-import           Data.Aeson
-import           GTVM.Common.Json
-import qualified Data.ByteString          as BS
-import qualified Data.Text.Encoding       as Text
-import qualified Data.Text.Encoding.Error as Text
-import           Data.Text                ( Text )
+import Data.Word
+import GHC.Generics
+import Data.Aeson
+import GTVM.Common.Json
+import Data.ByteString qualified as BS
+import Data.Text.Encoding qualified as Text
+import Data.Text.Encoding.Error qualified as Text
+import Data.Text ( Text )
 
 type SCP bs = [SCPSeg bs]
 

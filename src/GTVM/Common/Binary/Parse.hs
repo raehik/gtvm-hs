@@ -15,13 +15,13 @@ module GTVM.Common.Binary.Parse
   , parseBin
   ) where
 
-import           GTVM.Common.Binary
-import           Text.Megaparsec
-import           Text.Megaparsec.Byte.Binary
-import qualified Data.ByteString as BS
-import           Data.Word
-import           Control.Monad.Reader
-import           Data.Either.Combinators ( mapLeft )
+import GTVM.Common.Binary
+import Text.Megaparsec
+import Text.Megaparsec.Byte.Binary
+import Data.ByteString qualified as BS
+import Data.Word
+import Control.Monad.Reader
+import Data.Either.Combinators ( mapLeft )
 
 type Bytes = BS.ByteString
 

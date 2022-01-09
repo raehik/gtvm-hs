@@ -9,18 +9,17 @@ entire scenario), but still show the various scenario info to the user
 
 module GTVM.SCP.TextReplace where
 
-import qualified Data.Aeson         as Aeson
-import           Data.Aeson         ( ToJSON(..), FromJSON(..)
-                                    , genericToJSON, genericToEncoding
-                                    , genericParseJSON )
-import           GTVM.Common.Json
-import           GHC.Generics
-import           GTVM.SCP
-import           Raehik.Check
-import           Control.Monad.State
-import qualified BLAKE3             as B3
-import qualified Data.ByteArray     as BA
-import qualified Data.ByteString    as BS
+import Data.Aeson qualified as Aeson
+import Data.Aeson ( ToJSON(..), FromJSON(..)
+                  , genericToJSON, genericToEncoding , genericParseJSON )
+import GTVM.Common.Json
+import GHC.Generics
+import GTVM.SCP
+import Raehik.Check
+import Control.Monad.State
+import BLAKE3 qualified as B3
+import Data.ByteArray qualified as BA
+import Data.ByteString qualified as BS
 
 data SCPTextReplace (c :: Check) bs = SCPTextReplace
   { scpTextReplaceCheck    :: CheckRep c bs

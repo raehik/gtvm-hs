@@ -8,19 +8,19 @@
 
 module Raehik.Check where
 
-import           Data.Aeson
-import           GHC.Generics
-import           Data.Void
-import           Numeric.Natural
-import qualified Data.Text          as Text
-import           Data.Text          ( Text )
-import qualified Data.ByteString    as BS
-import           Raehik.HexBytestring
-import           GHC.Exts           ( Proxy#, proxy# )
-import           GHC.TypeLits       ( KnownSymbol, symbolVal' )
-import           Text.Megaparsec
-import qualified Text.Megaparsec.Char as MC
-import qualified Text.Megaparsec.Char.Lexer as MCL
+import Data.Aeson
+import GHC.Generics
+import Data.Void
+import Numeric.Natural
+import Data.Text qualified as Text
+import Data.Text ( Text )
+import Data.ByteString qualified as BS
+import Raehik.HexBytestring
+import GHC.Exts ( Proxy#, proxy# )
+import GHC.TypeLits ( KnownSymbol, symbolVal' )
+import Text.Megaparsec
+import Text.Megaparsec.Char qualified as MC
+import Text.Megaparsec.Char.Lexer qualified as MCL
 
 data Check
   = CheckEqual

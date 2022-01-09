@@ -3,17 +3,17 @@
 
 module GTVM.Assorted.MDL where
 
-import           GTVM.Common.Binary
-import           GTVM.Common.Binary.Parse
-import           Text.Megaparsec
-import qualified Data.ByteString as BS
-import           Data.Void
-import           Data.Word
-import           Control.Monad.Reader
+import GTVM.Common.Binary
+import GTVM.Common.Binary.Parse
+import Text.Megaparsec
+import Data.ByteString qualified as BS
+import Data.Void
+import Data.Word
+import Control.Monad.Reader
 
-import           GHC.Generics   ( Generic )
+import GHC.Generics
 
-import           GTVM.Common.Binary.Util -- TODO TMP
+import GTVM.Common.Binary.Util -- TODO TMP
 
 type Bytes = BS.ByteString
 

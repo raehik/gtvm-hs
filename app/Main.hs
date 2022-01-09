@@ -1,10 +1,10 @@
 module Main where
 
-import           GHC.Generics
-import           Control.Monad.IO.Class
-import           Options.Applicative
-import qualified Tool.SCP.Replace
-import qualified Tool.SCP.Code
+import GHC.Generics
+import Control.Monad.IO.Class
+import Options.Applicative
+import Tool.SCP.Replace
+import Tool.SCP.Code qualified
 
 main :: IO ()
 main = execParserWithDefaults desc pCmd >>= \case

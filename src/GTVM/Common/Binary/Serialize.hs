@@ -18,12 +18,12 @@ module GTVM.Common.Binary.Serialize
   , concatM
   ) where
 
-import           GTVM.Common.Binary
-import qualified Data.ByteString            as BS
-import           Data.Word
-import           Control.Monad.Reader
-import qualified Data.ByteString.Builder    as BB
-import qualified Data.ByteString.Lazy       as BL
+import GTVM.Common.Binary
+import Data.ByteString qualified as BS
+import Data.Word
+import Control.Monad.Reader
+import Data.ByteString.Builder qualified as BB
+import Data.ByteString.Lazy qualified as BL
 
 type Builder = BB.Builder
 type Bytes = BS.ByteString

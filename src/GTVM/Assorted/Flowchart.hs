@@ -12,21 +12,21 @@ module GTVM.Assorted.Flowchart
   , altFcToFc
   ) where
 
-import           GTVM.Common.Binary
-import           GTVM.Common.Binary.Parse
-import           GTVM.Common.Binary.Serialize
-import           Text.Megaparsec
-import qualified Data.ByteString as BS
-import           Data.Void
-import           Data.Word
-import           Control.Monad.Reader
-import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text
-import           Data.Text (Text)
-import           Control.Monad.State
+import GTVM.Common.Binary
+import GTVM.Common.Binary.Parse
+import GTVM.Common.Binary.Serialize
+import Text.Megaparsec
+import Data.ByteString qualified as BS
+import Data.Void
+import Data.Word
+import Control.Monad.Reader
+import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
+import Data.Text (Text)
+import Control.Monad.State
 
-import           Data.Aeson
-import           GHC.Generics
+import Data.Aeson
+import GHC.Generics
 
 type Bytes = BS.ByteString
 

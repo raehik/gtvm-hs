@@ -1,15 +1,15 @@
 module GTVM.SCP.SCPX where
 
-import           GHC.Generics
-import           Data.Word
-import           Data.Aeson
-import           GTVM.Common.Json
-import qualified Data.Text      as Text
-import           Data.Text      ( Text )
-import           Data.String    ( IsString(..) )
-import           Data.Maybe     ( fromMaybe )
+import GHC.Generics
+import Data.Word
+import Data.Aeson
+import GTVM.Common.Json
+import Data.Text qualified as Text
+import Data.Text ( Text )
+import Data.String ( IsString(..) )
+import Data.Maybe ( fromMaybe )
 
-import           GTVM.SCP
+import GTVM.SCP
 
 type SCPX bs = [SCPXSeg bs]
 

@@ -1,7 +1,7 @@
 module GTVM.Common.Json where
 
-import           Data.Aeson
-import           Numeric.Natural
+import Data.Aeson
+import Numeric.Natural
 
 jsonCfgSepUnderscoreDropN :: Natural -> Options
 jsonCfgSepUnderscoreDropN n = defaultOptions

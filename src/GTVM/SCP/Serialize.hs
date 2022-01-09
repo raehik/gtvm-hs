@@ -6,15 +6,14 @@ module GTVM.SCP.Serialize
   ( sSCP
   ) where
 
-import           GTVM.SCP
-import           GTVM.Common.Binary
-import           GTVM.Common.Binary.Serialize
-import           Data.Word
-import           Control.Monad.Reader
-import           Control.Applicative
---import           ByteString.StrictBuilder
-import qualified Data.ByteString.Builder as BB
-import qualified Data.ByteString         as BS
+import GTVM.SCP
+import GTVM.Common.Binary
+import GTVM.Common.Binary.Serialize
+import Data.Word
+import Control.Monad.Reader
+import Control.Applicative
+import Data.ByteString.Builder qualified as BB
+import Data.ByteString qualified as BS
 
 type Bytes = BS.ByteString
 

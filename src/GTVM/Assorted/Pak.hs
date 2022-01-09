@@ -14,19 +14,19 @@ module GTVM.Assorted.Pak
   , nextMultiple
   ) where
 
-import           GTVM.Common.Binary
-import           GTVM.Common.Binary.Parse
-import           GTVM.Common.Binary.Serialize
-import           Text.Megaparsec
-import qualified Data.ByteString as BS
-import           Data.Void
-import           Data.Word
-import           Control.Monad.Reader
-import           Control.Monad.State
-import qualified Data.Text.Encoding as Text
-import           Data.Text (Text)
+import GTVM.Common.Binary
+import GTVM.Common.Binary.Parse
+import GTVM.Common.Binary.Serialize
+import Text.Megaparsec
+import Data.ByteString qualified as BS
+import Data.Void
+import Data.Word
+import Control.Monad.Reader
+import Control.Monad.State
+import Data.Text.Encoding qualified as Text
+import Data.Text (Text)
 
-import           GHC.Generics
+import GHC.Generics
 
 -- TODO: maybe parse trailing stuff (nulls?) between file table and files
 

@@ -10,18 +10,18 @@ module GTVM.SCP.Parse
   , pSCPSeg
   ) where
 
-import           GTVM.SCP
-import           GTVM.Common.Binary.Parse
-import           GTVM.Common.Binary
-import           Text.Megaparsec
-import qualified Data.ByteString as BS
-import           Data.Void
-import           Data.Word
-import           Data.List.NonEmpty ( NonEmpty(..) )
-import           Control.Monad.Reader
-import           Data.Function ( (&) )
-import qualified Data.List as List
-import qualified System.Directory as Dir
+import GTVM.SCP
+import GTVM.Common.Binary.Parse
+import GTVM.Common.Binary
+import Text.Megaparsec
+import Data.ByteString qualified as BS
+import Data.Void
+import Data.Word
+import Data.List.NonEmpty ( NonEmpty(..) )
+import Control.Monad.Reader
+import Data.Function ( (&) )
+import Data.List qualified as List
+import System.Directory qualified as Dir
 
 type Bytes = BS.ByteString
 

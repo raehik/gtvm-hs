@@ -1,12 +1,12 @@
 module Common.Util where
 
-import           Common.Config
-import           Control.Monad.IO.Class
-import           Data.Aeson
-import qualified Data.Yaml              as Yaml
-import qualified Data.Yaml.Pretty       as YamlPretty
-import qualified Data.ByteString        as BS
-import           System.Exit
+import Common.Config
+import Control.Monad.IO.Class
+import Data.Aeson
+import Data.Yaml qualified as Yaml
+import Data.Yaml.Pretty qualified as YamlPretty
+import Data.ByteString qualified as BS
+import System.Exit
 
 encodeYamlPretty :: ToJSON a => a -> BS.ByteString
 encodeYamlPretty = YamlPretty.encodePretty yamlPrettyCfg

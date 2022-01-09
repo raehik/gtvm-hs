@@ -2,11 +2,11 @@
 
 module Common.CLIOptions where
 
-import           Common.Config
-import           GHC.TypeLits           hiding ( Mod )
-import           Options.Applicative    hiding ( str )
-import           GHC.Exts
-import qualified Data.Char              as Char
+import Common.Config
+import GHC.TypeLits hiding ( Mod )
+import Options.Applicative hiding ( str )
+import GHC.Exts
+import Data.Char qualified as Char
 
 streamStdin :: forall s. Stream 'StreamIn s
 streamStdin = StreamStd

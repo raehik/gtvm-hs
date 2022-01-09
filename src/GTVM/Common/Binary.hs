@@ -3,7 +3,7 @@
 
 module GTVM.Common.Binary where
 
-import           Control.Monad.Reader
+import Control.Monad.Reader
 
 data BinaryCfg = BinaryCfg
   { binCfgEndianness :: Endianness

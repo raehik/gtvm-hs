@@ -1,17 +1,17 @@
 module Tool.SCP.Code where
 
-import           Common.Config
-import           Common.CLIOptions
-import           Common.Util
-import           Options.Applicative
-import           GHC.Generics
-import           Control.Monad.IO.Class
-import           Data.Text                  ( Text )
-import           GTVM.SCP
-import qualified GTVM.SCP.Serialize         as GSS
-import qualified GTVM.SCP.Parse             as GSP
-import qualified GTVM.Common.Binary         as GCB
-import qualified GTVM.Common.Binary.Parse   as GCBP
+import Common.Config
+import Common.CLIOptions
+import Common.Util
+import Options.Applicative
+import GHC.Generics
+import Control.Monad.IO.Class
+import Data.Text ( Text )
+import GTVM.SCP
+import GTVM.SCP.Serialize qualified as GSS
+import GTVM.SCP.Parse qualified as GSP
+import GTVM.Common.Binary qualified as GCB
+import GTVM.Common.Binary.Parse qualified as GCBP
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"

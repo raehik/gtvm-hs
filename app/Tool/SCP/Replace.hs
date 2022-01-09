@@ -1,15 +1,15 @@
 module Tool.SCP.Replace where
 
-import           GHC.Generics
-import           Control.Monad.IO.Class
-import           Common.Config
-import           Common.CLIOptions
-import           Options.Applicative
-import           Data.Text              ( Text )
-import           GTVM.SCP
-import           GTVM.SCP.TextReplace
-import           Raehik.Check
-import           Common.Util
+import GHC.Generics
+import Control.Monad.IO.Class
+import Common.Config
+import Common.CLIOptions
+import Options.Applicative
+import Data.Text ( Text )
+import GTVM.SCP
+import GTVM.SCP.TextReplace
+import Raehik.Check
+import Common.Util
 
 data Cfg = Cfg
   { cfgReplaceFile :: StreamFile 'StreamIn  "replace data"

@@ -1,7 +1,7 @@
 module Common.Config where
 
-import           GHC.Generics
-import           GHC.TypeLits
+import GHC.Generics
+import GHC.TypeLits
 
 -- | "Single file" stream decorated with type information.
 --

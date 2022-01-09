@@ -61,6 +61,7 @@ library
       KindSignatures
       TypeOperators
       TypeApplications
+      ImportQualifiedPost
       DataKinds
       TypeFamilies
       UndecidableInstances
@@ -126,6 +127,7 @@ executable gtvm-hs
       KindSignatures
       TypeOperators
       TypeApplications
+      ImportQualifiedPost
       DataKinds
       TypeFamilies
       UndecidableInstances

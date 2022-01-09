@@ -7,15 +7,15 @@ module GTVM.Assorted.SL01
   , sSL01
   ) where
 
-import qualified Codec.Compression.Lzo as LZO
-import qualified Data.ByteString as BS
-import           Control.Monad.Reader
-import           Data.Void
-import           Text.Megaparsec
-import           Data.Word
-import           GTVM.Common.Binary
-import           GTVM.Common.Binary.Parse
-import           GTVM.Common.Binary.Serialize
+import Codec.Compression.Lzo qualified as LZO
+import Data.ByteString qualified as BS
+import Control.Monad.Reader
+import Data.Void
+import Text.Megaparsec
+import Data.Word
+import GTVM.Common.Binary
+import GTVM.Common.Binary.Parse
+import GTVM.Common.Binary.Serialize
 
 type Bytes = BS.ByteString
 

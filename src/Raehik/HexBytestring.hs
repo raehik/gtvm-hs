@@ -11,15 +11,15 @@ module Raehik.HexBytestring
   , prettyHexBytestringCompact
   ) where
 
-import           GHC.Generics
-import           Text.Megaparsec            hiding ( parse )
-import qualified Text.Megaparsec.Char       as MC
-import qualified Data.ByteString            as BS
-import qualified Data.Char                  as Char
-import           Data.Word
-import qualified Data.Text                  as Text
-import           Data.Text                  ( Text )
-import           Data.List                  as List
+import GHC.Generics
+import Text.Megaparsec hiding ( parse )
+import Text.Megaparsec.Char qualified as MC
+import Data.ByteString qualified as BS
+import Data.Char qualified as Char
+import Data.Word
+import Data.Text qualified as Text
+import Data.Text ( Text )
+import Data.List qualified as List
 
 newtype HexBytestring = HexBytestring { unHexBytestring :: BS.ByteString }
     deriving (Eq, Generic)

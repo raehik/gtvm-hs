@@ -6,11 +6,11 @@ module GTVM.Common.Binary.Util
   , runParserBinFile
   ) where
 
-import           GTVM.Common.Binary
-import           Text.Megaparsec
-import qualified Data.ByteString as BS
-import           Control.Monad.Reader
-import           Data.Either.Combinators ( mapLeft )
+import GTVM.Common.Binary
+import Text.Megaparsec
+import Data.ByteString qualified as BS
+import Control.Monad.Reader
+import Data.Either.Combinators ( mapLeft )
 
 type Bytes = BS.ByteString
 
