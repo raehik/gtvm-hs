@@ -31,20 +31,16 @@ pToolGroup :: Parser ToolGroup
 pToolGroup = hsubparser $
        expandCmd TGSCP Tool.SCP.cmd
     <> cmd "scpx"   descSCPX  (TGSCPX <$> pCStream2)
-    <> cmd "sl01"   descSL01  (TGSL01 <$> pCBin <*> pCStream2)
     <> cmd "flowchart" descFlowchart
         (TGFlowchart <$> pCJSON "flow_chart.bin" <*> pCStream2 <*> pCParseType)
     <> cmd "pak"    descPak   (TGPak <$> pCPak <*> pAllowBinStdout)
     <> expandCmd TGSCPReplace Tool.SCP.Replace.cmd
     -- <> cmd' "csv-patch"  descCSVPatch headerCSVPatch (TGCSVPatch <$> pCStream2)
   where
-    descSCP       = "Game script file (SCP, script/*.scp) tools."
     descSCPX      = "Convert extended SCP to regular SCP (YAML both ways)."
-    descSL01      = "SL01 (LZO1x-compressed file) tools."
     descFlowchart = "flow_chart.bin tools."
     descPak       = ".pak (sound_se.pak) tools."
     descCSVPatch  = "Convert a string patch CSV to an applicable string patch."
-    descScpReplace = "Replace textboxes in an SCP."
     pCParseType = flag CParseTypeFull CParseTypePartial
             (long "lex" <> help "Operate on simply-parsed data (instead of fully parsed)")
 {-
@@ -77,21 +73,6 @@ pCPak = hsubparser $
     pUnpack = CPakUnpack <$> pCS1N CDirectionFromOrig CDirectionToOrig
     pPack   = CPakPack   <$> pCS1N CDirectionToOrig CDirectionFromOrig <*> pUnk
     pUnk = pW32 "header-unk" "Unknown header value. Note that it's read as big-endian, and doesn't limit to Word32. (TODO)"
-
-pCJSON :: String -> Parser CJSON
-pCJSON noun = hsubparser $
-       cmd "decode" descDe (CJSONDe <$> pPrettifyJSON)
-    <> cmd "encode" descEn (CJSONEn <$> pAllowBinStdout)
-  where
-    descDe = "Decode " <> noun <> " to JSON."
-    descEn = "Encode JSON to " <> noun <> "."
-
-pCBin :: Parser CBin
-pCBin = CBin <$> pSub <*> pAllowBinStdout
-  where
-    pSub = hsubparser $
-           cmd "decompress" "Decompress TODO" (pure CDirectionFromOrig)
-        <> cmd "compress"   "Compress TODO"   (pure CDirectionToOrig)
 
 pCStreams :: CDirection -> Parser CStreams
 pCStreams dir = pFolder <|> pArchive
