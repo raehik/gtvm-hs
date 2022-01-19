@@ -1,6 +1,3 @@
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module GTVM.Common.Binary.Serialize
   ( bW8
   , bW32

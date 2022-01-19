@@ -39,7 +39,7 @@ data SCPXSegText = SCPXSegText'
   } deriving (Eq, Show, Generic)
 
 jcSCPXText :: Options
-jcSCPXText = jsonCfgSepUnderscoreDropN (fromIntegral (length "scpXText"))
+jcSCPXText = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "scpXText"
 
 instance ToJSON   SCPXSegText where
     toJSON     = genericToJSON     jcSCPXText

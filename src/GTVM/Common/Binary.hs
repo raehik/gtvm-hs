@@ -1,19 +1,17 @@
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module GTVM.Common.Binary where
 
 import Control.Monad.Reader
+import GHC.Generics ( Generic )
 
 data BinaryCfg = BinaryCfg
   { binCfgEndianness :: Endianness
   , binCfgStringType :: StringType
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 data Endianness
   = BigEndian
   | LittleEndian
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 data StringType
   = StrTyCString
@@ -24,7 +22,7 @@ data StringType
   --
   -- The game reads textboxes into a 256 byte buffer, so we follow suit and use
   -- a single byte to indicate length. TODO: make clearer in types, docs, code?
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | 'BinaryCfg' settings for original GTVM SCPs.
 binCfgSCP :: BinaryCfg

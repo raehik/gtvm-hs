@@ -43,7 +43,8 @@ instance Traversable (SCPTextReplace 'CheckEqual) where
         SCPTextReplace <$> f c <*> f r <*> traverse (traverse f) o
 
 jcSCPTextReplace :: Aeson.Options
-jcSCPTextReplace = jsonCfgSepUnderscoreDropN (fromIntegral (length ("scpTextReplace" :: String)))
+jcSCPTextReplace =
+    jsonCfgSepUnderscoreDropN $ fromIntegral $ length "scpTextReplace"
 
 instance (ToJSON   (CheckRep c bs), ToJSON   bs) => ToJSON   (SCPTextReplace c bs) where
     toJSON     = genericToJSON     jcSCPTextReplace

@@ -8,6 +8,7 @@ import Options.Applicative
 import Tool.SCP.Replace
 import Tool.SCP.Code qualified
 import Tool.SL01 qualified
+import Tool.Flowchart qualified
 
 main :: IO ()
 main = execParserWithDefaults desc pCmd >>= \case
@@ -20,11 +21,16 @@ main = execParserWithDefaults desc pCmd >>= \case
     case sl01Cmd of
       CmdSL01Compress   cfg -> Tool.SL01.runCompress   cfg
       CmdSL01Decompress cfg -> Tool.SL01.runDecompress cfg
+  CmdFlowchart flowchartCmd ->
+    case flowchartCmd of
+      CmdFlowchartEncode cfg -> Tool.Flowchart.runEncode cfg
+      CmdFlowchartDecode cfg -> Tool.Flowchart.runDecode cfg
   where desc = "Various tools for working with GTVM assets."
 
 data Cmd
-  = CmdSCP  CmdSCP
-  | CmdSL01 CmdSL01
+  = CmdSCP       CmdSCP
+  | CmdSL01      CmdSL01
+  | CmdFlowchart CmdFlowchart
     deriving (Eq, Show, Generic)
 
 data CmdSCP
@@ -38,13 +44,20 @@ data CmdSL01
   | CmdSL01Decompress Tool.SL01.CfgDecompress
     deriving (Eq, Show, Generic)
 
+data CmdFlowchart
+  = CmdFlowchartEncode Tool.Flowchart.CfgEncode
+  | CmdFlowchartDecode Tool.Flowchart.CfgDecode
+    deriving (Eq, Show, Generic)
+
 pCmd :: Parser Cmd
 pCmd = hsubparser $
-       cmd "scp"  descSCP  (CmdSCP  <$> pCmdSCP)
-    <> cmd "sl01" descSL01 (CmdSL01 <$> pCmdSL01)
+       cmd "scp"       descSCP       (CmdSCP       <$> pCmdSCP)
+    <> cmd "sl01"      descSL01      (CmdSL01      <$> pCmdSL01)
+    <> cmd "flowchart" descFlowchart (CmdFlowchart <$> pCmdFlowchart)
   where
-    descSCP  = "Game script file (SCP, script/*.scp) tools."
-    descSL01 = "SL01 (LZO1x-compressed file) tools."
+    descSCP       = "Game script file (SCP, script/*.scp) tools."
+    descSL01      = "SL01 (LZO1x-compressed file) tools."
+    descFlowchart = "flow_chart.bin tools."
 
 pCmdSCP :: Parser CmdSCP
 pCmdSCP = hsubparser $
@@ -63,6 +76,14 @@ pCmdSL01 = hsubparser $
   where
     descCompress   = "Compress game data."
     descDecompress = "Decompress game data."
+
+pCmdFlowchart :: Parser CmdFlowchart
+pCmdFlowchart = hsubparser $
+       cmd "encode" descEncode (CmdFlowchartEncode <$> Tool.Flowchart.parseCLIOptsEncode)
+    <> cmd "decode" descDecode (CmdFlowchartDecode <$> Tool.Flowchart.parseCLIOptsDecode)
+  where
+    descEncode = "TODO encode"
+    descDecode = "TODO decode"
 
 -- | Execute a 'Parser' with decent defaults.
 execParserWithDefaults :: MonadIO m => String -> Parser a -> m a

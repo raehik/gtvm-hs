@@ -199,7 +199,7 @@ data SCPSeg05Textbox bs = SCPSeg05Textbox'
 
 jcSCPSeg05Textbox :: Options
 jcSCPSeg05Textbox =
-    jsonCfgSepUnderscoreDropN (fromIntegral (length "scpSeg05Textbox"))
+    jsonCfgSepUnderscoreDropN $ fromIntegral $ length "scpSeg05Textbox"
 
 instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
     toJSON     = genericToJSON     jcSCPSeg05Textbox
