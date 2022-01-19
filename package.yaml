@@ -28,13 +28,16 @@ default-extensions:
 - KindSignatures
 - TypeOperators
 - TypeApplications
-- ImportQualifiedPost # 8.10
-
-# we do a little type tomfoolery
+- StandaloneKindSignatures
+- DerivingVia
 - DataKinds
 - TypeFamilies
-- UndecidableInstances
-- StandaloneKindSignatures
+- ImportQualifiedPost # 8.10
+- RoleAnnotations # 2022-01-18: raehik: syntactic extension
+- UndecidableInstances # 2022-01-15: raehik: honestly fine to have default
+- DeriveAnyClass # 2022-01-19: raehik: why not?? use DerivingStrategies
+
+# we do a little type tomfoolery
 - RankNTypes
 - ScopedTypeVariables
 
@@ -61,9 +64,13 @@ dependencies:
 - memory
 - optics
 - generic-optics
-#- compdata
-- union
-- world-peace
+- cereal
+
+# refined-with
+- refined
+- deepseq
+- hashable
+- aeson
 
 library:
   source-dirs: src

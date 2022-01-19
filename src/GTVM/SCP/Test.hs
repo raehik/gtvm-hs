@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module GTVM.SCP.Test where
 
 import GTVM.Common.Binary

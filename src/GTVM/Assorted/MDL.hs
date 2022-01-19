@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module GTVM.Assorted.MDL where
@@ -54,7 +53,7 @@ pMDL = do
 
 pMDLHeader
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m MDLHeader
-pMDLHeader = MDLHeader <$> pW32 <*> pW32 <*> pW32 <*> pW32 <*> pBSTextFixed 0x18 <*> pW32 <*> pW32 <*> pBSTextFixed 0x18
+pMDLHeader = MDLHeader <$> pW32 <*> pW32 <*> pW32 <*> pW32 <*> pBSFixedPadded 0x18 <*> pW32 <*> pW32 <*> pBSFixedPadded 0x18
 
 pMDLSegments
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m [MDLSegment]
@@ -62,7 +61,7 @@ pMDLSegments = many pMDLSegment <* eof
 
 pMDLSegment
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m MDLSegment
-pMDLSegment = pBS' 4 >>= \case
+pMDLSegment = pBSFixed 4 >>= \case
   "MDHD" -> MDLSegMDHD <$> pW32Raw
   "MDST" -> MDLSegMDST' <$> pW32Raw
   "MDOB" -> MDLSegMDOB <$> pW32Raw
@@ -74,7 +73,7 @@ pMDLSegment = pBS' 4 >>= \case
   "MOST" -> MDLSegMOST <$> pW32Raw
   _      -> customFailure undefined
   where
-    pW32Raw = pW32 >>= pBS'
+    pW32Raw = pW32 >>= pBSFixed
 
 tmpParse
     :: MonadIO m => ParsecT Void Bytes (Reader BinaryCfg) a -> FilePath -> m (Either String a)

@@ -2,7 +2,6 @@
 --   paks. They should be separate in this tool, but I could provide some handy
 --   dandy connectors ("compress and archive", "dearchive and decompress").
 
-{-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module GTVM.Assorted.Pak
@@ -46,7 +45,7 @@ pPakHeader = do
 
 pPakHeaderFTE
     :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m PakHeaderFTE
-pPakHeaderFTE = PakHeaderFTE <$> pW32 <*> pW32 <*> pBSTextFixed 0x18
+pPakHeaderFTE = PakHeaderFTE <$> pW32 <*> pW32 <*> pBSFixed 0x18
 
 sPak :: MonadReader BinaryCfg m => Pak -> m Bytes
 sPak = serialize bPak

@@ -1,6 +1,3 @@
-{-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE FlexibleContexts #-}
-
 module GTVM.SCP.Parse
   ( parseSCPBytes
   , parseSCPBytes'
@@ -14,6 +11,7 @@ import GTVM.SCP
 import GTVM.Common.Binary.Parse
 import GTVM.Common.Binary
 import Text.Megaparsec
+import Text.Megaparsec.Byte.Binary ( BinaryChunk )
 import Data.ByteString qualified as BS
 import Data.Void
 import Data.Word
@@ -188,6 +186,12 @@ pSCPSeg = pW8 >>= \case
 
 --------------------------------------------------------------------------------
 
+-- TODO...
+pBS :: (MonadParsec e s m, Token s ~ Word8) => m (Tokens s)
+pBS = pBSCString
+
 -- | Parse a bytestring, followed by a 'Word32'.
-pBSW32 :: (MonadParsec e Bytes m, MonadReader BinaryCfg m) => m (Bytes, Word32)
-pBSW32 = (,) <$> pBS <*> pW32
+pBSW32
+    :: (MonadParsec e s m, MonadReader BinaryCfg m, Token s ~ Word8, Tokens s ~ s', BinaryChunk s')
+    => m (s', Word32)
+pBSW32 = (,) <$> pBSCString <*> pW32

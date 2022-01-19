@@ -1,7 +1,3 @@
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE ScopedTypeVariables #-}
--- {-# LANGUAGE TypeApplications    #-}
-
 module GTVM.SCP.Serialize
   ( sSCP
   ) where

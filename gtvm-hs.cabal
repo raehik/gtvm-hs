@@ -20,7 +20,6 @@ source-repository head
 
 library
   exposed-modules:
-      GTVM.Assorted.Flowchart
       GTVM.Assorted.MDL
       GTVM.Assorted.Pak
       GTVM.Assorted.SL01
@@ -29,14 +28,18 @@ library
       GTVM.Common.Binary.Serialize
       GTVM.Common.Binary.Util
       GTVM.Common.Json
+      GTVM.Flowchart
       GTVM.SCP
       GTVM.SCP.Parse
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       GTVM.SCP.TextReplace
+      Raehik.Binary
       Raehik.Check
       Raehik.HexBytestring
+      Refined.WithRefine
+      Util
   other-modules:
       Paths_gtvm_hs
   hs-source-dirs:
@@ -61,11 +64,14 @@ library
       KindSignatures
       TypeOperators
       TypeApplications
-      ImportQualifiedPost
+      StandaloneKindSignatures
+      DerivingVia
       DataKinds
       TypeFamilies
+      ImportQualifiedPost
+      RoleAnnotations
       UndecidableInstances
-      StandaloneKindSignatures
+      DeriveAnyClass
       RankNTypes
       ScopedTypeVariables
   build-depends:
@@ -76,22 +82,24 @@ library
     , blake3
     , bytestring
     , cassava
+    , cereal
+    , deepseq
     , directory
     , either
     , filemanip
     , generic-optics
+    , hashable
     , lzo
     , megaparsec >=9.2.0 && <9.3
     , memory
     , mtl
     , optics
+    , refined
     , text
     , text-latin1
     , unicode-show
-    , union
     , utf8-string
     , vector
-    , world-peace
     , yaml
   default-language: Haskell2010
 
@@ -101,6 +109,7 @@ executable gtvm-hs
       Common.CLIOptions
       Common.Config
       Common.Util
+      Tool.Flowchart
       Tool.SCP.Code
       Tool.SCP.Replace
       Tool.SL01
@@ -127,11 +136,14 @@ executable gtvm-hs
       KindSignatures
       TypeOperators
       TypeApplications
-      ImportQualifiedPost
+      StandaloneKindSignatures
+      DerivingVia
       DataKinds
       TypeFamilies
+      ImportQualifiedPost
+      RoleAnnotations
       UndecidableInstances
-      StandaloneKindSignatures
+      DeriveAnyClass
       RankNTypes
       ScopedTypeVariables
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
@@ -143,23 +155,25 @@ executable gtvm-hs
     , blake3
     , bytestring
     , cassava
+    , cereal
+    , deepseq
     , directory
     , either
     , filemanip
     , generic-optics
     , gtvm-hs
+    , hashable
     , lzo
     , megaparsec >=9.2.0 && <9.3
     , memory
     , mtl
     , optics
     , optparse-applicative
+    , refined
     , text
     , text-latin1
     , unicode-show
-    , union
     , utf8-string
     , vector
-    , world-peace
     , yaml
   default-language: Haskell2010
