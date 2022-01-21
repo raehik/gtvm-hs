@@ -3,17 +3,14 @@ module Tool.Flowchart where
 import Common.Config
 import Common.CLIOptions
 import Common.Util
+import GTVM.Flowchart
+import Raehik.Binary.Codec
+import Raehik.Binary.Types.Strings
+import Refined.WithRefine
 import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
 import Data.Text ( Text )
-import GTVM.Flowchart
-import Raehik.Binary
-import Refined
-import Refined.WithRefine
-import Data.Serialize
-import Data.ByteString qualified as BS
-import Data.Text.Encoding qualified as Text
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML flowchart"
@@ -39,13 +36,13 @@ runEncode cfg = do
     case enforceFlowchart (fcByteify fcText) of
       Left  err   -> liftIO $ print err
       Right fcBin -> do
-        let fcBsBin = encode fcBin
+        let fcBsBin = binEncode fcBin
         writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) fcBsBin
 
 runDecode :: MonadIO m => CfgDecode -> m ()
 runDecode cfg = do
     fcBsBin <- readStreamBytes $ cfgDecodeStreamIn cfg
-    case runGet (get @(Flowchart 'Enforced CString)) fcBsBin of
+    case binDecode @(Flowchart 'Enforced (Str 'C)) fcBsBin of
       Left  err   -> liftIO $ putStrLn err
       Right fcBin ->
         case fcTextify $ unenforceFlowchart fcBin of

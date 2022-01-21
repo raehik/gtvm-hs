@@ -35,7 +35,11 @@ library
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       GTVM.SCP.TextReplace
-      Raehik.Binary
+      Raehik.Binary.ByteLen
+      Raehik.Binary.Codec
+      Raehik.Binary.Predicates.NullPadTo
+      Raehik.Binary.Types.Ints
+      Raehik.Binary.Types.Strings
       Raehik.Check
       Raehik.HexBytestring
       Refined.WithRefine
@@ -72,6 +76,10 @@ library
       RoleAnnotations
       UndecidableInstances
       DeriveAnyClass
+      GADTs
+      DefaultSignatures
+      MagicHash
+      PolyKinds
       RankNTypes
       ScopedTypeVariables
   build-depends:
@@ -97,6 +105,7 @@ library
     , refined
     , text
     , text-latin1
+    , transformers
     , unicode-show
     , utf8-string
     , vector
@@ -144,6 +153,10 @@ executable gtvm-hs
       RoleAnnotations
       UndecidableInstances
       DeriveAnyClass
+      GADTs
+      DefaultSignatures
+      MagicHash
+      PolyKinds
       RankNTypes
       ScopedTypeVariables
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
@@ -172,6 +185,7 @@ executable gtvm-hs
     , refined
     , text
     , text-latin1
+    , transformers
     , unicode-show
     , utf8-string
     , vector

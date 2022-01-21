@@ -1,74 +1,50 @@
-{- | flow_chart.bin code.
-
-Each entry block is a static 2116 bytes. The statically-sized parts making up a
-block are:
-
-  * 32 bytes: block name
-  *  4 bytes: number of entries in entry list
-
-That leaves us with 2116 - 32 - 4 = 2080 bytes remaining. An astute reader will
-recognize 2080 - 32 = 2048. Now it *feels* like the entry list should be coerced
-to 2048 bytes. But where do the remaining 32 bytes go?
-
-Whatever. There might be a 32-byte bytestring following the entry list. But I've
-confirmed that those bytes are always null. So the entry list gets a 2080
-bytesize.
-
-As a side note, this stuff feels like it should be an automatic serialization
-from a library or compiler, but the game mentions 0x844 == 2116 directly, and
-there's bits that feel hand-rolled (e.g. newline handling for entry names is
-done inline). Strange.
-
--}
-
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE RecordWildCards #-}
-
 module GTVM.Flowchart where
 
-import GHC.Generics ( Generic )
-import Data.Word
-import Raehik.Binary
+import Raehik.Binary.Codec
+import Raehik.Binary.ByteLen
+import Raehik.Binary.Predicates.NullPadTo
+import Raehik.Binary.Types.Ints
+import Raehik.Binary.Types.Strings
 import Refined
 import Refined.WithRefine
 import Data.Aeson qualified as Aeson
 import Data.Aeson
+import GHC.Generics ( Generic )
 import Data.Typeable
-import GTVM.Common.Json
-import Data.Serialize
 import Data.Text ( Text )
-import Data.Text.Encoding.Error qualified as Text
 import Data.Text.Encoding qualified as Text
+import Data.Text.Encoding.Error qualified as Text
+import GTVM.Common.Json
 
 type Flowchart (ps :: PredicateStatus) a
-  = List (WithRefine ps (NullPadded 2116) (Block ps a))
+  = [WithRefine ps (NullPadTo 2116) (Block ps a)]
 
 -- 2022-01-19: raehik: so my understanding is that this should get simplified to
 -- a no-op?
 unenforceFlowchart :: Flowchart 'Enforced a -> Flowchart 'Unenforced a
-unenforceFlowchart =
-    List . fmap (withRefine . unenforceBlock . unWithRefine) . getList
+unenforceFlowchart = fmap (withRefine . unenforceBlock . unWithRefine)
 
 -- this is also hard to define without HLE lol. I need to start using that
 enforceFlowchart
-    :: Flowchart 'Unenforced CString
-    -> Either RefineException (Flowchart 'Enforced CString)
+    :: Flowchart 'Unenforced (Str 'C)
+    -> Either RefineException (Flowchart 'Enforced (Str 'C))
 enforceFlowchart ufc = do
-    bs <- traverse (enforceBlock . unWithRefine) $ getList ufc
-    bs' <- traverse (enforce . withRefine) bs
-    return $ List bs'
+    bs <- traverse (enforceBlock . unWithRefine) ufc
+    traverse (enforce . withRefine) bs
 
 fcTextify
-    :: Flowchart 'Unenforced CString
+    :: Flowchart 'Unenforced (Str 'C)
     -> Either Text.UnicodeException (Flowchart 'Unenforced Text)
-fcTextify = traverse $ traverse $ traverse $ Text.decodeUtf8' . getCString
+fcTextify = traverse $ traverse $ traverse $ Text.decodeUtf8' . getStr
 
-fcByteify :: Flowchart 'Unenforced Text -> Flowchart 'Unenforced CString
-fcByteify = fmap $ fmap $ fmap $ CString . Text.encodeUtf8
+fcByteify
+    :: Flowchart 'Unenforced Text
+    -> Flowchart 'Unenforced (Str 'C)
+fcByteify = fmap $ fmap $ fmap $ Str . Text.encodeUtf8
 
 data Block (ps :: PredicateStatus) a = Block
-  { blockName    :: WithRefine ps (NullPadded 32) a
-  , blockEntries :: WithRefine ps (LengthPrefixed (W 'LE Word32)) [Entry ps a]
+  { blockName    :: WithRefine ps (NullPadTo 32) a
+  , blockEntries :: WithRefine ps (LenPfx 'I4 'LE) [Entry ps a]
   } deriving stock (Generic, Typeable, Show, Foldable, Eq)
 
 unenforceBlock :: Block 'Enforced a -> Block 'Unenforced a
@@ -77,8 +53,8 @@ unenforceBlock eb = eb
   , blockEntries = withRefine $ fmap unenforceEntry $ unWithRefine $ blockEntries eb }
 
 enforceBlock
-    :: Block 'Unenforced CString
-    -> Either RefineException (Block 'Enforced CString)
+    :: Block 'Unenforced (Str 'C)
+    -> Either RefineException (Block 'Enforced (Str 'C))
 enforceBlock ub = do
     bn <- enforce             $ blockName    ub
     be <- enforceBlockEntries $ blockEntries ub
@@ -86,8 +62,8 @@ enforceBlock ub = do
 
 -- TODO too much algebra...
 enforceBlockEntries
-    :: WithRefine 'Unenforced (LengthPrefixed (W 'LE Word32)) [Entry 'Unenforced CString]
-    -> Either RefineException (WithRefine 'Enforced (LengthPrefixed (W 'LE Word32)) [Entry 'Enforced CString])
+    :: WithRefine 'Unenforced (LenPfx 'I4 'LE) [Entry 'Unenforced (Str 'C)]
+    -> Either RefineException (WithRefine 'Enforced (LenPfx 'I4 'LE) [Entry 'Enforced (Str 'C)])
 enforceBlockEntries ubes = do
     x <- traverse enforceEntry $ unWithRefine ubes
     enforce $ withRefine x
@@ -104,20 +80,19 @@ instance ToJSON   a => ToJSON   (Block ps          a) where
 instance FromJSON a => FromJSON (Block 'Unenforced a) where
     parseJSON  = genericParseJSON  jcBlock
 
-instance ByteLength (Block 'Enforced CString) where
+instance ByteLen (Block 'Enforced (Str 'C)) where
     blen b = blen (blockName b) + blen (blockEntries b)
 
-instance Serialize (Block 'Enforced CString) where
-    get = Block <$> get <*> get
-    put b = do
-        put $ blockName    b
-        put $ blockEntries b
+instance BinaryCodec (Block 'Enforced (Str 'C)) where
+    fromBin = Block <$> fromBin <*> fromBin
+    toBin b = do toBin $ blockName    b
+                 toBin $ blockEntries b
 
 data Entry (ps :: PredicateStatus) a = Entry
-  { entryIndex  :: W 'LE Word32
+  { entryIndex  :: I 'U 'I4 'LE
   , entryType   :: EntryType
-  , entryName   :: WithRefine ps (NullPadded 64) a
-  , entryScript :: WithRefine ps (NullPadded 32) a
+  , entryName   :: WithRefine ps (NullPadTo 64) a
+  , entryScript :: WithRefine ps (NullPadTo 32) a
   } deriving stock (Generic, Typeable, Show, Foldable, Eq)
 
 unenforceEntry :: Entry 'Enforced a -> Entry 'Unenforced a
@@ -126,8 +101,8 @@ unenforceEntry ee = ee
   , entryScript = unenforce $ entryScript ee }
 
 enforceEntry
-    :: Entry 'Unenforced CString
-    -> Either RefineException (Entry 'Enforced CString)
+    :: Entry 'Unenforced (Str 'C)
+    -> Either RefineException (Entry 'Enforced (Str 'C))
 enforceEntry ue = do
     en <- enforce $ entryName   ue
     es <- enforce $ entryScript ue
@@ -145,16 +120,15 @@ instance ToJSON   a => ToJSON   (Entry ps          a) where
 instance FromJSON a => FromJSON (Entry 'Unenforced a) where
     parseJSON  = genericParseJSON  jcEntry
 
-instance ByteLength (Entry 'Enforced CString) where
+instance ByteLen (Entry 'Enforced (Str 'C)) where
     blen e = blen (entryIndex e) + blen (entryType e) + blen (entryName e) + blen (entryScript e)
 
-instance Serialize (Entry 'Enforced CString) where
-    get = Entry <$> get <*> get <*> get <*> get
-    put e = do
-        put $ entryIndex  e
-        put $ entryType   e
-        put $ entryName   e
-        put $ entryScript e
+instance BinaryCodec (Entry 'Enforced (Str 'C)) where
+    fromBin = Entry <$> fromBin <*> fromBin <*> fromBin <*> fromBin
+    toBin e = do toBin $ entryIndex  e
+                 toBin $ entryType   e
+                 toBin $ entryName   e
+                 toBin $ entryScript e
 
 data EntryType
   = EntryTypeRegular        -- ^ "regular" event, some story script
@@ -174,16 +148,16 @@ instance ToJSON   EntryType where
 instance FromJSON EntryType where
     parseJSON  = genericParseJSON  jcEntryType
 
-instance ByteLength EntryType where blen = const $ blen @(W 'LE Word32) undefined
+instance ByteLen EntryType where blen = const $ blen @(I 'U 'I4 'LE) undefined
 
-instance Serialize EntryType where
-    put et = put @(W 'LE Word32) $ case et of
+instance BinaryCodec EntryType where
+    toBin et = toBin @(I 'U 'I4 'LE) $ case et of
       EntryTypeRegular        -> 0
       EntryTypeMap            -> 1
       EntryTypeUtage          -> 2
       EntryTypeConversation   -> 3
       EntryTypeClassSelection -> 4
-    get = get @(W 'LE Word32) >>= \case
+    fromBin = fromBin @(I 'U 'I4 'LE) >>= \case
       0 -> return EntryTypeRegular
       1 -> return EntryTypeMap
       2 -> return EntryTypeUtage

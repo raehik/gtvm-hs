@@ -2,9 +2,7 @@
 --
 -- TODO work on ordering, presentation of this module (perhaps split idk)
 
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE AllowAmbiguousTypes, OverloadedStrings #-}
 
 module Raehik.Check where
 

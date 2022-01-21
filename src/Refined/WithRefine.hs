@@ -41,8 +41,6 @@ anything at value-level (so unrefining is now "free").
 
 -}
 
-{-# LANGUAGE PolyKinds, RoleAnnotations #-}
-
 module Refined.WithRefine
   (
   -- * 'WithRefine' types
@@ -102,12 +100,18 @@ instance ToJSON   a => ToJSON   (WithRefine ps          p a) where
     toJSON     = toJSON     . unWithRefine
     toEncoding = toEncoding . unWithRefine
 
+-- | Use the underlying type's instance.
 instance FromJSON a => FromJSON (WithRefine 'Unenforced p a) where
     parseJSON = fmap withRefine . parseJSON
 
+-- | Use the unenforced type's instance, and wrap the enforcing error into
+--   Aeson's 'MonadFail'.
 instance (FromJSON a, Predicate p a) => FromJSON (WithRefine 'Enforced p a) where
     parseJSON a = parseJSON a >>= enforceFail
 
+-- | I don't really understand this. I naively use the same role annotation as
+--   'Refined'. GHC user's guide page:
+--   https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/roles.html
 type role WithRefine nominal nominal nominal
 
 -- | Wrap a value with any unenforced predicate. This is like tagging your value
