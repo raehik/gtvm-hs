@@ -1,4 +1,12 @@
 # To-dos
+## Quick
+  * try to generalize the text replace thing a bit, make a bunch of combinators
+    * maybe even one that automates all the checking and replacing if you just
+      give it some lenses into the data types! lol
+    * this does seem kinda tricky. In particular, the SCP text replace is
+      special. So maybe just make some combinators and make it super pluggable
+      to use in your own text replace data type. Opposite to WithRefine! :)
+
 ## Thoughts on distribution
 What if instead of checking original strings/bytestrings, I checked their
 *hash*? Could I generalize that part to be swappable? Could I have some

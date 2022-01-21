@@ -36,6 +36,10 @@ default-extensions:
 - RoleAnnotations # 2022-01-18: raehik: syntactic extension
 - UndecidableInstances # 2022-01-15: raehik: honestly fine to have default
 - DeriveAnyClass # 2022-01-19: raehik: why not?? use DerivingStrategies
+- GADTs # 2022-01-20: raehik: syntactic extension
+- DefaultSignatures # 2022-01-21: raehik: MORE GIVE ME MORE LANGUAGE EXTENSIONS
+- MagicHash # 2022-01-21: raehik: who cares LOL pretty much syntactic
+- PolyKinds # 2022-01-21: raehik: gimme gimME GIMME
 
 # we do a little type tomfoolery
 - RankNTypes
@@ -47,6 +51,7 @@ dependencies:
 - text
 - megaparsec ^>= 9.2.0 # for my binary number parsing additions
 - mtl
+- transformers
 - either
 - directory
 - unicode-show

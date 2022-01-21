@@ -1,4 +1,4 @@
-{-# LANGUAGE MagicHash, AllowAmbiguousTypes #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Common.CLIOptions where
 
