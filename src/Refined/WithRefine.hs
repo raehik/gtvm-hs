@@ -90,8 +90,8 @@ newtype WithRefine (ps :: PredicateStatus) p a
       -- | Extracts any predicate-wrapped value. Works regardless of whether the
       --   predicate was enforced or not.
       unWithRefine :: a
-  } deriving newtype (Generic, Hashable, NFData, Eq, Ord)
-    deriving stock   (Show, Foldable)
+  } deriving       (Hashable, NFData, Eq, Ord) via a
+    deriving stock (Generic, Show, Foldable)
 
 deriving stock instance Functor     (WithRefine 'Unenforced p)
 deriving stock instance Traversable (WithRefine 'Unenforced p)

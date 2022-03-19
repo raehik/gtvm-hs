@@ -54,33 +54,31 @@ library
       FlexibleInstances
       InstanceSigs
       MultiParamTypeClasses
+      PolyKinds
       LambdaCase
-      DeriveGeneric
-      DeriveFoldable
-      DeriveFunctor
-      DeriveGeneric
-      DeriveLift
-      DeriveTraversable
       DerivingStrategies
-      GeneralizedNewtypeDeriving
       StandaloneDeriving
-      BangPatterns
-      KindSignatures
-      TypeOperators
-      TypeApplications
+      DeriveAnyClass
+      DeriveGeneric
+      DeriveDataTypeable
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      DeriveLift
+      ImportQualifiedPost
       StandaloneKindSignatures
       DerivingVia
+      RoleAnnotations
+      TypeApplications
       DataKinds
       TypeFamilies
-      ImportQualifiedPost
-      RoleAnnotations
-      UndecidableInstances
-      DeriveAnyClass
+      TypeOperators
+      BangPatterns
       GADTs
       DefaultSignatures
-      MagicHash
-      PolyKinds
       RankNTypes
+      UndecidableInstances
+      MagicHash
       ScopedTypeVariables
   build-depends:
       aeson
@@ -131,33 +129,31 @@ executable gtvm-hs
       FlexibleInstances
       InstanceSigs
       MultiParamTypeClasses
+      PolyKinds
       LambdaCase
-      DeriveGeneric
-      DeriveFoldable
-      DeriveFunctor
-      DeriveGeneric
-      DeriveLift
-      DeriveTraversable
       DerivingStrategies
-      GeneralizedNewtypeDeriving
       StandaloneDeriving
-      BangPatterns
-      KindSignatures
-      TypeOperators
-      TypeApplications
+      DeriveAnyClass
+      DeriveGeneric
+      DeriveDataTypeable
+      DeriveFunctor
+      DeriveFoldable
+      DeriveTraversable
+      DeriveLift
+      ImportQualifiedPost
       StandaloneKindSignatures
       DerivingVia
+      RoleAnnotations
+      TypeApplications
       DataKinds
       TypeFamilies
-      ImportQualifiedPost
-      RoleAnnotations
-      UndecidableInstances
-      DeriveAnyClass
+      TypeOperators
+      BangPatterns
       GADTs
       DefaultSignatures
-      MagicHash
-      PolyKinds
       RankNTypes
+      UndecidableInstances
+      MagicHash
       ScopedTypeVariables
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:

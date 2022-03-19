@@ -9,41 +9,42 @@ extra-source-files:
 # mostly Alexis King's 2018 recommended defaults
 # (most can be replaced with GHC 9.2's GHC2021 language extension
 default-extensions:
+# essential
 - EmptyCase
 - FlexibleContexts
 - FlexibleInstances
 - InstanceSigs
 - MultiParamTypeClasses
+- PolyKinds
 - LambdaCase
-- DeriveGeneric
-- DeriveFoldable
-- DeriveFunctor
-- DeriveGeneric
-- DeriveLift
-- DeriveTraversable
+# deriving-related
 - DerivingStrategies
-- GeneralizedNewtypeDeriving
 - StandaloneDeriving
-- BangPatterns
-- KindSignatures
-- TypeOperators
+- DeriveAnyClass
+- DeriveGeneric
+- DeriveDataTypeable
+- DeriveFunctor
+- DeriveFoldable
+- DeriveTraversable
+- DeriveLift
+# essential syntax but too recent
+- ImportQualifiedPost # 8.10
+- StandaloneKindSignatures # 8.10
+- DerivingVia # 8.6
+# less essential but still gimmes
+- RoleAnnotations
 - TypeApplications
-- StandaloneKindSignatures
-- DerivingVia
 - DataKinds
 - TypeFamilies
-- ImportQualifiedPost # 8.10
-- RoleAnnotations # 2022-01-18: raehik: syntactic extension
-- UndecidableInstances # 2022-01-15: raehik: honestly fine to have default
-- DeriveAnyClass # 2022-01-19: raehik: why not?? use DerivingStrategies
-- GADTs # 2022-01-20: raehik: syntactic extension
-- DefaultSignatures # 2022-01-21: raehik: MORE GIVE ME MORE LANGUAGE EXTENSIONS
-- MagicHash # 2022-01-21: raehik: who cares LOL pretty much syntactic
-- PolyKinds # 2022-01-21: raehik: gimme gimME GIMME
-
-# we do a little type tomfoolery
+- TypeOperators
+- BangPatterns
+- GADTs
+- DefaultSignatures
 - RankNTypes
-- ScopedTypeVariables
+# extra
+- UndecidableInstances # honestly fine but...
+- MagicHash # pretty much syntactic, but too weird
+- ScopedTypeVariables # probs dangerous to have as default
 
 dependencies:
 - base

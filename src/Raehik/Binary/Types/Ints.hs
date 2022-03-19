@@ -16,16 +16,16 @@ newtype I (sign :: ISign) (size :: ISize) (e :: Endianness)
     deriving stock (Generic, Typeable)
 
 -- | Lots of deriving boilerplate due to the type family usage.
-deriving stock   instance Show     (IRep sign size) => Show     (I sign size e)
-deriving newtype instance Eq       (IRep sign size) => Eq       (I sign size e)
-deriving newtype instance Ord      (IRep sign size) => Ord      (I sign size e)
-deriving newtype instance Bounded  (IRep sign size) => Bounded  (I sign size e)
-deriving newtype instance Num      (IRep sign size) => Num      (I sign size e)
-deriving newtype instance Real     (IRep sign size) => Real     (I sign size e)
-deriving newtype instance Enum     (IRep sign size) => Enum     (I sign size e)
-deriving newtype instance Integral (IRep sign size) => Integral (I sign size e)
-deriving newtype instance ToJSON   (IRep sign size) => ToJSON   (I sign size e)
-deriving newtype instance FromJSON (IRep sign size) => FromJSON (I sign size e)
+deriving stock                instance Show     (IRep sign size) => Show     (I sign size e)
+deriving via (IRep sign size) instance Eq       (IRep sign size) => Eq       (I sign size e)
+deriving via (IRep sign size) instance Ord      (IRep sign size) => Ord      (I sign size e)
+deriving via (IRep sign size) instance Bounded  (IRep sign size) => Bounded  (I sign size e)
+deriving via (IRep sign size) instance Num      (IRep sign size) => Num      (I sign size e)
+deriving via (IRep sign size) instance Real     (IRep sign size) => Real     (I sign size e)
+deriving via (IRep sign size) instance Enum     (IRep sign size) => Enum     (I sign size e)
+deriving via (IRep sign size) instance Integral (IRep sign size) => Integral (I sign size e)
+deriving via (IRep sign size) instance ToJSON   (IRep sign size) => ToJSON   (I sign size e)
+deriving via (IRep sign size) instance FromJSON (IRep sign size) => FromJSON (I sign size e)
 
 instance ByteLen (I s 'I1 e) where blen = const 1
 instance ByteLen (I s 'I2 e) where blen = const 2
