@@ -88,7 +88,7 @@ pCmdFlowchart = hsubparser $
 -- | Execute a 'Parser' with decent defaults.
 execParserWithDefaults :: MonadIO m => String -> Parser a -> m a
 execParserWithDefaults desc p = liftIO $ customExecParser
-    (prefs $ showHelpOnError)
+    (prefs showHelpOnError)
     (info (helper <*> p) (progDesc desc))
 
 -- | Shorthand for the way I always write commands.

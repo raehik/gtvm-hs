@@ -30,6 +30,7 @@ library
       GTVM.Common.Json
       GTVM.Flowchart
       GTVM.SCP
+      GTVM.SCP.CSV
       GTVM.SCP.Parse
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize

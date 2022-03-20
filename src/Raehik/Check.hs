@@ -19,6 +19,7 @@ import GHC.TypeLits ( KnownSymbol, symbolVal' )
 import Text.Megaparsec
 import Text.Megaparsec.Char qualified as MC
 import Text.Megaparsec.Char.Lexer qualified as MCL
+import Control.Monad ( void )
 
 data Check
   = CheckEqual
@@ -80,8 +81,7 @@ parseHash = do
     symbol ":"
     symbol $ hashFuncLabel @h
     symbol ":"
-    bs <- parseHexBytestring
-    return $ Hash bs
+    Hash <$> parseHexBytestring
 
 symbol :: (MonadParsec e s m, Token s ~ Char) => Tokens s -> m ()
-symbol s = MCL.lexeme MC.hspace (chunk s) >> return ()
+symbol s = void $ MCL.lexeme MC.hspace (chunk s)

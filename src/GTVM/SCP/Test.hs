@@ -7,6 +7,7 @@ import Control.Monad.Reader
 import Data.ByteString qualified as BS
 import System.Directory qualified as Dir
 import Data.List qualified as List
+import Control.Monad ( when )
 
 type Bytes = BS.ByteString
 
@@ -24,7 +25,4 @@ reserializeSCPDir cfg dir = do
     let scpFiles = filter (List.isSuffixOf ".scp") files
     flip mapM_ scpFiles $ \fp -> do
         bs <- liftIO $ BS.readFile (dir <> "/" <> fp)
-        let bs' = reserialize bs cfg
-        if   bs /= bs'
-        then liftIO $ putStrLn fp
-        else return ()
+        when (bs /= reserialize bs cfg) $ liftIO $ putStrLn fp

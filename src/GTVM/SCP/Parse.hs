@@ -50,8 +50,8 @@ checkSCPDir dir = do
 textboxesInSCP :: [SCPSeg Bytes] -> Int
 textboxesInSCP segs = foldr go 0 (map isTextbox segs)
   where
-    isTextbox (SCPSeg05Textbox{}) = True
-    isTextbox _                    = True
+    isTextbox SCPSeg05Textbox{} = True
+    isTextbox _                 = True
     go True  i = i+1
     go False i = i
 

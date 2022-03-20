@@ -22,7 +22,7 @@ runParserBinFile
     => ParsecT e Bytes (Reader BinaryCfg) a -> FilePath -> BinaryCfg -> m (Either String a)
 runParserBinFile p fp cfg = do
     bs <- liftIO $ BS.readFile fp
-    return $ flip runReader cfg (runParserBin p bs)
+    return $ runReader (runParserBin p bs) cfg
 
 runParserBin'
     :: (ShowErrorComponent e, MonadReader BinaryCfg m)

@@ -51,5 +51,5 @@ modFileOut :: (HasMetavar f, HasName f) => String -> Mod f a
 modFileOut s = modFile "Output" s <> long "out-file" <> short 'o'
 
 metavarify :: String -> String
-metavarify = map Char.toUpper . map spaceToUnderscore
+metavarify = map $ Char.toUpper . spaceToUnderscore
   where spaceToUnderscore = \case ' ' -> '_'; ch -> ch

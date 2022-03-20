@@ -66,13 +66,13 @@ replaceEqs startTrs scp =
           Left  err      -> Left err
           Right replaced ->
             case trs' of
-              []  -> Right $ concat $ replaced
+              []  -> Right $ concat replaced
               _:_ -> Left ErrorTooManyReplaces
   where
     go = \case
       SCPSeg05Textbox tb ->
         get >>= \case
-          []     -> return $ Right $ [SCPSeg05Textbox tb]
+          []     -> return $ Right [SCPSeg05Textbox tb]
           tr:trs -> case replaceEq tr tb of
                       Nothing  ->
                         let trBs = scpTextReplaceCheck tr

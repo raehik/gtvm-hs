@@ -75,7 +75,7 @@ bPak (Pak unk files) = do
         builtBS <- bBS' bs
         let bFT' = bFT <> bOffset <> bLen <> bF
             bFs' = bFs <> builtBS <> bFSpacingDunno
-            offset' = offset + (BS.length bs) + 0x1C
+            offset' = offset + BS.length bs + 0x1C
         put (bFT', bFs', offset')
         go fs
 

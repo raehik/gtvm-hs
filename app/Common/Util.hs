@@ -50,7 +50,7 @@ badParseYAML :: forall a m. (MonadIO m, FromJSON a) => BS.ByteString -> m a
 badParseYAML bs =
     case Yaml.decodeEither' bs of
       Left err      -> do
-        liftIO $ putStrLn $ "error decoding YAML: "
+        liftIO $ putStrLn "error decoding YAML: "
         liftIO $ print err
         error "fucko"
         --liftIO $ Exit.exitWith (Exit.ExitFailure 1)
