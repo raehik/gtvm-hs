@@ -1,4 +1,4 @@
-## 0.9.0 (Unreleased)
+## 0.9.0 (2022-03-22)
   * new tool: SCP text replace (for translation)
   * new tool: SCPTL -- text replace made useful
   * remove patch feature: moved to own library+executable at
