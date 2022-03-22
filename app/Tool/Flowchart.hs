@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Tool.Flowchart where
 
 import Common.Config
@@ -11,6 +13,7 @@ import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
 import Data.Text ( Text )
+import Data.Yaml.Pretty qualified
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML flowchart"
@@ -48,5 +51,19 @@ runDecode cfg = do
         case fcTextify $ unenforceFlowchart fcBin of
           Left err -> liftIO $ print err
           Right fcText ->
-            let fcBsYaml = encodeYamlPretty fcText
+            let fcBsYaml = Data.Yaml.Pretty.encodePretty ycFCTL fcText
              in writeStreamTextualBytes (cfgDecodeStreamOut cfg) fcBsYaml
+
+-- | Silly pretty config to get my preferred layout easily.
+--
+-- Looks silly, but gets the job done very smoothly. Snoyman's yaml library is
+-- based for exposing this.
+ycFCTL :: Data.Yaml.Pretty.Config
+ycFCTL = Data.Yaml.Pretty.setConfCompare f $ Data.Yaml.Pretty.defConfig
+  where f "entries" _ = GT
+        f _ "entries" = LT
+        f "script" _ = LT
+        f _ "script" = GT
+        f "index" _ = GT
+        f _ "index" = LT
+        f s1 s2 = compare s1 s2
