@@ -1,5 +1,6 @@
 ## 0.9.0 (Unreleased)
   * new tool: SCP text replace (for translation)
+  * new tool: SCPTL -- text replace made useful
   * remove patch feature: moved to own library+executable at
     https://github.com/raehik/bytepatch ,
     https://hackage.haskell.org/package/bytepatch
@@ -14,6 +15,7 @@
   * various cleanup, interesting ideas
     * pattern for using single type for binary and JSON (and Haskell) composed
       of two mini libraries, using for flowchart
+  * more SCP format documentation
 
 ## 0.8.0 (2021-08-26)
   * patch offsets now work from a base offset

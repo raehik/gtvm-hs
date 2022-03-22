@@ -30,12 +30,12 @@ library
       GTVM.Common.Json
       GTVM.Flowchart
       GTVM.SCP
-      GTVM.SCP.CSV
       GTVM.SCP.Parse
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize
       GTVM.SCP.Test
       GTVM.SCP.TextReplace
+      GTVM.SCP.TL
       Raehik.Binary.ByteLen
       Raehik.Binary.Codec
       Raehik.Binary.Predicates.NullPadTo
@@ -90,10 +90,12 @@ library
     , bytestring
     , cassava
     , cereal
+    , containers
     , deepseq
     , directory
     , either
     , filemanip
+    , filepath
     , generic-optics
     , hashable
     , lzo
@@ -120,6 +122,7 @@ executable gtvm-hs
       Tool.Flowchart
       Tool.SCP.Code
       Tool.SCP.Replace
+      Tool.SCP.TL
       Tool.SL01
       Paths_gtvm_hs
   hs-source-dirs:
@@ -166,10 +169,12 @@ executable gtvm-hs
     , bytestring
     , cassava
     , cereal
+    , containers
     , deepseq
     , directory
     , either
     , filemanip
+    , filepath
     , generic-optics
     , gtvm-hs
     , hashable

@@ -71,7 +71,7 @@ pSCPSeg = pW8 >>= \case
   -- no 0x06
   0x07 -> SCPSeg07SCP <$> pBS
   0x08 -> SCPSeg08 & return
-  0x09 -> SCPSeg09 <$> pW8 <*> pCount pW8 pBSW32
+  0x09 -> SCPSeg09Choice <$> pW8 <*> pCount pW8 pBSW32
   0x0A -> SCPSeg0A <$> pW8 <*> pW8 <*> pW32 <*> pW32 <*> pW32
   0x0B -> SCPSeg0B <$> pW8 <*> pW8
   0x0C -> SCPSeg0CFlag <$> pW8 <*> pW8
