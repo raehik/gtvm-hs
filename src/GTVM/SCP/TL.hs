@@ -20,6 +20,7 @@ import Data.Aeson ( ToJSON(..), FromJSON(..)
 import GTVM.Common.Json
 
 import Data.Text ( Text )
+import Data.Text qualified as Text
 import Data.Map ( Map )
 import Data.Map qualified as Map
 import Data.Char qualified
@@ -30,6 +31,8 @@ import Util ( tshow )
 import Data.Yaml.Pretty qualified
 
 import GTVM.SCP
+
+import Control.Monad.State
 
 data Env = Env
   { envPendingPlaceholder :: Text
@@ -52,6 +55,10 @@ data SCPTL (c :: Check) bs
 
 deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTL c bs)
 deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTL c bs)
+
+deriving instance Functor     (SCPTL 'CheckEqual)
+deriving instance Foldable    (SCPTL 'CheckEqual)
+deriving instance Traversable (SCPTL 'CheckEqual)
 
 jcSCPTL :: Aeson.Options
 jcSCPTL = Aeson.defaultOptions
@@ -90,6 +97,14 @@ data SCPTLTextbox (c :: Check) bs = SCPTLTextbox
 deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTLTextbox c bs)
 deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTLTextbox c bs)
 
+instance Functor     (SCPTLTextbox 'CheckEqual) where
+    fmap     f (SCPTLTextbox s t o) = SCPTLTextbox (f s) (f t) (fmap f o)
+instance Foldable    (SCPTLTextbox 'CheckEqual) where
+    foldMap  f (SCPTLTextbox s t o) = f s <> f t <> foldMap f o
+instance Traversable (SCPTLTextbox 'CheckEqual) where
+    traverse f (SCPTLTextbox s t o) =
+        SCPTLTextbox <$> f s <*> f t <*> traverse f o
+
 jcSCPTLTextbox :: Aeson.Options
 jcSCPTLTextbox =
     jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpTLTextbox" :: String)
@@ -107,6 +122,14 @@ data SCPTLChoice (c :: Check) bs = SCPTLChoice
 
 deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTLChoice c bs)
 deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTLChoice c bs)
+
+instance Functor     (SCPTLChoice 'CheckEqual) where
+    fmap     f (SCPTLChoice s t) = SCPTLChoice (f s) (f t)
+instance Foldable    (SCPTLChoice 'CheckEqual) where
+    foldMap  f (SCPTLChoice s t) = f s <> f t
+instance Traversable (SCPTLChoice 'CheckEqual) where
+    traverse f (SCPTLChoice s t) =
+        SCPTLChoice <$> f s <*> f t
 
 jcSCPTLChoice :: Aeson.Options
 jcSCPTLChoice =
@@ -126,6 +149,14 @@ data SCPTL22 (c :: Check) bs = SCPTL22
 
 deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTL22 c bs)
 deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTL22 c bs)
+
+instance Functor     (SCPTL22 'CheckEqual) where
+    fmap     f (SCPTL22 s t cs) = SCPTL22 (f s) (f t) (fmap (fmap f) cs)
+instance Foldable    (SCPTL22 'CheckEqual) where
+    foldMap  f (SCPTL22 s t cs) = f s <> f t <> foldMap (foldMap f) cs
+instance Traversable (SCPTL22 'CheckEqual) where
+    traverse f (SCPTL22 s t cs) =
+        SCPTL22 <$> f s <*> f t <*> traverse (traverse f) cs
 
 jcSCPTL22 :: Aeson.Options
 jcSCPTL22 =
@@ -209,3 +240,104 @@ genTL22Choices env s ss = SCPTL22
 meta :: [Text] -> [(Text, Text)] -> SCPTL _c _s
 meta cms kvs = SCPTLComment' $ SCPTLComment { scpTLCommentCommentary = cms
                                         , scpTLCommentMeta = Map.fromList kvs }
+
+data Error
+  = ErrorSCPTLOverlong
+  | ErrorSourceMismatch
+  | ErrorSCPTLTooShort
+  | ErrorTypeMismatch
+  | ErrorPlaceholder
+    deriving (Generic, Eq, Show)
+
+apply :: SCP Text -> [SCPTL 'CheckEqual Text] -> Either Error (SCP Text)
+apply scp scptl =
+    let (scpSegsTled, scptl') = runState (traverseM applySeg scp) scptl
+     in case scpSegsTled of
+          Left err -> Left err
+          Right scpSegsTled' ->
+            case scptl' of
+              _:_ -> Left ErrorSCPTLOverlong
+              [] -> Right $ concat scpSegsTled'
+
+-- Using highly explicit/manual prisms here. Could clean up.
+applySeg
+    :: MonadState [SCPTL 'CheckEqual Text] m
+    => SCPSeg Text -> m (Either Error [SCPSeg Text])
+applySeg = \case
+  SCPSeg05Textbox tb -> tryApplySeg tryExtractTextbox (tryApplySegTextbox tb)
+  SCPSeg09Choice w8 cs -> tryApplySeg tryExtractChoice (tryApplySegChoice w8 cs)
+  SCPSeg22 topic cs -> tryApplySeg tryExtract22 (tryApplySeg22 topic cs)
+  SCPSeg35 bs -> tryApplySeg tryExtract35 (tryApplySeg35 bs)
+  seg -> return $ Right [seg]
+
+tryExtractTextbox :: SCPTL c bs -> Maybe (SCPTLTextbox c bs)
+tryExtractTextbox = \case SCPTLTextbox' a -> Just a
+                          _               -> Nothing
+
+tryExtractChoice :: SCPTL c bs -> Maybe [SCPTLChoice c bs]
+tryExtractChoice = \case SCPTLChoice' a -> Just a
+                         _              -> Nothing
+
+tryExtract22 :: SCPTL c bs -> Maybe (SCPTL22 c bs)
+tryExtract22 = \case SCPTL22Choice' a -> Just a
+                     _                -> Nothing
+
+tryExtract35 :: SCPTL c bs -> Maybe (SCPTLChoice c bs)
+tryExtract35 = \case SCPTL35Choice' a -> Just a
+                     _                -> Nothing
+
+tryApplySeg
+    :: MonadState [SCPTL 'CheckEqual Text] m
+    => (SCPTL 'CheckEqual Text -> Maybe a)
+    -> (a -> Either Error [SCPSeg Text])
+    -> m (Either Error [SCPSeg Text])
+tryApplySeg f1 f2 = do
+    get >>= \case
+      []     -> return $ Left ErrorSCPTLTooShort
+      tl:tls -> do
+        put tls
+        case tl of
+          SCPTLComment'{} -> tryApplySeg f1 f2
+          _ -> case f1 tl of
+                 Nothing -> return $ Left ErrorTypeMismatch
+                 Just a  -> return $ f2 a
+
+tryApplySegTextbox
+    :: SCPSeg05Textbox Text -> SCPTLTextbox 'CheckEqual Text
+    -> Either Error [SCPSeg Text]
+tryApplySegTextbox tb tbTL
+  | scpSeg05TextboxText tb /= scpTLTextboxSource tbTL = Left ErrorSourceMismatch
+  | otherwise = Right $ SCPSeg05Textbox tb' : overflow
+  where
+    tb' = tb { scpSeg05TextboxText = scpTLTextboxTranslation tbTL }
+    overflow = maybe [] fakeTextboxSeg $ scpTLTextboxOverflow tbTL
+    fakeTextboxSeg text =
+        [SCPSeg05Textbox $ tb { scpSeg05TextboxVoiceLine = Text.empty
+                              , scpSeg05TextboxText      = text } ]
+
+tryApplySegChoice
+    :: Word8 -> [(Text, Word32)] -> [SCPTLChoice 'CheckEqual Text]
+    -> Either Error [SCPSeg Text]
+tryApplySegChoice _w8 _cs _csTL = Left ErrorPlaceholder
+
+tryApplySeg22
+    :: Text -> [(Text, Word32)] -> (SCPTL22 'CheckEqual Text)
+    -> Either Error [SCPSeg Text]
+tryApplySeg22 topic _cs segTL
+  | topic /= scpTL22TopicSource segTL = Left ErrorSourceMismatch
+  | otherwise = Left ErrorPlaceholder
+
+tryApplySeg35
+    :: Text -> SCPTLChoice 'CheckEqual Text
+    -> Either Error [SCPSeg Text]
+tryApplySeg35 bs bsTL
+  | bs /= scpTLChoiceSource bsTL = Left ErrorSourceMismatch
+  | otherwise = Right [SCPSeg35 (scpTLChoiceTranslation bsTL)]
+
+-- lol. ty hw-kafka-client
+traverseM
+    :: (Traversable t, Applicative f, Monad m)
+    => (v -> m (f v'))
+    -> t v
+    -> m (f (t v'))
+traverseM f xs = sequenceA <$> traverse f xs

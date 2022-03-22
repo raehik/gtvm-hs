@@ -12,6 +12,7 @@ import Control.Monad.IO.Class
 
 import GTVM.SCP
 import GTVM.SCP.TL
+import Raehik.Check
 
 import Data.Text ( Text )
 import Data.Yaml.Pretty qualified
@@ -25,7 +26,7 @@ import GTVM.Common.Json
 data CfgToSCPTL = CfgToSCPTL
   { cfgToSCPTLStreamIn     :: Stream 'StreamIn  "YAML SCP"
   , cfgToSCPTLStreamOut    :: Stream 'StreamOut "SCPTL"
-  , cfgToSCPTLSpeakerIDMap :: Maybe (StreamFile 'StreamIn  "Speaker ID map YAML")
+  , cfgToSCPTLSpeakerIDMap :: Maybe (StreamFile 'StreamIn "Speaker ID map YAML")
   } deriving (Eq, Show, Generic)
 
 parseCLIOptsToSCPTL :: Parser CfgToSCPTL
@@ -73,3 +74,25 @@ parseSpeakerMap fp = do
     speakers <- badParseYAML @[SCPSpeakerData] bs
     let speakerMap = Map.fromList $ zip [1..] speakers
     return $ \w32 -> scpSpeakerDataStringAtPointer <$> Map.lookup w32 speakerMap
+
+data CfgApplySCPTL = CfgApplySCPTL
+  { cfgApplySCPTLStreamIn  :: Stream     'StreamIn  "YAML SCP"
+  , cfgApplySCPTLFileIn    :: StreamFile 'StreamIn  "SCPTL"
+  , cfgApplySCPTLStreamOut :: Stream     'StreamOut "edited YAML SCP"
+  } deriving (Eq, Show, Generic)
+
+parseCLIOptsApplySCPTL :: Parser CfgApplySCPTL
+parseCLIOptsApplySCPTL =
+    CfgApplySCPTL <$> pStreamIn <*> pStreamFileIn <*> pStreamOut
+
+runApplySCPTL :: MonadIO m => CfgApplySCPTL -> m ()
+runApplySCPTL cfg = do
+    scpYAMLBs <- readStreamBytes $ cfgApplySCPTLStreamIn cfg
+    scp       <- badParseYAML @(SCP Text) scpYAMLBs
+    scptlYAMLBs <- readStreamFileBytes $ cfgApplySCPTLFileIn cfg
+    scptl       <- badParseYAML @[SCPTL 'CheckEqual Text] scptlYAMLBs
+    case apply scp scptl of
+      Left  err  -> error $ show err
+      Right scp' ->
+        let scpYAMLBs' = encodeYamlPretty scp'
+         in writeStreamTextualBytes (cfgApplySCPTLStreamOut cfg) scpYAMLBs'

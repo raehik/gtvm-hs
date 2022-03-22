@@ -5,7 +5,6 @@ module Main where
 import GHC.Generics
 import Control.Monad.IO.Class
 import Options.Applicative
-import Tool.SCP.Replace
 import Tool.SCP.Code qualified
 import Tool.SCP.TL qualified
 import Tool.SL01 qualified
@@ -15,10 +14,12 @@ main :: IO ()
 main = execParserWithDefaults desc pCmd >>= \case
   CmdSCP scpCmd ->
     case scpCmd of
-      CmdSCPReplace cfg -> Tool.SCP.Replace.run    cfg
       CmdSCPEncode  cfg -> Tool.SCP.Code.runEncode cfg
       CmdSCPDecode  cfg -> Tool.SCP.Code.runDecode cfg
-      CmdSCPToSCPTL cfg -> Tool.SCP.TL.runToSCPTL  cfg
+      CmdSCPTL      scptlCmd ->
+        case scptlCmd of
+          CmdSCPTLGenerate cfg -> Tool.SCP.TL.runToSCPTL    cfg
+          CmdSCPTLApply    cfg -> Tool.SCP.TL.runApplySCPTL cfg
   CmdSL01 sl01Cmd ->
     case sl01Cmd of
       CmdSL01Compress   cfg -> Tool.SL01.runCompress   cfg
@@ -36,10 +37,14 @@ data Cmd
     deriving (Eq, Show, Generic)
 
 data CmdSCP
-  = CmdSCPEncode  Tool.SCP.Code.CfgEncode
-  | CmdSCPDecode  Tool.SCP.Code.CfgDecode
-  | CmdSCPReplace Tool.SCP.Replace.Cfg
-  | CmdSCPToSCPTL Tool.SCP.TL.CfgToSCPTL
+  = CmdSCPEncode Tool.SCP.Code.CfgEncode
+  | CmdSCPDecode Tool.SCP.Code.CfgDecode
+  | CmdSCPTL     CmdSCPTL
+    deriving (Eq, Show, Generic)
+
+data CmdSCPTL
+  = CmdSCPTLGenerate Tool.SCP.TL.CfgToSCPTL
+  | CmdSCPTLApply    Tool.SCP.TL.CfgApplySCPTL
     deriving (Eq, Show, Generic)
 
 data CmdSL01
@@ -64,15 +69,21 @@ pCmd = hsubparser $
 
 pCmdSCP :: Parser CmdSCP
 pCmdSCP = hsubparser $
-       cmd "encode"   descEncode  (CmdSCPEncode  <$> Tool.SCP.Code.parseCLIOptsEncode)
-    <> cmd "decode"   descDecode  (CmdSCPDecode  <$> Tool.SCP.Code.parseCLIOptsDecode)
-    <> cmd "replace"  descReplace (CmdSCPReplace <$> Tool.SCP.Replace.parseCLIOpts)
-    <> cmd "to-scptl" descToSCPTL (CmdSCPToSCPTL <$> Tool.SCP.TL.parseCLIOptsToSCPTL)
+       cmd "encode"  descEncode  (CmdSCPEncode  <$> Tool.SCP.Code.parseCLIOptsEncode)
+    <> cmd "decode"  descDecode  (CmdSCPDecode  <$> Tool.SCP.Code.parseCLIOptsDecode)
+    <> cmd "tl"      descTL      (CmdSCPTL      <$> pCmdSCPTL)
   where
     descEncode  = "Encode YAML SCP to binary."
     descDecode  = "Decode binary SCP to YAML."
-    descReplace = "TO REMOVE. Replace textboxes (e.g. for translation)."
-    descToSCPTL = "Filter SCP to SCPTL (for translation)."
+    descTL      = "SCPTL (SCP translation file) tools."
+
+pCmdSCPTL :: Parser CmdSCPTL
+pCmdSCPTL = hsubparser $
+       cmd "generate" descGen   (CmdSCPTLGenerate <$> Tool.SCP.TL.parseCLIOptsToSCPTL)
+    <> cmd "apply"    descApply (CmdSCPTLApply    <$> Tool.SCP.TL.parseCLIOptsApplySCPTL)
+  where
+    descGen   = "Generate a template SCPTL from a YAML SCP."
+    descApply = "Apply a SCPTL to a given YAML SCP."
 
 pCmdSL01 :: Parser CmdSL01
 pCmdSL01 = hsubparser $
