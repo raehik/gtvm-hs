@@ -7,6 +7,7 @@ import Control.Monad.IO.Class
 import Options.Applicative
 import Tool.SCP.Replace
 import Tool.SCP.Code qualified
+import Tool.SCP.TL qualified
 import Tool.SL01 qualified
 import Tool.Flowchart qualified
 
@@ -17,6 +18,7 @@ main = execParserWithDefaults desc pCmd >>= \case
       CmdSCPReplace cfg -> Tool.SCP.Replace.run    cfg
       CmdSCPEncode  cfg -> Tool.SCP.Code.runEncode cfg
       CmdSCPDecode  cfg -> Tool.SCP.Code.runDecode cfg
+      CmdSCPToSCPTL cfg -> Tool.SCP.TL.runToSCPTL  cfg
   CmdSL01 sl01Cmd ->
     case sl01Cmd of
       CmdSL01Compress   cfg -> Tool.SL01.runCompress   cfg
@@ -37,6 +39,7 @@ data CmdSCP
   = CmdSCPEncode  Tool.SCP.Code.CfgEncode
   | CmdSCPDecode  Tool.SCP.Code.CfgDecode
   | CmdSCPReplace Tool.SCP.Replace.Cfg
+  | CmdSCPToSCPTL Tool.SCP.TL.CfgToSCPTL
     deriving (Eq, Show, Generic)
 
 data CmdSL01
@@ -61,13 +64,15 @@ pCmd = hsubparser $
 
 pCmdSCP :: Parser CmdSCP
 pCmdSCP = hsubparser $
-       cmd "encode"  descEncode  (CmdSCPEncode  <$> Tool.SCP.Code.parseCLIOptsEncode)
-    <> cmd "decode"  descDecode  (CmdSCPDecode  <$> Tool.SCP.Code.parseCLIOptsDecode)
-    <> cmd "replace" descReplace (CmdSCPReplace <$> Tool.SCP.Replace.parseCLIOpts)
+       cmd "encode"   descEncode  (CmdSCPEncode  <$> Tool.SCP.Code.parseCLIOptsEncode)
+    <> cmd "decode"   descDecode  (CmdSCPDecode  <$> Tool.SCP.Code.parseCLIOptsDecode)
+    <> cmd "replace"  descReplace (CmdSCPReplace <$> Tool.SCP.Replace.parseCLIOpts)
+    <> cmd "to-scptl" descToSCPTL (CmdSCPToSCPTL <$> Tool.SCP.TL.parseCLIOptsToSCPTL)
   where
     descEncode  = "Encode YAML SCP to binary."
     descDecode  = "Decode binary SCP to YAML."
-    descReplace = "Replace textboxes (e.g. for translation)."
+    descReplace = "TO REMOVE. Replace textboxes (e.g. for translation)."
+    descToSCPTL = "Filter SCP to SCPTL (for translation)."
 
 pCmdSL01 :: Parser CmdSL01
 pCmdSL01 = hsubparser $

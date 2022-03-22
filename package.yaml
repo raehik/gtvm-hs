@@ -71,6 +71,8 @@ dependencies:
 - optics
 - generic-optics
 - cereal
+- filepath
+- containers
 
 # refined-with
 - refined

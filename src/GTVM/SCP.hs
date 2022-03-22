@@ -27,14 +27,33 @@ data SCPSeg bs
   | SCPSeg02SFX bs Word8
   | SCPSeg03 Word8 bs Word8
   | SCPSeg04 Word8 Word8
+
   | SCPSeg05Textbox (SCPSeg05Textbox bs)
+  -- ^ Includes player-facing text.
+
   -- no 0x06
+
   | SCPSeg07SCP bs
   | SCPSeg08
-  | SCPSeg09 Word8 [(bs, Word32)]
+
+  | SCPSeg09Choice Word8 [(bs, Word32)]
+  -- ^ Includes player-facing text. Choice selection. The 'Word32's appear to be
+  --   the same counter as textboxes!
+  --
+  -- The 'Word8' seems to be an file-unique identifier for the choice selection.
+  -- SCP files with multiple choices have 0, 1, 2 etc. in ascending order.
+
   | SCPSeg0A Word8 Word8 Word32 Word32 Word32
   -- ^ TODO: decomp code a bit confusing for this command, be aware
+
   | SCPSeg0B Word8 Word8
+  -- ^ Appears to indicate where a given choice jumps to.
+  --
+  -- First 'Word8' appears to specify which choice selection it relates to.
+  -- Second 'Word8' appears to be the choice index in that choice selection
+  -- (usually 0, 1). They may be highly separated, in cases where a choice
+  -- changes lots of dialog.
+
   | SCPSeg0CFlag Word8 Word8
   | SCPSeg0D Word8
   | SCPSeg0E Word8
@@ -42,7 +61,12 @@ data SCPSeg bs
   | SCPSeg10 Word8 Word8 Word8
   | SCPSeg11EventCG bs
   | SCPSeg12
+
   | SCPSeg13 Word8 bs Word8 Word32
+  -- ^ Possibly player-facing text. Registers words for the feast
+  --   Danganronpa-style minigame, but using indices which correspond to
+  --   textures with the text on. The usage of the text here is unknown.
+
   | SCPSeg14 Word8
   | SCPSeg15
   | SCPSeg16Wadai
@@ -57,18 +81,38 @@ data SCPSeg bs
   | SCPSeg1FDelay
   | SCPSeg20 Word8
   | SCPSeg21
+
   | SCPSeg22 bs [(bs, Word32)]
+  -- ^ Includes player-facing text. Choice, plus an extra string. Seem to be
+  --   used in the conversation events.
+
   | SCPSeg23SFX
+
   | SCPSeg24 bs
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg25
   | SCPSeg26
+
   | SCPSeg27 bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg28 bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg29 bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg2A Word8 Word8
+
   | SCPSeg2B Word8 Word8 Word8 bs Word8
+  -- ^ Text is an SCP.
+
   | SCPSeg2CMap
+
   | SCPSeg2D bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg2E Word8 Word8 Word32 Word32
   | SCPSeg2F Word8
   | SCPSeg30 Word8
@@ -76,7 +120,10 @@ data SCPSeg bs
   | SCPSeg32 Word32 Word8
   | SCPSeg33 Word8 Word8
   | SCPSeg34 Word32
+
   | SCPSeg35 bs
+  -- ^ Likely player-facing. Kinda sounds like it's a type of Banri choice.
+
   | SCPSeg36 Word8 Word32
   | SCPSeg37 Word8 Word32
   | SCPSeg38 Word8 Word32
@@ -90,24 +137,41 @@ data SCPSeg bs
   | SCPSeg40 Word8
   | SCPSeg41 Word8 Word32 Word32
   | SCPSeg42 Word8
+
   -- these don't appear very SFXy in code, but did in data
   | SCPSeg43SFX bs
   | SCPSeg44SFX bs
   | SCPSeg45SFX bs Word8
+
   | SCPSeg46 Word8 Word8
   | SCPSeg47 Word8 Word8
   | SCPSeg48
   | SCPSeg49
   | SCPSeg4A
   | SCPSeg4B
+
   | SCPSeg4C bs
+  -- Unknown. Appears unused.
+
   | SCPSeg4D
   | SCPSeg4E
+
   | SCPSeg4F bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg50 bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg51 bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg52 bs
+  -- ^ Text not user-facing. Refers to a @sound/voice@ file - all the uses I've
+  --   seen are girls telling you 飲んで飲んで！
+
   | SCPSeg53 bs Word8 Word8
+  -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
+
   | SCPSeg54 Word8 Word8
   | SCPSeg55 Word8 Word8
   | SCPSeg56 Word8 Word8

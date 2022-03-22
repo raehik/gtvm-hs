@@ -33,7 +33,7 @@ bSCPSeg = \case
   -- no 0x06
   SCPSeg07SCP bs1 -> rB [bW8 0x07, bBS bs1]
   SCPSeg08 -> r1 0x08
-  SCPSeg09 b1 bsW32Pairs -> rB [bW8 0x09, bW8 b1, bCount bW8 bBSW32 bsW32Pairs]
+  SCPSeg09Choice b1 bsW32Pairs -> rB [bW8 0x09, bW8 b1, bCount bW8 bBSW32 bsW32Pairs]
   SCPSeg0A b1 b2 u1 u2 u3 -> rB [bW8 0x0A, bW8 b1, bW8 b2, bW32 u1, bW32 u2, bW32 u3]
   SCPSeg0B b1 b2 -> rB [bW8 0x0B, bW8 b1, bW8 b2]
   SCPSeg0CFlag b1 b2 -> rB [bW8 0x0C, bW8 b1, bW8 b2]

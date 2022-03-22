@@ -19,7 +19,7 @@ readStreamBytes = \case
   StreamFile' sf -> readStreamFileBytes sf
   StreamStd      -> readStdinBytes
 
-readStreamFileBytes :: MonadIO m => StreamFile _d _s -> m BS.ByteString
+readStreamFileBytes :: MonadIO m => StreamFile 'StreamIn _s -> m BS.ByteString
 readStreamFileBytes = liftIO . BS.readFile . streamFilePath
 
 readStdinBytes :: MonadIO m => m BS.ByteString
