@@ -201,6 +201,14 @@ genTL env = concatMap go
         [ meta [ "Choice jump below. Check which choice & choice selection this corresponds to." ]
                [ ("choice_selection_index", tshow csi)
                , ("choice_index", tshow ci) ] ]
+      SCPSeg07SCP scp ->
+        [ meta [ "Script jump. Any following text is likely accessed by a choice." ]
+               [ ("scp_jump_target", scp) ] ]
+      SCPSeg0CFlag{} ->
+        [ meta [ "0C command here. Alters flow (perhaps checks a flag)." ]
+               [] ]
+
+      -- Don't care about the rest.
       _ -> []
 
 genTLTextbox :: Env -> SCPSeg05Textbox Text -> [SCPTL 'CheckEqual Text]
@@ -246,7 +254,7 @@ data Error
   | ErrorSourceMismatch
   | ErrorSCPTLTooShort
   | ErrorTypeMismatch
-  | ErrorPlaceholder
+  | ErrorUnimplemented
     deriving (Generic, Eq, Show)
 
 apply :: SCP Text -> [SCPTL 'CheckEqual Text] -> Either Error (SCP Text)
@@ -255,9 +263,16 @@ apply scp scptl =
      in case scpSegsTled of
           Left err -> Left err
           Right scpSegsTled' ->
-            case scptl' of
-              _:_ -> Left ErrorSCPTLOverlong
-              [] -> Right $ concat scpSegsTled'
+            let scptl'' = skipToNextTL scptl'
+             in case scptl'' of
+                  _:_ -> Left ErrorSCPTLOverlong
+                  [] -> Right $ concat scpSegsTled'
+
+skipToNextTL :: [SCPTL c bs] -> [SCPTL c bs]
+skipToNextTL = \case []   -> []
+                     a:as -> case a of
+                               SCPTLComment'{} -> skipToNextTL as
+                               _ -> a:as
 
 -- Using highly explicit/manual prisms here. Could clean up.
 applySeg
@@ -292,15 +307,13 @@ tryApplySeg
     -> (a -> Either Error [SCPSeg Text])
     -> m (Either Error [SCPSeg Text])
 tryApplySeg f1 f2 = do
-    get >>= \case
+    (skipToNextTL <$> get) >>= \case
       []     -> return $ Left ErrorSCPTLTooShort
       tl:tls -> do
         put tls
-        case tl of
-          SCPTLComment'{} -> tryApplySeg f1 f2
-          _ -> case f1 tl of
-                 Nothing -> return $ Left ErrorTypeMismatch
-                 Just a  -> return $ f2 a
+        case f1 tl of
+          Nothing -> return $ Left ErrorTypeMismatch
+          Just a  -> return $ f2 a
 
 tryApplySegTextbox
     :: SCPSeg05Textbox Text -> SCPTLTextbox 'CheckEqual Text
@@ -318,14 +331,28 @@ tryApplySegTextbox tb tbTL
 tryApplySegChoice
     :: Word8 -> [(Text, Word32)] -> [SCPTLChoice 'CheckEqual Text]
     -> Either Error [SCPSeg Text]
-tryApplySegChoice _w8 _cs _csTL = Left ErrorPlaceholder
+tryApplySegChoice w8 cs csTL
+  | length cs /= length csTL = Left ErrorSourceMismatch
+  -- lol whatever XD
+  | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
+  | otherwise = Right [SCPSeg09Choice w8 edited]
+  where
+    checks = zip (map scpTLChoiceSource csTL) (map fst cs)
+    edited = zip (map scpTLChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg22
     :: Text -> [(Text, Word32)] -> (SCPTL22 'CheckEqual Text)
     -> Either Error [SCPSeg Text]
-tryApplySeg22 topic _cs segTL
+tryApplySeg22 topic cs segTL
   | topic /= scpTL22TopicSource segTL = Left ErrorSourceMismatch
-  | otherwise = Left ErrorPlaceholder
+  | length cs /= length csTL = Left ErrorSourceMismatch
+  -- lol whatever XD
+  | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
+  | otherwise = Right [SCPSeg22 (scpTL22TopicTranslation segTL) edited]
+  where
+    csTL = scpTL22Choices segTL
+    checks = zip (map scpTLChoiceSource csTL) (map fst cs)
+    edited = zip (map scpTLChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg35
     :: Text -> SCPTLChoice 'CheckEqual Text
