@@ -27,9 +27,11 @@ library
       GTVM.Common.Binary.Parse
       GTVM.Common.Binary.Serialize
       GTVM.Common.Binary.Util
+      GTVM.Common.IO
       GTVM.Common.Json
       GTVM.Flowchart
       GTVM.SCP
+      GTVM.SCP.Graph
       GTVM.SCP.Parse
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize
@@ -84,6 +86,7 @@ library
   build-depends:
       aeson
     , aeson-pretty
+    , algebraic-graphs
     , barbies
     , base
     , blake3
@@ -163,6 +166,7 @@ executable gtvm-hs
   build-depends:
       aeson
     , aeson-pretty
+    , algebraic-graphs
     , barbies
     , base
     , blake3

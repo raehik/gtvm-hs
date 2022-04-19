@@ -63,7 +63,7 @@ deriving instance Traversable (SCPTL 'CheckEqual)
 jcSCPTL :: Aeson.Options
 jcSCPTL = Aeson.defaultOptions
   { Aeson.constructorTagModifier = map Data.Char.toLower . init . drop 5
-  , Aeson.sumEncoding = Aeson.defaultTaggedObject
+  , Aeson.sumEncoding = Aeson.TaggedObject
     { Aeson.tagFieldName = "type"
     , Aeson.contentsFieldName = "contents" }}
 

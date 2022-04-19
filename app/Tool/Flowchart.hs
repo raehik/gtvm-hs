@@ -14,6 +14,7 @@ import GHC.Generics
 import Control.Monad.IO.Class
 import Data.Text ( Text )
 import Data.Yaml.Pretty qualified
+import GTVM.Common.IO ( badParseYAML )
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML flowchart"

@@ -10,7 +10,7 @@ import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
 
-import GTVM.SCP
+import GTVM.SCP as SCP
 import GTVM.SCP.TL
 import Raehik.Check
 
@@ -22,6 +22,7 @@ import Data.Map qualified as Map
 import Data.Aeson
 import Data.Aeson qualified as Aeson
 import GTVM.Common.Json
+import GTVM.Common.IO ( badParseYAML )
 
 data CfgToSCPTL = CfgToSCPTL
   { cfgToSCPTLStreamIn     :: Stream 'StreamIn  "YAML SCP"
@@ -94,5 +95,5 @@ runApplySCPTL cfg = do
     case apply scp scptl of
       Left  err  -> error $ show err
       Right scp' ->
-        let scpYAMLBs' = encodeYamlPretty scp'
+        let scpYAMLBs' = SCP.encodeYamlPretty scp'
          in writeStreamTextualBytes (cfgApplySCPTLStreamOut cfg) scpYAMLBs'

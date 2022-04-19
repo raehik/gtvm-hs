@@ -22,7 +22,7 @@ data SCPXSeg bs
 jcSCPXSeg :: Options
 jcSCPXSeg = defaultOptions
   { constructorTagModifier = camelTo2 '_' . drop 4
-  , sumEncoding = defaultTaggedObject
+  , sumEncoding = TaggedObject
     { tagFieldName = "command"
     , contentsFieldName = "arguments" }}
 

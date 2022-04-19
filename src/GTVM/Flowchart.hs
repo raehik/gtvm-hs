@@ -164,3 +164,18 @@ instance BinaryCodec EntryType where
       3 -> return EntryTypeConversation
       4 -> return EntryTypeClassSelection
       n -> fail $ "bad entry type: " <> show n <> ", expected 0-4"
+
+findEntryViaScript
+    :: Eq a
+    => a -> Flowchart 'Unenforced a -> Maybe (Entry 'Unenforced a)
+findEntryViaScript script fc =
+    case matches of
+      [match] -> Just match
+      _       -> Nothing
+  where
+    matches = filter predicate $ flowchartEntries fc
+    predicate e = unWithRefine (entryScript e) == script
+
+-- Convenience function because unwrapping refinements is kinda annoying.
+flowchartEntries :: Flowchart 'Unenforced a -> [Entry 'Unenforced a]
+flowchartEntries = concat . map (unWithRefine . blockEntries . unWithRefine)

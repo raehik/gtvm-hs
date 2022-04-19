@@ -72,7 +72,7 @@ pSCPSeg = pW8 >>= \case
   0x07 -> SCPSeg07SCP <$> pBS
   0x08 -> SCPSeg08 & return
   0x09 -> SCPSeg09Choice <$> pW8 <*> pCount pW8 pBSW32
-  0x0A -> SCPSeg0A <$> pW8 <*> pW8 <*> pW32 <*> pW32 <*> pW32
+  0x0A -> SCPSeg0A <$> pSCPSeg0ADyn
   0x0B -> SCPSeg0B <$> pW8 <*> pW8
   0x0C -> SCPSeg0CFlag <$> pW8 <*> pW8
   0x0D -> SCPSeg0D <$> pW8
@@ -105,7 +105,7 @@ pSCPSeg = pW8 >>= \case
   0x28 -> SCPSeg28 <$> pBS <*> pW8 <*> pW8
   0x29 -> SCPSeg29 <$> pBS <*> pW8 <*> pW8
   0x2A -> SCPSeg2A <$> pW8 <*> pW8
-  0x2B -> SCPSeg2B <$> pW8 <*> pW8 <*> pW8 <*> pBS <*> pW8
+  0x2B -> SCPSeg2B <$> pW8 <*> pW8 <*> pW8 <*> pBS <*> pSCPSeg0ADyn
   0x2C -> SCPSeg2CMap & return
   0x2D -> SCPSeg2D <$> pBS <*> pW8 <*> pW8
   0x2E -> SCPSeg2E <$> pW8 <*> pW8 <*> pW32 <*> pW32
@@ -195,3 +195,8 @@ pBSW32
     :: (MonadParsec e s m, MonadReader BinaryCfg m, Token s ~ Word8, Tokens s ~ s', BinaryChunk s')
     => m (s', Word32)
 pBSW32 = (,) <$> pBSCString <*> pW32
+
+pSCPSeg0ADyn
+    :: (MonadParsec e s m, MonadReader BinaryCfg m, BinaryChunk (Tokens s))
+    => m SCPSeg0ADyn
+pSCPSeg0ADyn = SCPSeg0ADyn <$> pCount pW8 (pCount pW8 pW32)

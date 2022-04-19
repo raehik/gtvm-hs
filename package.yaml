@@ -73,6 +73,7 @@ dependencies:
 - cereal
 - filepath
 - containers
+- algebraic-graphs
 
 # refined-with
 - refined

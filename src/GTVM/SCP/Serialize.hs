@@ -34,7 +34,7 @@ bSCPSeg = \case
   SCPSeg07SCP bs1 -> rB [bW8 0x07, bBS bs1]
   SCPSeg08 -> r1 0x08
   SCPSeg09Choice b1 bsW32Pairs -> rB [bW8 0x09, bW8 b1, bCount bW8 bBSW32 bsW32Pairs]
-  SCPSeg0A b1 b2 u1 u2 u3 -> rB [bW8 0x0A, bW8 b1, bW8 b2, bW32 u1, bW32 u2, bW32 u3]
+  SCPSeg0A x -> rB [bW8 0x0A, bSCPSeg0ADyn x]
   SCPSeg0B b1 b2 -> rB [bW8 0x0B, bW8 b1, bW8 b2]
   SCPSeg0CFlag b1 b2 -> rB [bW8 0x0C, bW8 b1, bW8 b2]
   SCPSeg0D b1 -> rB [bW8 0x0D, bW8 b1]
@@ -67,7 +67,7 @@ bSCPSeg = \case
   SCPSeg28 bs1 b1 b2 -> rB [bW8 0x28, bBS bs1, bW8 b1, bW8 b2]
   SCPSeg29 bs1 b1 b2 -> rB [bW8 0x29, bBS bs1, bW8 b1, bW8 b2]
   SCPSeg2A b1 b2 -> rB [bW8 0x2A, bW8 b1, bW8 b2]
-  SCPSeg2B b1 b2 b3 bs1 b4 -> rB [bW8 0x2B, bW8 b1, bW8 b2, bW8 b3, bBS bs1, bW8 b4]
+  SCPSeg2B b1 b2 b3 bs1 x -> rB [bW8 0x2B, bW8 b1, bW8 b2, bW8 b3, bBS bs1, bSCPSeg0ADyn x]
   SCPSeg2CMap -> r1 0x2C
   SCPSeg2D bs1 b1 b2 -> rB [bW8 0x2D, bBS bs1, bW8 b1, bW8 b2]
   SCPSeg2E b1 b2 u1 u2 -> rB [bW8 0x2E, bW8 b1, bW8 b2, bW32 u1, bW32 u2]
@@ -149,3 +149,6 @@ r1 :: Monad m => Word8 -> m Builder
 r1 = return . BB.word8
 rB :: Monad m => [m Builder] -> m Builder
 rB = concatM
+
+bSCPSeg0ADyn :: MonadReader BinaryCfg m => SCPSeg0ADyn -> m Builder
+bSCPSeg0ADyn = bCount bW8 (bCount bW8 bW32) . scpSeg0ADynData

@@ -6,10 +6,12 @@ import Common.Config
 import Common.CLIOptions
 import Options.Applicative
 import Data.Text ( Text )
-import GTVM.SCP
+import GTVM.SCP qualified as SCP
+import GTVM.SCP ( SCP )
 import GTVM.SCP.TextReplace
 import Raehik.Check
 import Common.Util
+import GTVM.Common.IO ( badParseYAML )
 
 data Cfg = Cfg
   { cfgReplaceFile :: StreamFile 'StreamIn  "replace data"
@@ -29,5 +31,5 @@ run cfg = do
     case replaceEqs trs scp of
       Left  err  -> badExit "running a text replace" err
       Right scp' -> do
-        let scp'Bs = encodeYamlPretty scp'
+        let scp'Bs = SCP.encodeYamlPretty scp'
          in writeStreamTextualBytes (cfgOut cfg) scp'Bs

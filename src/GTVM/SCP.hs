@@ -1,23 +1,44 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module GTVM.SCP
   ( SCP
   , SCPSeg(..)
   , SCPSeg05Textbox(..)
-  , scpBsToText
-  , scpTextToBs
+  , SCPSeg0ADyn(..)
+
+  , bsToText
+  , textToBs
+
+  , encodeYamlPretty
   ) where
 
 import Data.Word
 import GHC.Generics
-import Data.Aeson
 import GTVM.Common.Json
 import Data.ByteString qualified as BS
 import Data.Text.Encoding qualified as Text
 import Data.Text.Encoding.Error qualified as Text
 import Data.Text ( Text )
 
+import Data.Aeson
+import Data.Yaml.Pretty qualified as YamlPretty
+
+-- | A SCP file.
+--
+-- SCPs are ordered lists of individual segments (commands, macros, whatever).
+-- Segments are identified by a single prefix byte. Once the prefix byte is
+-- recognized, the segment is parsed accordingly, then the next prefix byte is
+-- read, and so on until it finds EOF instead of a prefix byte.
 type SCP bs = [SCPSeg bs]
 
 -- | A standalone segment of an SCP file.
+--
+-- Most segments are straightforward, with minimal allocation required (usually
+-- just strings). Some have dynamic parts, where extra parsing is done depending
+-- on a value - all or mostly some form of lists.
+--
+-- Where useful (due to complexity, or because it's an especially interesting
+-- segment), inner parts are spun out into their own data type.
 --
 -- Generalized over the bytestring representation (for easier coercing between
 -- 'ByteString' and 'Text').
@@ -43,8 +64,7 @@ data SCPSeg bs
   -- The 'Word8' seems to be an file-unique identifier for the choice selection.
   -- SCP files with multiple choices have 0, 1, 2 etc. in ascending order.
 
-  | SCPSeg0A Word8 Word8 Word32 Word32 Word32
-  -- ^ TODO: decomp code a bit confusing for this command, be aware
+  | SCPSeg0A SCPSeg0ADyn
 
   | SCPSeg0B Word8 Word8
   -- ^ Appears to indicate where a given choice jumps to.
@@ -105,8 +125,7 @@ data SCPSeg bs
 
   | SCPSeg2A Word8 Word8
 
-  | SCPSeg2B Word8 Word8 Word8 bs Word8
-  -- ^ Text is an SCP.
+  | SCPSeg2B Word8 Word8 Word8 bs SCPSeg0ADyn
 
   | SCPSeg2CMap
 
@@ -208,7 +227,7 @@ data SCPSeg bs
   | SCPSeg75 Word8
   | SCPSeg76
   | SCPSeg77SCP Word8
-    deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
+    deriving stock (Generic, Eq, Show, Functor, Foldable, Traversable)
 
 -- | SCP segment JSON en/decoding config.
 --
@@ -216,7 +235,7 @@ data SCPSeg bs
 jcSCPSeg :: Options
 jcSCPSeg = defaultOptions
   { constructorTagModifier = take 2 . drop 6
-  , sumEncoding = defaultTaggedObject
+  , sumEncoding = TaggedObject
     { tagFieldName = "command_byte"
     , contentsFieldName = "arguments" }}
 
@@ -226,11 +245,11 @@ instance ToJSON   a => ToJSON   (SCPSeg a) where
 instance FromJSON a => FromJSON (SCPSeg a) where
     parseJSON  = genericParseJSON  jcSCPSeg
 
-scpBsToText :: SCP BS.ByteString -> Either Text.UnicodeException (SCP Text)
-scpBsToText = traverse (traverse Text.decodeUtf8')
+bsToText :: SCP BS.ByteString -> Either Text.UnicodeException (SCP Text)
+bsToText = traverse (traverse Text.decodeUtf8')
 
-scpTextToBs :: SCP Text -> SCP BS.ByteString
-scpTextToBs = map (fmap Text.encodeUtf8)
+textToBs :: SCP Text -> SCP BS.ByteString
+textToBs = map (fmap Text.encodeUtf8)
 
 data SCPSeg05Textbox bs = SCPSeg05Textbox'
   { scpSeg05TextboxSpeakerUnkCharID :: Word8
@@ -252,6 +271,11 @@ data SCPSeg05Textbox bs = SCPSeg05Textbox'
 
   , scpSeg05TextboxVoiceLine :: bs
   -- ^ No voice line is allowed, and indicated by the empty string.
+  --
+  -- There's also apparently a check for Banri's thought lines, accomplished via
+  -- a string search for the @（@ character. If it's found, the voice line isn't
+  -- copied. However, regardless of if that's correct or not, copying the empty
+  -- string accomplishes pretty much the same thing.
 
   , scpSeg05TextboxCounter :: Word32
   -- ^ Some sort of counter used throughout all SCPs.
@@ -259,14 +283,36 @@ data SCPSeg05Textbox bs = SCPSeg05Textbox'
   --   TODO: May be globally unique. In which case, we want to determine the
   --   "canonical" route through the SCPs, to potentially recalculate them.
 
-  } deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
+  } deriving stock (Generic, Eq, Show, Functor, Foldable, Traversable)
 
 jcSCPSeg05Textbox :: Options
 jcSCPSeg05Textbox =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length "scpSeg05Textbox"
+    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpSeg05Textbox" :: String)
 
 instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
     toJSON     = genericToJSON     jcSCPSeg05Textbox
     toEncoding = genericToEncoding jcSCPSeg05Textbox
 instance FromJSON a => FromJSON (SCPSeg05Textbox a) where
     parseJSON  = genericParseJSON  jcSCPSeg05Textbox
+
+-- | A weird dynamic bit used in 0A and 2B.
+--
+-- Other dynamic parts are simple, and done in line. This data is read and
+-- handled by a dedicated function, used exactly twice - once in 0A (simple) and
+-- once in 2B (also stores a bunch of other data).
+newtype SCPSeg0ADyn = SCPSeg0ADyn
+  { scpSeg0ADynData :: [[Word32]]
+  } deriving stock (Generic, Eq, Show)
+    deriving (ToJSON, FromJSON) via [[Word32]]
+
+-- | Encode an SCP to pretty YAML.
+--
+-- We use a convenient trick provided by Snoyman's YAML library to allow even
+-- prettier YAML, where we force field order via overriding string comparison.
+encodeYamlPretty :: ToJSON a => SCP a -> BS.ByteString
+encodeYamlPretty = YamlPretty.encodePretty yamlPrettyCfg
+  where
+    yamlPrettyCfg = YamlPretty.setConfCompare cmp $ YamlPretty.setConfDropNull True YamlPretty.defConfig
+    cmp "command_byte" _ = LT
+    cmp _ "command_byte" = GT
+    cmp k1 k2 = Prelude.compare k1 k2

@@ -2,17 +2,8 @@ module Common.Util where
 
 import Common.Config
 import Control.Monad.IO.Class
-import Data.Aeson
-import Data.Yaml qualified as Yaml
-import Data.Yaml.Pretty qualified as YamlPretty
 import Data.ByteString qualified as BS
 import System.Exit
-
-encodeYamlPretty :: ToJSON a => a -> BS.ByteString
-encodeYamlPretty = YamlPretty.encodePretty yamlPrettyCfg
-  where
-    yamlPrettyCfg :: YamlPretty.Config
-    yamlPrettyCfg = YamlPretty.setConfDropNull True YamlPretty.defConfig
 
 readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m BS.ByteString
 readStreamBytes = \case
@@ -44,17 +35,6 @@ writeStreamBin pb s bs =
           NoPrintBin -> do
             liftIO $ putStrLn "warning: refusing to print binary to stdout"
             liftIO $ putStrLn "(write to a file with --out-file FILE, or use --print-binary flag to override)"
-
--- TODO: bad. decoding may fail, that's why we gotta do this.
-badParseYAML :: forall a m. (MonadIO m, FromJSON a) => BS.ByteString -> m a
-badParseYAML bs =
-    case Yaml.decodeEither' bs of
-      Left err      -> do
-        liftIO $ putStrLn "error decoding YAML: "
-        liftIO $ print err
-        error "fucko"
-        --liftIO $ Exit.exitWith (Exit.ExitFailure 1)
-      Right decoded -> return decoded
 
 badExit :: (MonadIO m, Show s) => String -> s -> m a
 badExit errStr s = do
