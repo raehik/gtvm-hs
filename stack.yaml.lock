@@ -5,26 +5,12 @@
 
 packages:
 - completed:
-    hackage: megaparsec-9.2.0@sha256:0c272aa13b9f663dbd7b74ef81e9b1f9f05cafde50f5362ce87ffd4913046e0b,3213
-    pantry-tree:
-      size: 1518
-      sha256: 7ca5da73a72d6242375e6bf16f6868e16f5f7f02dd27a0ff12cf7a9422cf2c71
-  original:
-    hackage: megaparsec-9.2.0@sha256:0c272aa13b9f663dbd7b74ef81e9b1f9f05cafde50f5362ce87ffd4913046e0b,3213
-- completed:
     hackage: lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
     pantry-tree:
       size: 754
       sha256: d97cbc30ba3ee03077582613e33cf0b8753bfa2fdcdb0b83e6f8e0bc9f8b7756
   original:
     hackage: lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
-- completed:
-    hackage: union-0.1.2@sha256:9f0f143ba2cf168c795339e1187001e96427bdcf9fe9af14b34a4f1ca5b531d8,2130
-    pantry-tree:
-      size: 330
-      sha256: f1bc092a50de9cb9555747e1d3d3b4e30f494904aa168cbcc9b38103af90eee2
-  original:
-    hackage: union-0.1.2@sha256:9f0f143ba2cf168c795339e1187001e96427bdcf9fe9af14b34a4f1ca5b531d8,2130
 - completed:
     hackage: blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
     pantry-tree:
@@ -34,7 +20,7 @@ packages:
     hackage: blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
 snapshots:
 - completed:
-    size: 586296
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/18.yaml
-    sha256: 63539429076b7ebbab6daa7656cfb079393bf644971156dc349d7c0453694ac2
-  original: lts-18.18
+    size: 539378
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/3/30.yaml
+    sha256: 745431a4c5b78cc93d81e99b2253a1e0eacd4f94e00cf17dab7cc14e665332e3
+  original: nightly-2022-03-30

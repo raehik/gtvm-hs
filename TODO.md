@@ -1,21 +1,6 @@
 # To-dos
-## Quick
-  * try to generalize the text replace thing a bit, make a bunch of combinators
-    * maybe even one that automates all the checking and replacing if you just
-      give it some lenses into the data types! lol
-    * this does seem kinda tricky. In particular, the SCP text replace is
-      special. So maybe just make some combinators and make it super pluggable
-      to use in your own text replace data type. Opposite to WithRefine! :)
-
-## Thoughts on distribution
-What if instead of checking original strings/bytestrings, I checked their
-*hash*? Could I generalize that part to be swappable? Could I have some
-automation that swaps the original for its calculated hash (without checking the
-real file)? bytepatch would be very interested in all this.
-
-How does the binary stuff in bytepatch work with this idea? Does it conflict at
-all? (Do we just have to make sure we hash the right bit, before adding nulls
-everywhere?)
+## SCPTL
+  * Load flowchart in too, tell about script type (utage, kaiwa, ...)
 
 ## SCPX
 So I looked into writing a generic scenario format. The main problem applying it

@@ -14,12 +14,12 @@ encodeYamlPretty = YamlPretty.encodePretty yamlPrettyCfg
     yamlPrettyCfg :: YamlPretty.Config
     yamlPrettyCfg = YamlPretty.setConfDropNull True YamlPretty.defConfig
 
-readStreamBytes :: MonadIO m => Stream 'StreamIn _s -> m BS.ByteString
+readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m BS.ByteString
 readStreamBytes = \case
   StreamFile' sf -> readStreamFileBytes sf
   StreamStd      -> readStdinBytes
 
-readStreamFileBytes :: MonadIO m => StreamFile 'StreamIn _s -> m BS.ByteString
+readStreamFileBytes :: MonadIO m => StreamFile 'StreamIn s -> m BS.ByteString
 readStreamFileBytes = liftIO . BS.readFile . streamFilePath
 
 readStdinBytes :: MonadIO m => m BS.ByteString
@@ -28,13 +28,13 @@ readStdinBytes = liftIO BS.getContents
 print' :: (MonadIO m, Show a) => a -> m ()
 print' = liftIO . print
 
-writeStreamTextualBytes :: MonadIO m => Stream 'StreamOut _s -> BS.ByteString -> m ()
+writeStreamTextualBytes :: MonadIO m => Stream 'StreamOut s -> BS.ByteString -> m ()
 writeStreamTextualBytes s bs =
     case s of
       StreamFile' sf -> liftIO $ BS.writeFile (streamFilePath sf) bs
       StreamStd      -> liftIO $ BS.putStr bs
 
-writeStreamBin :: MonadIO m => PrintBin -> Stream 'StreamOut _s -> BS.ByteString -> m ()
+writeStreamBin :: MonadIO m => PrintBin -> Stream 'StreamOut s -> BS.ByteString -> m ()
 writeStreamBin pb s bs =
     case s of
       StreamFile' sf -> liftIO $ BS.writeFile (streamFilePath sf) bs
@@ -64,7 +64,7 @@ badExit errStr s = do
 badParseStream
     :: MonadIO m
     => (FilePath -> BS.ByteString -> Either String a)
-    -> Stream 'StreamIn _s
+    -> Stream 'StreamIn s
     -> m a
 badParseStream f = \case
   StreamFile' sf -> do

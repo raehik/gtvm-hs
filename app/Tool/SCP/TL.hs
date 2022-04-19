@@ -68,7 +68,7 @@ instance ToJSON   SCPSpeakerData where
 instance FromJSON SCPSpeakerData where
     parseJSON  = genericParseJSON  jcSCPSpeakerData
 
-parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn _s -> m (Word32 -> Maybe Text)
+parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn s -> m (Word32 -> Maybe Text)
 parseSpeakerMap fp = do
     bs <- readStreamFileBytes fp
     speakers <- badParseYAML @[SCPSpeakerData] bs

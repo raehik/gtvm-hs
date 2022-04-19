@@ -245,7 +245,7 @@ genTL22Choices env s ss = SCPTL22
   , scpTL22TopicTranslation = envPendingPlaceholder env
   , scpTL22Choices = map (genTLChoice env) ss }
 
-meta :: [Text] -> [(Text, Text)] -> SCPTL _c _s
+meta :: [Text] -> [(Text, Text)] -> SCPTL c s
 meta cms kvs = SCPTLComment' $ SCPTLComment { scpTLCommentCommentary = cms
                                         , scpTLCommentMeta = Map.fromList kvs }
 
