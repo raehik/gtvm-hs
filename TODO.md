@@ -64,3 +64,7 @@ replacement. My UTF8 string extractor should find *all* valid UTF-8 strings
 having to reverse the format. We could potentially overwrite some data that
 begins with a null -- but chances are it's going to be an int, which means LE,
 which means only theoretically only 1/256 to be a null.
+
+## Refactoring
+  * Fully refactor SCP to use my `WithRefine` layer - means we can cut out tons
+    of boilerplate.
