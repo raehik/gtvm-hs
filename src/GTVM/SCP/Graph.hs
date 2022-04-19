@@ -1,9 +1,24 @@
-{-|
-TODO 2022-04-19T16:24:21+0100
+{-| Tools to traverse a folder of SCPs and generate various graphs.
 
-Nice! This works. But it creates a very small graph that pauses at the first
-map, because they use a different SCP jump command (0x2B). So there's more
-complexity. Would be nice to use labelled edges to indicate which jump type.
+TODO I have a POC, I can make a graph of the full game (disregarding jumps in
+the eboot). But it's not useful as-is. Things to do:
+
+  * Slim by converting to basic blocks. Each block stores a non-empty list of
+    SCPs. Calculate a basic block by selecting a yet-processed node and
+    consuming succeeding nodes until you reach one that either has multiple
+    parents (don't consume, schedule), or has multiple children (consume,
+    schedule children).
+    * This is kinda more like inlining? Basic blocks are easy because you do can
+      do a marking phase, then a cleanup phase. We can't do that here because
+      the only operation is jump, we just want to cleanup certain jumps. So I
+      think it's slow, due to checking parents all the time.
+    * I think you make an entirely new graph. Starting from the same node, build
+      up 1) a basic block graph, and 2) a basic block info map. The graph is
+      just edges between SCPIDs, the map stores the basic block info. You have
+      to do the same seen thing (because I dunno recursion-schemes for graphs).
+  * Group by flowchart group.
+  * Gather more data when we process an SCP. For example, count character lines!
+    Then you can get an idea of who the scene is about.
 -}
 
 module GTVM.SCP.Graph where
