@@ -38,14 +38,9 @@ library
       GTVM.SCP.Test
       GTVM.SCP.TextReplace
       GTVM.SCP.TL
-      Raehik.Binary.ByteLen
-      Raehik.Binary.Codec
-      Raehik.Binary.Predicates.NullPadTo
-      Raehik.Binary.Types.Ints
-      Raehik.Binary.Types.Strings
       Raehik.Check
+      Raehik.Graph
       Raehik.HexBytestring
-      Refined.WithRefine
       Util
   other-modules:
       Paths_gtvm_hs
@@ -89,28 +84,30 @@ library
     , algebraic-graphs
     , barbies
     , base
+    , binrep >=0.1.0 && <0.2
     , blake3
     , bytestring
     , cassava
     , cereal
     , containers
-    , deepseq
     , directory
     , either
     , filemanip
     , filepath
     , generic-optics
-    , hashable
+    , hash-graph
     , lzo
     , megaparsec >=9.2.0 && <9.3
     , memory
     , mtl
     , optics
-    , refined
+    , refined >=0.6.3 && <0.7
+    , refined-with >=0.1.0 && <0.2
     , text
     , text-latin1
     , transformers
     , unicode-show
+    , unordered-containers
     , utf8-string
     , vector
     , yaml
@@ -169,30 +166,32 @@ executable gtvm-hs
     , algebraic-graphs
     , barbies
     , base
+    , binrep >=0.1.0 && <0.2
     , blake3
     , bytestring
     , cassava
     , cereal
     , containers
-    , deepseq
     , directory
     , either
     , filemanip
     , filepath
     , generic-optics
     , gtvm-hs
-    , hashable
+    , hash-graph
     , lzo
     , megaparsec >=9.2.0 && <9.3
     , memory
     , mtl
     , optics
     , optparse-applicative
-    , refined
+    , refined >=0.6.3 && <0.7
+    , refined-with >=0.1.0 && <0.2
     , text
     , text-latin1
     , transformers
     , unicode-show
+    , unordered-containers
     , utf8-string
     , vector
     , yaml

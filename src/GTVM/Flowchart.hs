@@ -1,10 +1,10 @@
 module GTVM.Flowchart where
 
-import Raehik.Binary.Codec
-import Raehik.Binary.ByteLen
-import Raehik.Binary.Predicates.NullPadTo
-import Raehik.Binary.Types.Ints
-import Raehik.Binary.Types.Strings
+import Binrep.Codec
+import Binrep.ByteLen
+import Binrep.Predicates.NullPadTo
+import Binrep.Types.Ints
+import Binrep.Types.Strings
 import Refined
 import Refined.WithRefine
 import Data.Aeson qualified as Aeson

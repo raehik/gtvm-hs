@@ -74,12 +74,11 @@ dependencies:
 - filepath
 - containers
 - algebraic-graphs
-
-# refined-with
-- refined
-- deepseq
-- hashable
-- aeson
+- hash-graph
+- unordered-containers
+- refined-with ^>= 0.1.0
+- refined ^>= 0.6.3
+- binrep ^>= 0.1.0
 
 library:
   source-dirs: src

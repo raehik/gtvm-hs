@@ -19,6 +19,21 @@ the eboot). But it's not useful as-is. Things to do:
   * Group by flowchart group.
   * Gather more data when we process an SCP. For example, count character lines!
     Then you can get an idea of who the scene is about.
+
+I think I could do a @Graph -> (Graph, Map Node [Node])@ where the map provides
+extra data about the nodes (their "contained" successive SCPs, empty allowed).
+@Graph@ can be done by editing the original graph. Each individual compression
+deletes 1 edge (disconnect parent & child), deletes 1 vertex (child), and
+updates between 1-n edges (relocates child children to parent). This algorithm
+would run best on a graph representation that enables efficient access to node
+contexts (= children & parents).
+
+hash-graph (not on Hackage: https://github.com/patrickdoc/hash-graph ) is
+probably best if I want a context-based algorithm, it's based on them. More so
+than fgl, which also may work? But it seems like more work, and it's a shitty
+interface. However, it's got tons of todos related to safety, for basic things.
+So I'm not sure. Maybe I have to write my own representation -- but it would be
+inspired by hash-graph, so I should start by trying that first.
 -}
 
 module GTVM.SCP.Graph where
@@ -32,6 +47,9 @@ import Refined.WithRefine ( PredicateStatus(..), unWithRefine )
 import Algebra.Graph.Labelled qualified as Graph
 import Algebra.Graph.Labelled ( Graph )
 import Algebra.Graph.Export.Dot qualified as Graph.Dot
+
+import Data.HashGraph.Strict qualified as HashGraph
+import Data.HashGraph.Strict ( Gr )
 
 import Data.Text qualified as Text
 import Data.Text ( Text )
@@ -51,15 +69,10 @@ import Control.Monad.Except
 
 newtype SCPID = SCPID { getSCPID :: Text }
     deriving stock   (Generic, Eq, Show, Ord)
-    deriving newtype (IsString)
+    deriving IsString via Text
 
 scpIDAsFilePath :: SCPID -> FilePath
 scpIDAsFilePath = Text.unpack . getSCPID
-
-data Node = Node
-  { nodeSCPID   :: SCPID
-  , nodeChapter :: Text
-  } deriving stock (Generic, Eq, Show)
 
 data JumpType
   = RegJump -- ^ jump via 07 command, regular text script jump
@@ -74,11 +87,6 @@ findSCPJumps = mapMaybe go
       SCPSeg2B _ _ _ scp _ -> Just $ (SCPID scp, MapJump)
       _ -> Nothing
 
--- TODO No. Chapter name retrieval can be done after graph creation.
-class (Monad m, MonadError String m) => MonadSCPFolder m where
-    readSCP :: SCPID -> m (SCP Text)
-    findChapter :: SCPID -> m Text
-
 data GraphEnv = GraphEnv
   { graphEnvFolder :: FilePath
   , graphEnvFlowchart :: Flowchart 'Unenforced Text
@@ -88,41 +96,11 @@ data GraphEnv = GraphEnv
 liftShowEither :: (MonadError String m, Show e) => String -> Either e a -> m a
 liftShowEither msg = either (throwError . (\s -> msg<>": "<>s). show) return
 
-instance MonadIO m => MonadSCPFolder (ReaderT GraphEnv (ExceptT String m)) where
-    readSCP scpID = do
-        scpFolder <- asks graphEnvFolder
-        let scpFile = scpIDAsFilePath scpID <> ".scp.yaml"
-        scp <- liftIO $ (BS.readFile $ scpFolder </> scpFile) >>= badParseYAML
-        return scp
-
-    findChapter scpID = do
-        fc <- asks graphEnvFlowchart
-        case Flowchart.findEntryViaScript (getSCPID scpID) fc of
-          Nothing ->
-            throwError $ "couldn't find SCP in flowchart: " <> scpIDAsFilePath scpID
-          Just entry -> do
-            return $ unWithRefine $ Flowchart.entryName entry
-
--- | Starting from one SCPID, recursively build a graph of jumps.
---
--- No tail recursion. Written in a way that would be parallel, but we have to do
--- I/O.
-buildGraph :: MonadSCPFolder m => SCPID -> m (Graph (Set JumpType) SCPID)
-buildGraph = go Set.empty
-  where
-    go seen scpID
-     | Set.member scpID seen = return Graph.empty
-     | otherwise = do
-        scp <- readSCP scpID
-        let scpOuts = findSCPJumps scp
-            g = Graph.edges $ map (\(so, jt) -> (Set.singleton jt, scpID, so)) scpOuts
-            seen' = Set.insert scpID seen
-        gs <- mapM (go seen') $ map fst scpOuts
-        return $ Graph.overlays $ g : gs
-
 -- | Starting from one SCPID, tail recursively build a graph of jumps.
-buildGraphTail :: forall m. MonadSCPFolder m => SCPID -> m (Graph (Set JumpType) SCPID)
-buildGraphTail stmp = go Graph.empty Set.empty [stmp]
+buildGraph
+    :: forall m. MonadIO m
+    => FilePath -> SCPID -> m (Graph (Set JumpType) SCPID)
+buildGraph scpFolder stmp = go Graph.empty Set.empty [stmp]
   where
     go :: Graph (Set JumpType) SCPID -> Set SCPID -> [SCPID] -> m (Graph (Set JumpType) SCPID)
     go g seen = \case
@@ -130,25 +108,10 @@ buildGraphTail stmp = go Graph.empty Set.empty [stmp]
       s:ss ->
         if   Set.member s seen
         then go g seen ss
-        else do scp <- readSCP s
+        else do scp <- retrieveSCPID scpFolder s
                 let scpOuts = findSCPJumps scp
                     sg = Graph.edges $ map (\(so, jt) -> (Set.singleton jt, s, so)) scpOuts
                 go (Graph.overlay g sg) (Set.insert s seen) (map fst scpOuts <> ss)
-
-buildGraph'
-    :: MonadIO m
-    => FilePath -> FilePath -> SCPID -> m (Graph (Set JumpType) SCPID)
-buildGraph' scpFolder flowchartFilepath scpID = do
-    prepFlowchart flowchartFilepath >>= \case
-      Left  e  -> error $ "error reading flowchart: "<>e
-      Right fc -> do
-        let graphEnv = GraphEnv scpFolder fc
-        runExceptT (runReaderT (buildGraphTail scpID) graphEnv) >>= \case
-          Left  e -> error $ "error: "<>e
-          Right g   -> return g
-
-prepFlowchart :: MonadIO m => FilePath -> m (Either String (Flowchart 'Unenforced Text))
-prepFlowchart _fp = return $ Right undefined
 
 style :: Graph.Dot.Style SCPID String
 style = Graph.Dot.Style
@@ -162,3 +125,39 @@ style = Graph.Dot.Style
   , Graph.Dot.edgeAttributes          = \_x _y -> mempty
   , Graph.Dot.attributeQuoting        = Graph.Dot.DoubleQuotes
   }
+
+{-
+findChapter
+    :: (MonadReader GraphEnv m, MonadExcept String m)
+    => SCPID -> m Text
+findChapter scpID = do
+    fc <- asks graphEnvFlowchart
+    case Flowchart.findEntryViaScript (getSCPID scpID) fc of
+      Nothing ->
+        throwError $ "couldn't find SCP in flowchart: " <> scpIDAsFilePath scpID
+      Just entry -> do
+        return $ unWithRefine $ Flowchart.entryName entry
+-}
+
+-- | Starting from one SCPID, tail recursively build a graph of jumps.
+buildGraphHG
+    :: forall m. MonadIO m
+    => FilePath -> SCPID -> m (Graph (Set JumpType) SCPID)
+buildGraphHG scpFolder stmp = go HashGraph.empty Set.empty [stmp]
+  where
+    go :: Graph (Set JumpType) SCPID -> Set SCPID -> [SCPID] -> m (Graph (Set JumpType) SCPID)
+    go g seen = \case
+      []   -> return g
+      s:ss ->
+        if   Set.member s seen
+        then go g seen ss
+        else do scp <- retrieveSCPID scpFolder s
+                let scpOuts = findSCPJumps scp
+                    edges   = map (\(so, jt) -> HashGraph.Edge s jt so) scpOuts
+                    g'      = foldr HashGraph.insEdge g edges
+                go g' (Set.insert s seen) (map fst scpOuts <> ss)
+
+retrieveSCPID :: MonadIO m => FilePath -> SCPID -> m (SCP Text)
+retrieveSCPID scpFolder scpID = do
+    liftIO $ (BS.readFile $ scpFolder </> scpFile) >>= badParseYAML
+  where scpFile = scpIDAsFilePath scpID <> ".scp.yaml"

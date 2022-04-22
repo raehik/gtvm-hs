@@ -4,3 +4,7 @@ packages: [.]
 extra-deps:
 - lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
 - blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
+- git: https://github.com/raehik/hash-graph
+  commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
+- binrep-0.1.0@sha256:279a2d3e1946b189cb81bc78be91700b49a9b2b723ed1f09e9d5f2dc16be64bd,1884
+- refined-with-0.1.0@sha256:d7f235b0ce4495fd0e0d92c165da0e91454174babb960baf9925e2cb700cfaab,1743

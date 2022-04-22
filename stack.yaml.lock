@@ -18,6 +18,31 @@ packages:
       sha256: 0264ef3e7919e7b0d668c4153f6ce0d88e6965626b52d9dfd2cafd70309501d3
   original:
     hackage: blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
+- completed:
+    name: hash-graph
+    version: 0.1.0.0
+    git: https://github.com/raehik/hash-graph
+    pantry-tree:
+      size: 1223
+      sha256: 7c1f44aa3b031423390eae3f419d0378e5b612654c27ac2399c0e3cdeb4388d7
+    commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
+  original:
+    git: https://github.com/raehik/hash-graph
+    commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
+- completed:
+    hackage: binrep-0.1.0@sha256:279a2d3e1946b189cb81bc78be91700b49a9b2b723ed1f09e9d5f2dc16be64bd,1884
+    pantry-tree:
+      size: 637
+      sha256: d3576eac4ba79d3c49fe584bc5433eab7d3e775192f75c59194c0406ad6eca0c
+  original:
+    hackage: binrep-0.1.0@sha256:279a2d3e1946b189cb81bc78be91700b49a9b2b723ed1f09e9d5f2dc16be64bd,1884
+- completed:
+    hackage: refined-with-0.1.0@sha256:d7f235b0ce4495fd0e0d92c165da0e91454174babb960baf9925e2cb700cfaab,1743
+    pantry-tree:
+      size: 321
+      sha256: f4a7dd99ca7391895a5fb854cfe024480a6f5faf13f2ef20160e37c15712d15b
+  original:
+    hackage: refined-with-0.1.0@sha256:d7f235b0ce4495fd0e0d92c165da0e91454174babb960baf9925e2cb700cfaab,1743
 snapshots:
 - completed:
     size: 539378
