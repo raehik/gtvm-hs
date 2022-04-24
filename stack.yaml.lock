@@ -30,19 +30,38 @@ packages:
     git: https://github.com/raehik/hash-graph
     commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
 - completed:
-    hackage: binrep-0.1.0@sha256:279a2d3e1946b189cb81bc78be91700b49a9b2b723ed1f09e9d5f2dc16be64bd,1884
+    name: refined
+    version: 0.6.3
+    git: https://github.com/raehik/refined
     pantry-tree:
-      size: 637
-      sha256: d3576eac4ba79d3c49fe584bc5433eab7d3e775192f75c59194c0406ad6eca0c
+      size: 779
+      sha256: 845006652959606f649d73f3a0a4c7ea3e7980ebd31a0814878a380e7f560ba7
+    commit: 6d8abc5669ac623ca0258d10f998c25cfbac4bf6
   original:
-    hackage: binrep-0.1.0@sha256:279a2d3e1946b189cb81bc78be91700b49a9b2b723ed1f09e9d5f2dc16be64bd,1884
+    git: https://github.com/raehik/refined
+    commit: 6d8abc5669ac623ca0258d10f998c25cfbac4bf6
 - completed:
-    hackage: refined-with-0.1.0@sha256:d7f235b0ce4495fd0e0d92c165da0e91454174babb960baf9925e2cb700cfaab,1743
+    name: refined-with
+    version: 0.3.0
+    git: https://github.com/raehik/refined-with
     pantry-tree:
-      size: 321
-      sha256: f4a7dd99ca7391895a5fb854cfe024480a6f5faf13f2ef20160e37c15712d15b
+      size: 664
+      sha256: 7292364792ce2a058cd02f46360745ef5d9214bbb8867dd0537fcf179e05aac2
+    commit: 440108ab6d45466cd3e3daa6f80b60cde4661413
   original:
-    hackage: refined-with-0.1.0@sha256:d7f235b0ce4495fd0e0d92c165da0e91454174babb960baf9925e2cb700cfaab,1743
+    git: https://github.com/raehik/refined-with
+    commit: 440108ab6d45466cd3e3daa6f80b60cde4661413
+- completed:
+    name: binrep
+    version: 0.1.0
+    git: https://github.com/raehik/binrep
+    pantry-tree:
+      size: 1045
+      sha256: 849ff5d04205ac21ed4d18e0ac906d68708e1397dd2ed5eb3df4706eab0f4577
+    commit: c744f41b99f4cc15641226853ea20aebfb2aa8d5
+  original:
+    git: https://github.com/raehik/binrep
+    commit: c744f41b99f4cc15641226853ea20aebfb2aa8d5
 snapshots:
 - completed:
     size: 539378

@@ -31,7 +31,6 @@ library
       GTVM.Common.Json
       GTVM.Flowchart
       GTVM.SCP
-      GTVM.SCP.Graph
       GTVM.SCP.Parse
       GTVM.SCP.SCPX
       GTVM.SCP.Serialize
@@ -39,7 +38,6 @@ library
       GTVM.SCP.TextReplace
       GTVM.SCP.TL
       Raehik.Check
-      Raehik.Graph
       Raehik.HexBytestring
       Util
   other-modules:
@@ -84,7 +82,7 @@ library
     , algebraic-graphs
     , barbies
     , base
-    , binrep >=0.1.0 && <0.2
+    , binrep
     , blake3
     , bytestring
     , cassava
@@ -101,8 +99,8 @@ library
     , memory
     , mtl
     , optics
-    , refined >=0.6.3 && <0.7
-    , refined-with >=0.1.0 && <0.2
+    , refined
+    , refined-with >=0.3.0 && <0.4
     , text
     , text-latin1
     , transformers
@@ -166,7 +164,7 @@ executable gtvm-hs
     , algebraic-graphs
     , barbies
     , base
-    , binrep >=0.1.0 && <0.2
+    , binrep
     , blake3
     , bytestring
     , cassava
@@ -185,8 +183,8 @@ executable gtvm-hs
     , mtl
     , optics
     , optparse-applicative
-    , refined >=0.6.3 && <0.7
-    , refined-with >=0.1.0 && <0.2
+    , refined
+    , refined-with >=0.3.0 && <0.4
     , text
     , text-latin1
     , transformers

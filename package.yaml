@@ -76,9 +76,9 @@ dependencies:
 - algebraic-graphs
 - hash-graph
 - unordered-containers
-- refined-with ^>= 0.1.0
-- refined ^>= 0.6.3
-- binrep ^>= 0.1.0
+- refined-with ^>= 0.3.0
+- refined # ^>= 0.6.3
+- binrep # ^>= 0.1.0
 
 library:
   source-dirs: src

@@ -42,7 +42,7 @@ import GTVM.SCP
 import GTVM.Flowchart qualified as Flowchart
 import GTVM.Flowchart ( Flowchart )
 
-import Refined.WithRefine ( PredicateStatus(..), unWithRefine )
+import Refined.WithRefine ( PredicateStatus(..), withoutRefine )
 
 import Algebra.Graph.Labelled qualified as Graph
 import Algebra.Graph.Labelled ( Graph )
@@ -136,7 +136,7 @@ findChapter scpID = do
       Nothing ->
         throwError $ "couldn't find SCP in flowchart: " <> scpIDAsFilePath scpID
       Just entry -> do
-        return $ unWithRefine $ Flowchart.entryName entry
+        return $ withoutRefine $ Flowchart.entryName entry
 -}
 
 -- | Starting from one SCPID, tail recursively build a graph of jumps.

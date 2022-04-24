@@ -1,10 +1,11 @@
 module GTVM.Flowchart where
 
-import Binrep.Codec
-import Binrep.ByteLen
+import Binrep
+import Binrep.Types.Common ( Endianness(..) )
+import Binrep.Types.ByteString ( Rep(..) )
+import Binrep.Types.Text qualified
+import Binrep.Types.Int
 import Binrep.Predicates.NullPadTo
-import Binrep.Types.Ints
-import Binrep.Types.Strings
 import Refined
 import Refined.WithRefine
 import Data.Aeson qualified as Aeson
@@ -12,123 +13,10 @@ import Data.Aeson
 import GHC.Generics ( Generic )
 import Data.Typeable
 import Data.Text ( Text )
-import Data.Text.Encoding qualified as Text
-import Data.Text.Encoding.Error qualified as Text
+import Data.ByteString qualified as BS
 import GTVM.Common.Json
 
-type Flowchart (ps :: PredicateStatus) a
-  = [WithRefine ps (NullPadTo 2116) (Block ps a)]
-
--- 2022-01-19: raehik: so my understanding is that this should get simplified to
--- a no-op?
-unenforceFlowchart :: Flowchart 'Enforced a -> Flowchart 'Unenforced a
-unenforceFlowchart = fmap (withRefine . unenforceBlock . unWithRefine)
-
--- this is also hard to define without HLE lol. I need to start using that
-enforceFlowchart
-    :: Flowchart 'Unenforced (Str 'C)
-    -> Either RefineException (Flowchart 'Enforced (Str 'C))
-enforceFlowchart ufc = do
-    bs <- traverse (enforceBlock . unWithRefine) ufc
-    traverse (enforce . withRefine) bs
-
-fcTextify
-    :: Flowchart 'Unenforced (Str 'C)
-    -> Either Text.UnicodeException (Flowchart 'Unenforced Text)
-fcTextify = traverse $ traverse $ traverse $ Text.decodeUtf8' . getStr
-
-fcByteify
-    :: Flowchart 'Unenforced Text
-    -> Flowchart 'Unenforced (Str 'C)
-fcByteify = fmap $ fmap $ fmap $ Str . Text.encodeUtf8
-
-data Block (ps :: PredicateStatus) a = Block
-  { blockName    :: WithRefine ps (NullPadTo 32) a
-  , blockEntries :: WithRefine ps (LenPfx 'I4 'LE) [Entry ps a]
-  } deriving stock (Generic, Typeable, Show, Foldable, Eq)
-
-unenforceBlock :: Block 'Enforced a -> Block 'Unenforced a
-unenforceBlock eb = eb
-  { blockName    = unenforce $ blockName eb
-  , blockEntries = withRefine $ fmap unenforceEntry $ unWithRefine $ blockEntries eb }
-
-enforceBlock
-    :: Block 'Unenforced (Str 'C)
-    -> Either RefineException (Block 'Enforced (Str 'C))
-enforceBlock ub = do
-    bn <- enforce             $ blockName    ub
-    be <- enforceBlockEntries $ blockEntries ub
-    return ub { blockName = bn, blockEntries = be }
-
--- TODO too much algebra...
-enforceBlockEntries
-    :: WithRefine 'Unenforced (LenPfx 'I4 'LE) [Entry 'Unenforced (Str 'C)]
-    -> Either RefineException (WithRefine 'Enforced (LenPfx 'I4 'LE) [Entry 'Enforced (Str 'C)])
-enforceBlockEntries ubes = do
-    x <- traverse enforceEntry $ unWithRefine ubes
-    enforce $ withRefine x
-
-deriving stock instance Functor     (Block 'Unenforced)
-deriving stock instance Traversable (Block 'Unenforced)
-
-jcBlock :: Aeson.Options
-jcBlock = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "block"
-
-instance ToJSON   a => ToJSON   (Block ps          a) where
-    toJSON     = genericToJSON     jcBlock
-    toEncoding = genericToEncoding jcBlock
-instance FromJSON a => FromJSON (Block 'Unenforced a) where
-    parseJSON  = genericParseJSON  jcBlock
-
-instance ByteLen (Block 'Enforced (Str 'C)) where
-    blen b = blen (blockName b) + blen (blockEntries b)
-
-instance BinaryCodec (Block 'Enforced (Str 'C)) where
-    fromBin = Block <$> fromBin <*> fromBin
-    toBin b = do toBin $ blockName    b
-                 toBin $ blockEntries b
-
-data Entry (ps :: PredicateStatus) a = Entry
-  { entryIndex  :: I 'U 'I4 'LE
-  , entryType   :: EntryType
-  , entryName   :: WithRefine ps (NullPadTo 64) a
-  , entryScript :: WithRefine ps (NullPadTo 32) a
-  } deriving stock (Generic, Typeable, Show, Foldable, Eq)
-
-unenforceEntry :: Entry 'Enforced a -> Entry 'Unenforced a
-unenforceEntry ee = ee
-  { entryName   = unenforce $ entryName   ee
-  , entryScript = unenforce $ entryScript ee }
-
-enforceEntry
-    :: Entry 'Unenforced (Str 'C)
-    -> Either RefineException (Entry 'Enforced (Str 'C))
-enforceEntry ue = do
-    en <- enforce $ entryName   ue
-    es <- enforce $ entryScript ue
-    return ue { entryName = en, entryScript = es }
-
-deriving stock instance Functor     (Entry 'Unenforced)
-deriving stock instance Traversable (Entry 'Unenforced)
-
-jcEntry :: Aeson.Options
-jcEntry = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "entry"
-
-instance ToJSON   a => ToJSON   (Entry ps          a) where
-    toJSON     = genericToJSON     jcEntry
-    toEncoding = genericToEncoding jcEntry
-instance FromJSON a => FromJSON (Entry 'Unenforced a) where
-    parseJSON  = genericParseJSON  jcEntry
-
-instance ByteLen (Entry 'Enforced (Str 'C)) where
-    blen e = blen (entryIndex e) + blen (entryType e) + blen (entryName e) + blen (entryScript e)
-
-instance BinaryCodec (Entry 'Enforced (Str 'C)) where
-    fromBin = Entry <$> fromBin <*> fromBin <*> fromBin <*> fromBin
-    toBin e = do toBin $ entryIndex  e
-                 toBin $ entryType   e
-                 toBin $ entryName   e
-                 toBin $ entryScript e
+type Bytes = BS.ByteString
 
 data EntryType
   = EntryTypeRegular        -- ^ "regular" event, some story script
@@ -150,7 +38,7 @@ instance FromJSON EntryType where
 
 instance ByteLen EntryType where blen = const $ blen @(I 'U 'I4 'LE) undefined
 
-instance BinaryCodec EntryType where
+instance BinRep EntryType where
     toBin et = toBin @(I 'U 'I4 'LE) $ case et of
       EntryTypeRegular        -> 0
       EntryTypeMap            -> 1
@@ -165,6 +53,163 @@ instance BinaryCodec EntryType where
       4 -> return EntryTypeClassSelection
       n -> fail $ "bad entry type: " <> show n <> ", expected 0-4"
 
+data Entry (ps :: PredicateStatus) a = Entry
+  { entryIndex  :: I 'U 'I4 'LE
+  , entryType   :: EntryType
+  , entryName   :: WithRefine ps (NullPadTo 64) a
+  , entryScript :: WithRefine ps (NullPadTo 32) a
+  } deriving stock (Generic, Typeable, Show, Foldable, Eq)
+
+deriving stock instance Functor     (Entry 'Unenforced)
+deriving stock instance Traversable (Entry 'Unenforced)
+
+jcEntry :: Aeson.Options
+jcEntry = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "entry"
+
+instance ToJSON   a => ToJSON   (Entry ps          a) where
+    toJSON     = genericToJSON     jcEntry
+    toEncoding = genericToEncoding jcEntry
+instance FromJSON a => FromJSON (Entry 'Unenforced a) where
+    parseJSON  = genericParseJSON  jcEntry
+
+instance forall (rep :: Binrep.Types.ByteString.Rep) bs bs'
+    . ( bs' ~ Refined rep bs
+      , ByteLen bs'
+      ) => ByteLen (Entry 'Enforced bs') where
+    blen e =   blen (entryIndex e)
+             + blen (entryType e)
+             + blen (entryName e)
+             + blen (entryScript e)
+
+instance forall (rep :: Binrep.Types.ByteString.Rep) bs bs'
+    . ( bs' ~ Refined rep bs
+      , BinRep bs'
+      , ByteLen bs'
+      ) => BinRep (Entry 'Enforced bs') where
+    fromBin = Entry <$> fromBin <*> fromBin <*> fromBin <*> fromBin
+    toBin e = do toBin $ entryIndex  e
+                 toBin $ entryType   e
+                 toBin $ entryName   e
+                 toBin $ entryScript e
+
+unenforceEntry :: Entry 'Enforced bs -> Entry 'Unenforced bs
+unenforceEntry ee = ee
+  { entryName   = unenforce $ entryName   ee
+  , entryScript = unenforce $ entryScript ee }
+
+enforceEntry
+    :: ByteLen bs
+    => Entry 'Unenforced bs
+    -> Either RefineException (Entry 'Enforced bs)
+enforceEntry ue = do
+    en <- enforce $ entryName   ue
+    es <- enforce $ entryScript ue
+    return ue { entryName = en, entryScript = es }
+
+data Block (ps :: PredicateStatus) a = Block
+  { blockName    :: WithRefine ps (NullPadTo 32) a
+  , blockEntries :: WithRefine ps ('Pascal 'I4 'LE) [Entry ps a]
+  } deriving stock (Generic, Typeable, Show, Foldable, Eq)
+
+deriving stock instance Functor     (Block 'Unenforced)
+deriving stock instance Traversable (Block 'Unenforced)
+
+jcBlock :: Aeson.Options
+jcBlock = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "block"
+
+instance ToJSON   a => ToJSON   (Block ps          a) where
+    toJSON     = genericToJSON     jcBlock
+    toEncoding = genericToEncoding jcBlock
+instance FromJSON a => FromJSON (Block 'Unenforced a) where
+    parseJSON  = genericParseJSON  jcBlock
+
+instance forall (rep :: Binrep.Types.ByteString.Rep) bs bs'
+    . ( bs' ~ Refined rep bs
+      , ByteLen bs'
+      ) => ByteLen (Block 'Enforced bs') where
+    blen b = blen (blockName b) + blen (blockEntries b)
+
+instance forall (rep :: Binrep.Types.ByteString.Rep) bs bs'
+    . ( bs' ~ Refined rep bs
+      , ByteLen bs', BinRep bs'
+      ) => BinRep (Block 'Enforced bs') where
+    fromBin = Block <$> fromBin <*> fromBin
+    toBin b = do toBin $ blockName    b
+                 toBin $ blockEntries b
+
+unenforceBlock :: Block 'Enforced bs -> Block 'Unenforced bs
+unenforceBlock eb = eb
+  { blockName    = unenforce $ blockName eb
+  , blockEntries = withRefine $ fmap unenforceEntry $ withoutRefine $ blockEntries eb }
+
+enforceBlock
+    :: (ByteLen bs, Typeable bs)
+    => Block 'Unenforced bs
+    -> Either RefineException (Block 'Enforced bs)
+enforceBlock ub = do
+    bn <- enforce             $ blockName    ub
+    be <- enforceBlockEntries $ blockEntries ub
+    return ub { blockName = bn, blockEntries = be }
+  where
+    enforceBlockEntries ubes = do
+        bes <- traverse enforceEntry $ withoutRefine ubes
+        enforce $ withRefine bes
+
+type Flowchart (ps :: PredicateStatus) a
+  = [WithRefine ps (NullPadTo 2116) (Block ps a)]
+
+unenforceFlowchart :: Flowchart 'Enforced a -> Flowchart 'Unenforced a
+unenforceFlowchart = fmap (withRefine . unenforceBlock . withoutRefine)
+
+enforceFlowchart
+    :: forall (rep :: Binrep.Types.ByteString.Rep) bs bs'
+    .  ( bs' ~ Refined rep bs
+       , ByteLen bs'
+       , Typeable bs, Typeable rep
+       )
+    => Flowchart 'Unenforced bs'
+    -> Either RefineException (Flowchart 'Enforced bs')
+enforceFlowchart ufc = do
+    bs <- traverse (enforceBlock . withoutRefine) ufc
+    traverse (enforce . withRefine) bs
+
+-- Validate that bytestrings fit in their representation (e.g. well-sized for
+-- Pascal-style).
+fcBytesRefine
+    :: forall (rep :: Binrep.Types.ByteString.Rep)
+    .  Predicate rep Bytes
+    => Flowchart 'Unenforced Bytes
+    -> Either RefineException (Flowchart 'Unenforced (Refined rep Bytes))
+fcBytesRefine = fcTraverse refine
+
+-- Convert validated bytestrings to the given text encoding.
+fcBytesToText
+    :: forall enc (rep :: Binrep.Types.ByteString.Rep)
+    .  Binrep.Types.Text.Decode enc
+    => Flowchart 'Unenforced (Refined rep Bytes)
+    -> Either String (Flowchart 'Unenforced (Refined enc Text))
+fcBytesToText = fcTraverse $ Binrep.Types.Text.decode . unrefine
+
+fcTextToBytes
+    :: ( Binrep.Types.Text.Encode enc
+       , rep ~ Binrep.Types.ByteString.Rep )
+    => Flowchart 'Unenforced (Refined enc Text)
+    -> Flowchart 'Unenforced Bytes
+fcTextToBytes = fcMap Binrep.Types.Text.encode
+
+fcTraverse
+    :: Applicative f
+    => (a -> f b)
+    -> Flowchart 'Unenforced a
+    -> f (Flowchart 'Unenforced b)
+fcTraverse f = traverse $ traverse $ traverse f
+
+fcMap
+    :: (a -> b)
+    -> Flowchart 'Unenforced a
+    -> Flowchart 'Unenforced b
+fcMap f = fmap $ fmap $ fmap f
+
 findEntryViaScript
     :: Eq a
     => a -> Flowchart 'Unenforced a -> Maybe (Entry 'Unenforced a)
@@ -174,8 +219,8 @@ findEntryViaScript script fc =
       _       -> Nothing
   where
     matches = filter predicate $ flowchartEntries fc
-    predicate e = unWithRefine (entryScript e) == script
+    predicate e = withoutRefine (entryScript e) == script
 
 -- Convenience function because unwrapping refinements is kinda annoying.
 flowchartEntries :: Flowchart 'Unenforced a -> [Entry 'Unenforced a]
-flowchartEntries = concat . map (unWithRefine . blockEntries . unWithRefine)
+flowchartEntries = concat . map (withoutRefine . blockEntries . withoutRefine)

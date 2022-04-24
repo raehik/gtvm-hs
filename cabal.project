@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+  type: git
+  location: https://github.com/raehik/hash-graph
+  tag: eb625d3c010b53d01a61a9e411daf4aa382b58ed
