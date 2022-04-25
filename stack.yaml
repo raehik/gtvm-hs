@@ -6,9 +6,9 @@ extra-deps:
 - blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
 - git: https://github.com/raehik/hash-graph
   commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
+
 - git: https://github.com/raehik/refined
-  commit: 6d8abc5669ac623ca0258d10f998c25cfbac4bf6
-- git: https://github.com/raehik/refined-with
-  commit: 440108ab6d45466cd3e3daa6f80b60cde4661413
+  commit: f53784ccb97123c5e001fc4f0c3e4fdcc6586dce
+
 - git: https://github.com/raehik/binrep
-  commit: c744f41b99f4cc15641226853ea20aebfb2aa8d5
+  commit: 0afa31a7c0eda04fdd4827ff3655d8d47b2ce3db

@@ -35,33 +35,22 @@ packages:
     git: https://github.com/raehik/refined
     pantry-tree:
       size: 779
-      sha256: 845006652959606f649d73f3a0a4c7ea3e7980ebd31a0814878a380e7f560ba7
-    commit: 6d8abc5669ac623ca0258d10f998c25cfbac4bf6
+      sha256: d0f011e2cee538228897a6f18c968f29332520e0beb673aed7c89d51263e2d23
+    commit: f53784ccb97123c5e001fc4f0c3e4fdcc6586dce
   original:
     git: https://github.com/raehik/refined
-    commit: 6d8abc5669ac623ca0258d10f998c25cfbac4bf6
-- completed:
-    name: refined-with
-    version: 0.3.0
-    git: https://github.com/raehik/refined-with
-    pantry-tree:
-      size: 664
-      sha256: 7292364792ce2a058cd02f46360745ef5d9214bbb8867dd0537fcf179e05aac2
-    commit: 440108ab6d45466cd3e3daa6f80b60cde4661413
-  original:
-    git: https://github.com/raehik/refined-with
-    commit: 440108ab6d45466cd3e3daa6f80b60cde4661413
+    commit: f53784ccb97123c5e001fc4f0c3e4fdcc6586dce
 - completed:
     name: binrep
-    version: 0.1.0
+    version: 0.2.0
     git: https://github.com/raehik/binrep
     pantry-tree:
-      size: 1045
-      sha256: 849ff5d04205ac21ed4d18e0ac906d68708e1397dd2ed5eb3df4706eab0f4577
-    commit: c744f41b99f4cc15641226853ea20aebfb2aa8d5
+      size: 1904
+      sha256: afded0bcbd343d92afe32e53ef869dccbb01bf8e466a6406f0e1f2c56ea2e5e5
+    commit: 0afa31a7c0eda04fdd4827ff3655d8d47b2ce3db
   original:
     git: https://github.com/raehik/binrep
-    commit: c744f41b99f4cc15641226853ea20aebfb2aa8d5
+    commit: 0afa31a7c0eda04fdd4827ff3655d8d47b2ce3db
 snapshots:
 - completed:
     size: 539378

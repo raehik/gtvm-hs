@@ -100,7 +100,6 @@ library
     , mtl
     , optics
     , refined
-    , refined-with >=0.3.0 && <0.4
     , text
     , text-latin1
     , transformers
@@ -184,7 +183,6 @@ executable gtvm-hs
     , optics
     , optparse-applicative
     , refined
-    , refined-with >=0.3.0 && <0.4
     , text
     , text-latin1
     , transformers
