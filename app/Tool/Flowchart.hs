@@ -6,18 +6,18 @@ import Common.Config
 import Common.CLIOptions
 import Common.Util
 import GTVM.Flowchart
+
 import Binrep
-import Binrep.Types.ByteString
-import Binrep.Types.Text
-import Refined
-import Refined.WithRefine
+
 import Options.Applicative
 import GHC.Generics ( Generic )
 import Control.Monad.IO.Class
-import Data.Text ( Text )
 import Data.Yaml.Pretty qualified
 import GTVM.Common.IO ( badParseYAML )
 import Data.ByteString qualified as BS
+
+import Binrep.Type.ByteString
+import Binrep.Type.Text
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML flowchart"
@@ -39,20 +39,22 @@ parseCLIOptsDecode = CfgDecode <$> pStreamIn <*> pStreamOut
 runEncode :: MonadIO m => CfgEncode -> m ()
 runEncode cfg = do
     fcBsYaml <- readStreamBytes $ cfgEncodeStreamIn cfg
-    fcText  <- badParseYAML @(Flowchart 'Unenforced (Refined 'UTF8 Text)) fcBsYaml
-    fcBin   <- liftErr show $ fcBytesRefine @'C $ fcTextToBytes fcText
-    fcBin'  <- liftErr show $ enforceFlowchart fcBin
-    let fcBsBin = binEncode fcBin'
+    fcText   <- badParseYAML fcBsYaml
+    fcBin    <- liftErr show $ fcBytesRefine @'C $ fcTextToBytes @'UTF8 fcText
+    fcBin'   <- liftErr show $ refineFlowchart fcBin
+    let fcBsBin = runPut fcBin'
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) fcBsBin
 
 runDecode :: MonadIO m => CfgDecode -> m ()
 runDecode cfg = do
     fcBsBin <- readStreamBytes $ cfgDecodeStreamIn cfg
-    fcBin   <- liftErr id   $ binDecode @(Flowchart 'Enforced (Refined 'C BS.ByteString)) fcBsBin
-    fcText  <- liftErr show $ fcBytesToText @'UTF8 @'C $ unenforceFlowchart fcBin
-    let fcText'  = fcMap unrefine fcText
-        fcBsYaml = Data.Yaml.Pretty.encodePretty ycFCTL fcText'
-    writeStreamTextualBytes (cfgDecodeStreamOut cfg) fcBsYaml
+    (fcBin, bs) <- liftErr id  $ runGet fcBsBin
+    case BS.null bs of
+      False -> error "TODO bytes left over"
+      True -> do
+        fcText  <- liftErr show $ fcBytesToText @'UTF8 @'C $ unrefineFlowchart fcBin
+        let fcBsYaml = Data.Yaml.Pretty.encodePretty ycFCTL fcText
+        writeStreamTextualBytes (cfgDecodeStreamOut cfg) fcBsYaml
 
 -- | Silly pretty config to get my preferred layout easily.
 --
