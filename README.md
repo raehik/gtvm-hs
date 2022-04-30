@@ -18,8 +18,8 @@ As of 0.9.0, patching (`gtvm-hs patch`) is handled by another tool. See
 [bytepatch](https://github.com/raehik/bytepatch).
 
 ## Building
-Use Stack or Cabal, GHC 8.10 or newer. No real setup needed. (Send me a ping or
-make an issue if you need more help.)
+Use Stack or Cabal, GHC 9.2. No real setup needed. (Send me a ping or make an
+issue if you need more help.)
 
 ## Working with the codebase
 Quick notes:
