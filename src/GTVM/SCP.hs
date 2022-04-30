@@ -9,7 +9,8 @@ import Data.Aeson ( ToJSON(..), genericToJSON, genericToEncoding, FromJSON(..), 
 import Binrep
 import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.Int ( I(..), ISize(..), ISign(..) )
-import Binrep.Type.ByteString ( Rep(..) )
+import Binrep.Type.ByteString ( Rep(..), AsByteString )
+import Binrep.Type.Text ( Encoding(..), AsText )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import Refined
@@ -280,6 +281,8 @@ deriving anyclass instance               Unrefine (Seg  V a) (Seg UV a)
 deriving anyclass instance Typeable a =>   Refine (Seg UV a) (Seg  V a)
 
 type SCP v a = [Seg v a]
+type SCPBin  = SCP V (AsByteString 'C)
+type SCPText = SCP UV (AsText 'UTF8)
 
 prettyYamlCfg :: Yaml.Pretty.Config
 prettyYamlCfg =
