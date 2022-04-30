@@ -95,6 +95,7 @@ library
     , mtl
     , optics
     , refined
+    , refined-extra
     , text
     , text-latin1
     , transformers
@@ -177,6 +178,7 @@ executable gtvm-hs
     , optics
     , optparse-applicative
     , refined
+    , refined-extra
     , text
     , text-latin1
     , transformers

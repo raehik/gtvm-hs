@@ -31,6 +31,7 @@ import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import GTVM.SCP
 import Refined
+import Refined.Extra
 
 import Control.Monad.State
 

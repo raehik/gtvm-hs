@@ -10,6 +10,8 @@ import Binrep.Type.Int
 import Binrep.Predicate.NullPad
 
 import Refined
+import Refined.Class
+import Refined.Extra
 
 import Data.Aeson qualified as Aeson
 import Data.Aeson
@@ -73,23 +75,8 @@ instance                    BLen (Entry 'Validated a) where blen = blenGeneric b
 instance (BLen a, Put a) => Put  (Entry 'Validated a) where put  = putGeneric  brcNoSum
 instance (BLen a, Get a) => Get  (Entry 'Validated a) where get  = getGeneric  brcNoSum
 
-refineEntry
-    :: BLen a
-    => Entry 'Unvalidated a
-    -> Either RefineException (Entry 'Validated a)
-refineEntry e = do
-    let entryIndex = e.entryIndex
-        entryType  = e.entryType
-    entryName   <- refineWith e.entryName
-    entryScript <- refineWith e.entryScript
-    return Entry{..}
-
-unrefineEntry :: Entry 'Validated a -> Entry 'Unvalidated a
-unrefineEntry e = Entry{..}
-  where entryIndex  = e.entryIndex
-        entryType   = e.entryType
-        entryName   = unrefineWith $ e.entryName
-        entryScript = unrefineWith $ e.entryScript
+deriving anyclass instance BLen a =>   Refine (Entry UV a) (Entry  V a)
+deriving anyclass instance           Unrefine (Entry  V a) (Entry UV a)
 
 data Block (v :: Validation) a = Block
   { blockName    :: WithRefine v (NullPad 32) a
@@ -112,16 +99,16 @@ instance                    BLen (Block 'Validated a) where blen = blenGeneric b
 instance (BLen a, Put a) => Put  (Block 'Validated a) where put  = putGeneric  brcNoSum
 instance (BLen a, Get a) => Get  (Block 'Validated a) where get  = getGeneric  brcNoSum
 
-refineBlock :: (BLen a, Typeable a) => Block 'Unvalidated a -> Either RefineException (Block 'Validated a)
-refineBlock b = do
-    blockName    <- refineWith b.blockName
-    blockEntries <- refineWithInner (traverse refineEntry) $ b.blockEntries
-    return Block{..}
+instance (BLen a, Typeable a) => Refine (Block UV a) (Block V a) where
+    refine' b = do
+        blockName    <- refineWith b.blockName
+        blockEntries <- refineWithInner (traverse refine') $ b.blockEntries
+        return Block{..}
 
-unrefineBlock :: Block 'Validated a -> Block 'Unvalidated a
-unrefineBlock b = Block{..}
-    where blockName    = unrefineWith $ b.blockName
-          blockEntries = unrefineWithInner (fmap unrefineEntry) $ b.blockEntries
+instance Unrefine (Block V a) (Block UV a) where
+    unrefine' b = Block{..}
+        where blockName    = unrefineWith b.blockName
+              blockEntries = unrefineWithInner (fmap unrefine') $ b.blockEntries
 
 type Flowchart (v :: Validation) a = [WithRefine v (NullPad 2116) (Block v a)]
 
@@ -129,10 +116,10 @@ refineFlowchart
     :: (BLen a, Typeable a)
     => Flowchart 'Unvalidated a
     -> Either RefineException (Flowchart 'Validated a)
-refineFlowchart = traverse $ refineWithInner refineBlock
+refineFlowchart = traverse $ refineWithInner refine'
 
 unrefineFlowchart :: Flowchart 'Validated a -> Flowchart 'Unvalidated a
-unrefineFlowchart = fmap $ unrefineWithInner unrefineBlock
+unrefineFlowchart = fmap $ unrefineWithInner unrefine'
 
 -- Validate that bytestrings fit in their representation (e.g. well-sized for
 -- Pascal-style).
