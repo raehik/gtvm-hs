@@ -1,3 +1,8 @@
+## 0.10.0 (Unreleased)
+  * refactor binary representation handling: SCP, flowchart now handled
+    generically via binrep and refined-extra
+  * work on graphing SCP links
+
 ## 0.9.0 (2022-03-22)
   * new tool: SCP text replace (for translation)
   * new tool: SCPTL -- text replace made useful
