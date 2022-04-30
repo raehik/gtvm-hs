@@ -31,11 +31,6 @@ library
       GTVM.Common.Json
       GTVM.Flowchart
       GTVM.SCP
-      GTVM.SCP.Parse
-      GTVM.SCP.SCPX
-      GTVM.SCP.Serialize
-      GTVM.SCP.Test
-      GTVM.SCP.TextReplace
       GTVM.SCP.TL
       Raehik.Check
       Raehik.HexBytestring
@@ -118,7 +113,6 @@ executable gtvm-hs
       Common.Util
       Tool.Flowchart
       Tool.SCP.Code
-      Tool.SCP.Replace
       Tool.SCP.TL
       Tool.SL01
       Paths_gtvm_hs

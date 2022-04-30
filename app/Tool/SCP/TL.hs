@@ -16,11 +16,11 @@ import Raehik.Check
 
 import Data.Text ( Text )
 import Data.Yaml.Pretty qualified
-import Data.Word
 import Data.Map qualified as Map
 
 import Data.Aeson
 import Data.Aeson qualified as Aeson
+import Data.Yaml.Pretty qualified as Yaml.Pretty
 import GTVM.Common.Json
 import GTVM.Common.IO ( badParseYAML )
 
@@ -42,16 +42,16 @@ runToSCPTL :: MonadIO m => CfgToSCPTL -> m ()
 runToSCPTL cfg = do
     speakerIDMap <- do
         case cfgToSCPTLSpeakerIDMap cfg of
-          Nothing -> return Nothing
-          Just sidmapfp -> Just <$> parseSpeakerMap sidmapfp
+          Nothing -> return $ const Nothing
+          Just sidmapfp -> parseSpeakerMap sidmapfp
     let env = Env
                 { envPendingPlaceholder = "TODO not yet translated"
                 , envSpeakerIDMap       = speakerIDMap }
     let scpIn = cfgToSCPTLStreamIn cfg
     scpYAMLBs <- readStreamBytes scpIn
-    scp <- badParseYAML @(SCP Text) scpYAMLBs
+    scp <- badParseYAML @SCP' scpYAMLBs
     let scptl   = genTL env scp
-        scptlBs = Data.Yaml.Pretty.encodePretty ycSCPTL scptl
+        scptlBs = Data.Yaml.Pretty.encodePretty ycTLSeg scptl
     writeStreamTextualBytes (cfgToSCPTLStreamOut cfg) scptlBs
 
 data SCPSpeakerData = SCPSpeakerData
@@ -69,7 +69,7 @@ instance ToJSON   SCPSpeakerData where
 instance FromJSON SCPSpeakerData where
     parseJSON  = genericParseJSON  jcSCPSpeakerData
 
-parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn s -> m (Word32 -> Maybe Text)
+parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn s -> m (W32 -> Maybe Text)
 parseSpeakerMap fp = do
     bs <- readStreamFileBytes fp
     speakers <- badParseYAML @[SCPSpeakerData] bs
@@ -89,11 +89,11 @@ parseCLIOptsApplySCPTL =
 runApplySCPTL :: MonadIO m => CfgApplySCPTL -> m ()
 runApplySCPTL cfg = do
     scpYAMLBs <- readStreamBytes $ cfgApplySCPTLStreamIn cfg
-    scp       <- badParseYAML @(SCP Text) scpYAMLBs
+    scp       <- badParseYAML @SCP' scpYAMLBs
     scptlYAMLBs <- readStreamFileBytes $ cfgApplySCPTLFileIn cfg
-    scptl       <- badParseYAML @[SCPTL 'CheckEqual Text] scptlYAMLBs
+    scptl       <- badParseYAML @(SCPTL 'CheckEqual Text) scptlYAMLBs
     case apply scp scptl of
       Left  err  -> error $ show err
       Right scp' ->
-        let scpYAMLBs' = SCP.encodeYamlPretty scp'
+        let scpYAMLBs' = Yaml.Pretty.encodePretty SCP.prettyYamlCfg scp'
          in writeStreamTextualBytes (cfgApplySCPTLStreamOut cfg) scpYAMLBs'
