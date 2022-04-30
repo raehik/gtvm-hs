@@ -14,6 +14,8 @@ import GTVM.Common.IO ( badParseYAML )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
 import Refined
+import Refined.Extra
+import Refined.Class
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"
@@ -35,10 +37,10 @@ parseCLIOptsDecode = CfgDecode <$> pStreamIn <*> pStreamOut
 runEncode :: MonadIO m => CfgEncode -> m ()
 runEncode cfg = do
     scpYAMLBs <- readStreamBytes $ cfgEncodeStreamIn cfg
-    scpYAML <- badParseYAML @(SCP UV (AsText 'UTF8)) scpYAMLBs
+    scpYAML <- badParseYAML scpYAMLBs
     scpBin <- liftErr show $ do
-        scpBin <- traverseSCP (encodeToRep @'C) scpYAML
-        refineSCP scpBin
+        scpBin <- traverseSCP (encodeToRep @'C @'UTF8) scpYAML
+        refine' scpBin
     let scpBinBs = runPut scpBin
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) scpBinBs
 
@@ -46,8 +48,9 @@ runDecode :: (MonadFail m, MonadIO m) => CfgDecode -> m ()
 runDecode cfg = do
     scpBinBs <- readStreamBytes $ cfgDecodeStreamIn cfg
     (scpBin, bs) <- liftErr show $ runGet @(SCP V (AsByteString 'C)) scpBinBs
+    -- ^ not sure why GHC can't deduce the type for 'runGet' from later usage
     if not (B.null bs) then fail "dangling bytes"
     else do
-        scpText <- liftErr id $ traverseSCP (decode @'UTF8 . withoutRefine) $ unrefineSCP scpBin
+        scpText <- liftErr id $ traverseSCP (decode @'UTF8 . withoutRefine @'C) $ unrefine' scpBin
         let scpYAMLBs = Yaml.Pretty.encodePretty prettyYamlCfg scpText
         writeStreamTextualBytes (cfgDecodeStreamOut cfg) scpYAMLBs
