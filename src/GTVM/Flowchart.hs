@@ -59,21 +59,21 @@ data Entry (v :: Validation) a = Entry
   , entryScript :: WithRefine v (NullPad 32) a
   } deriving stock (Generic, Typeable, Foldable, Show, Eq)
 
-deriving stock instance Functor     (Entry 'Unvalidated)
-deriving stock instance Traversable (Entry 'Unvalidated)
+deriving stock instance Functor     (Entry UV)
+deriving stock instance Traversable (Entry UV)
 
 jcEntry :: Aeson.Options
 jcEntry = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "entry"
 
-instance ToJSON   a => ToJSON   (Entry v            a) where
+instance ToJSON   a => ToJSON   (Entry  v a) where
     toJSON     = genericToJSON     jcEntry
     toEncoding = genericToEncoding jcEntry
-instance FromJSON a => FromJSON (Entry 'Unvalidated a) where
+instance FromJSON a => FromJSON (Entry UV a) where
     parseJSON  = genericParseJSON  jcEntry
 
-instance                    BLen (Entry 'Validated a) where blen = blenGeneric brcNoSum
-instance (BLen a, Put a) => Put  (Entry 'Validated a) where put  = putGeneric  brcNoSum
-instance (BLen a, Get a) => Get  (Entry 'Validated a) where get  = getGeneric  brcNoSum
+instance                    BLen (Entry V a) where blen = blenGeneric brcNoSum
+instance (BLen a, Put a) => Put  (Entry V a) where put  = putGeneric  brcNoSum
+instance (BLen a, Get a) => Get  (Entry V a) where get  = getGeneric  brcNoSum
 
 deriving anyclass instance BLen a =>   Refine (Entry UV a) (Entry  V a)
 deriving anyclass instance           Unrefine (Entry  V a) (Entry UV a)
@@ -83,8 +83,8 @@ data Block (v :: Validation) a = Block
   , blockEntries :: WithRefine v ('Pascal 'I4 'LE) [Entry v a]
   } deriving stock (Generic, Typeable, Foldable, Show, Eq)
 
-deriving stock instance Functor     (Block 'Unvalidated)
-deriving stock instance Traversable (Block 'Unvalidated)
+deriving stock instance Functor     (Block UV)
+deriving stock instance Traversable (Block UV)
 
 jcBlock :: Aeson.Options
 jcBlock = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "block"
@@ -92,33 +92,25 @@ jcBlock = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "block"
 instance ToJSON   a => ToJSON   (Block v            a) where
     toJSON     = genericToJSON     jcBlock
     toEncoding = genericToEncoding jcBlock
-instance FromJSON a => FromJSON (Block 'Unvalidated a) where
+instance FromJSON a => FromJSON (Block UV a) where
     parseJSON  = genericParseJSON  jcBlock
 
-instance                    BLen (Block 'Validated a) where blen = blenGeneric brcNoSum
-instance (BLen a, Put a) => Put  (Block 'Validated a) where put  = putGeneric  brcNoSum
-instance (BLen a, Get a) => Get  (Block 'Validated a) where get  = getGeneric  brcNoSum
+instance                    BLen (Block V a) where blen = blenGeneric brcNoSum
+instance (BLen a, Put a) => Put  (Block V a) where put  = putGeneric  brcNoSum
+instance (BLen a, Get a) => Get  (Block V a) where get  = getGeneric  brcNoSum
 
-instance (BLen a, Typeable a) => Refine (Block UV a) (Block V a) where
-    refine' b = do
-        blockName    <- refineWith b.blockName
-        blockEntries <- refineWithInner (traverse refine') $ b.blockEntries
-        return Block{..}
-
-instance Unrefine (Block V a) (Block UV a) where
-    unrefine' b = Block{..}
-        where blockName    = unrefineWith b.blockName
-              blockEntries = unrefineWithInner (fmap unrefine') $ b.blockEntries
+deriving anyclass instance (BLen a, Typeable a) =>   Refine (Block UV a) (Block  V a)
+deriving anyclass instance                         Unrefine (Block  V a) (Block UV a)
 
 type Flowchart (v :: Validation) a = [WithRefine v (NullPad 2116) (Block v a)]
 
 refineFlowchart
     :: (BLen a, Typeable a)
-    => Flowchart 'Unvalidated a
-    -> Either RefineException (Flowchart 'Validated a)
+    => Flowchart UV a
+    -> Either RefineException (Flowchart V a)
 refineFlowchart = traverse $ refineWithInner refine'
 
-unrefineFlowchart :: Flowchart 'Validated a -> Flowchart 'Unvalidated a
+unrefineFlowchart :: Flowchart V a -> Flowchart UV a
 unrefineFlowchart = fmap $ unrefineWithInner unrefine'
 
 -- Validate that bytestrings fit in their representation (e.g. well-sized for
@@ -126,33 +118,33 @@ unrefineFlowchart = fmap $ unrefineWithInner unrefine'
 fcBytesRefine
     :: forall (rep :: Binrep.Type.ByteString.Rep)
     .  Predicate rep Bytes
-    => Flowchart 'Unvalidated Bytes
-    -> Either RefineException (Flowchart 'Unvalidated (Refined rep Bytes))
+    => Flowchart UV Bytes
+    -> Either RefineException (Flowchart UV (Refined rep Bytes))
 fcBytesRefine = fcTraverse refine
 
 -- Convert validated bytestrings to the given text encoding.
 fcBytesToText
     :: forall enc (rep :: Binrep.Type.ByteString.Rep)
     .  Binrep.Type.Text.Decode enc
-    => Flowchart 'Unvalidated (Refined rep Bytes)
-    -> Either String (Flowchart 'Unvalidated (Refined enc Text))
+    => Flowchart UV (Refined rep Bytes)
+    -> Either String (Flowchart UV (Refined enc Text))
 fcBytesToText = fcTraverse $ Binrep.Type.Text.decode . unrefine
 
 fcTextToBytes
     :: Binrep.Type.Text.Encode enc
-    => Flowchart 'Unvalidated (Refined enc Text)
-    -> Flowchart 'Unvalidated Bytes
+    => Flowchart UV (Refined enc Text)
+    -> Flowchart UV Bytes
 fcTextToBytes = fcMap Binrep.Type.Text.encode
 
-fcMap :: (a -> b) -> Flowchart 'Unvalidated a -> Flowchart 'Unvalidated b
+fcMap :: (a -> b) -> Flowchart UV a -> Flowchart UV b
 fcMap = map . fmap . fmap
 
-fcTraverse :: Applicative f => (a -> f b) -> Flowchart 'Unvalidated a -> f (Flowchart 'Unvalidated b)
+fcTraverse :: Applicative f => (a -> f b) -> Flowchart UV a -> f (Flowchart UV b)
 fcTraverse = traverse . traverse . traverse
 
 findEntryViaScript
     :: Eq a
-    => a -> Flowchart 'Unvalidated a -> Maybe (Entry 'Unvalidated a)
+    => a -> Flowchart UV a -> Maybe (Entry UV a)
 findEntryViaScript script fc =
     case matches of
       [match] -> Just match
@@ -162,5 +154,5 @@ findEntryViaScript script fc =
     predicate e = withoutRefine (entryScript e) == script
 
 -- Convenience function because unwrapping refinements is kinda annoying.
-flowchartEntries :: Flowchart 'Unvalidated a -> [Entry 'Unvalidated a]
+flowchartEntries :: Flowchart UV a -> [Entry UV a]
 flowchartEntries = concat . map (withoutRefine . blockEntries . withoutRefine)
