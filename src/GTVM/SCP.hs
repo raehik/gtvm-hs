@@ -1,318 +1,579 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module GTVM.SCP
-  ( SCP
-  , SCPSeg(..)
-  , SCPSeg05Textbox(..)
-  , SCPSeg0ADyn(..)
+module GTVM.SCP where
 
-  , bsToText
-  , textToBs
+import GHC.Generics ( Generic )
+import Data.Data ( Typeable )
+import Data.Aeson qualified as Aeson
+import Data.Aeson ( ToJSON(..), genericToJSON, genericToEncoding, FromJSON(..), genericParseJSON )
+import Binrep
+import Binrep.Type.Common ( Endianness(..) )
+import Binrep.Type.Int ( I(..), ISize(..), ISign(..) )
+import Binrep.Type.ByteString ( Rep(..) )
+import Data.Yaml.Pretty qualified as Yaml.Pretty
 
-  , encodeYamlPretty
-  ) where
+import Refined
 
-import Data.Word
-import GHC.Generics
-import GTVM.Common.Json
-import Data.ByteString qualified as BS
-import Data.Text.Encoding qualified as Text
-import Data.Text.Encoding.Error qualified as Text
-import Data.Text ( Text )
+type Endian = 'LE
+type W8  = I 'U 'I1 Endian
+type W32 = I 'U 'I4 Endian
+type PfxLenW8 = 'Pascal 'I1 Endian
+type AW32Pairs v a = WithRefine v PfxLenW8 [(a, W32)]
 
-import Data.Aeson
-import Data.Yaml.Pretty qualified as YamlPretty
+type V = 'Validated
+type UV = 'Unvalidated
 
--- | A SCP file.
---
--- SCPs are ordered lists of individual segments (commands, macros, whatever).
--- Segments are identified by a single prefix byte. Once the prefix byte is
--- recognized, the segment is parsed accordingly, then the next prefix byte is
--- read, and so on until it finds EOF instead of a prefix byte.
-type SCP bs = [SCPSeg bs]
+brcNoSum :: Binrep.Cfg W8
+brcNoSum = Binrep.Cfg { Binrep.cSumTag = undefined }
 
--- | A standalone segment of an SCP file.
---
--- Most segments are straightforward, with minimal allocation required (usually
--- just strings). Some have dynamic parts, where extra parsing is done depending
--- on a value - all or mostly some form of lists.
---
--- Where useful (due to complexity, or because it's an especially interesting
--- segment), inner parts are spun out into their own data type.
---
--- Generalized over the bytestring representation (for easier coercing between
--- 'ByteString' and 'Text').
-data SCPSeg bs
-  = SCPSeg00
-  | SCPSeg01BG bs Word8 Word8
-  | SCPSeg02SFX bs Word8
-  | SCPSeg03 Word8 bs Word8
-  | SCPSeg04 Word8 Word8
+jcProd :: (String -> String) -> Aeson.Options
+jcProd f = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . f
+  , Aeson.rejectUnknownFields = True
+  }
 
-  | SCPSeg05Textbox (SCPSeg05Textbox bs)
+jcSum :: (String -> String) -> (String -> String) -> String -> String -> Aeson.Options
+jcSum f g tag contents = (jcProd f)
+  { Aeson.constructorTagModifier = g
+  , Aeson.sumEncoding = Aeson.TaggedObject
+    { Aeson.tagFieldName = tag
+    , Aeson.contentsFieldName = contents
+    }
+  }
+
+type W322Block (v :: Validation) =
+    WithRefine v PfxLenW8 [WithRefine v PfxLenW8 [W32]]
+
+data Seg05Text a = Seg05Text
+  { seg05TextSpeakerUnkCharID :: W8
+  , seg05TextSpeakerID :: W32
+  , seg05TextText :: a
+  , seg05TextVoiceLine :: a
+  , seg05TextCounter :: W32
+  } deriving stock (Generic, Eq, Show, Foldable)
+
+deriving stock instance Functor     Seg05Text
+deriving stock instance Traversable Seg05Text
+
+instance BLen a => BLen (Seg05Text a) where blen = blenGeneric brcNoSum
+instance Put  a => Put  (Seg05Text a) where put  = putGeneric  brcNoSum
+instance Get  a => Get  (Seg05Text a) where get  = getGeneric  brcNoSum
+
+jcSeg05Text :: Aeson.Options
+jcSeg05Text = jcProd $ drop $ length ("seg05Text" :: String)
+
+instance ToJSON   a => ToJSON   (Seg05Text a) where
+    toJSON     = genericToJSON     jcSeg05Text
+    toEncoding = genericToEncoding jcSeg05Text
+instance FromJSON a => FromJSON (Seg05Text a) where
+    parseJSON  = genericParseJSON  jcSeg05Text
+
+data Seg (v :: Validation) a
+  = Seg00
+  | Seg01BG a W8 W8
+  | Seg02SFX a W8
+  | Seg03 W8 a W8
+  | Seg04 W8 W8
+
+  | Seg05 (Seg05Text a)
   -- ^ Includes player-facing text.
 
   -- no 0x06
 
-  | SCPSeg07SCP bs
-  | SCPSeg08
+  | Seg07SCP a
+  | Seg08
 
-  | SCPSeg09Choice Word8 [(bs, Word32)]
-  -- ^ Includes player-facing text. Choice selection. The 'Word32's appear to be
+  | Seg09Choice W8 (AW32Pairs v a)
+  -- ^ Includes player-facing text. Choice selection. The 'W32's appear to be
   --   the same counter as textboxes!
   --
-  -- The 'Word8' seems to be an file-unique identifier for the choice selection.
+  -- The 'W8' seems to be an file-unique identifier for the choice selection.
   -- SCP files with multiple choices have 0, 1, 2 etc. in ascending order.
 
-  | SCPSeg0A SCPSeg0ADyn
+  | Seg0A (W322Block v)
 
-  | SCPSeg0B Word8 Word8
+  | Seg0B W8 W8
   -- ^ Appears to indicate where a given choice jumps to.
   --
-  -- First 'Word8' appears to specify which choice selection it relates to.
-  -- Second 'Word8' appears to be the choice index in that choice selection
+  -- First 'W8' appears to specify which choice selection it relates to.
+  -- Second 'W8' appears to be the choice index in that choice selection
   -- (usually 0, 1). They may be highly separated, in cases where a choice
   -- changes lots of dialog.
 
-  | SCPSeg0CFlag Word8 Word8
-  | SCPSeg0D Word8
-  | SCPSeg0E Word8
-  | SCPSeg0F
-  | SCPSeg10 Word8 Word8 Word8
-  | SCPSeg11EventCG bs
-  | SCPSeg12
+  | Seg0CFlag W8 W8
+  | Seg0D W8
+  | Seg0E W8
+  | Seg0F
+  | Seg10 W8 W8 W8
+  | Seg11EventCG a
+  | Seg12
 
-  | SCPSeg13 Word8 bs Word8 Word32
+  | Seg13 W8 a W8 W32
   -- ^ Possibly player-facing text. Registers words for the feast
   --   Danganronpa-style minigame, but using indices which correspond to
   --   textures with the text on. The usage of the text here is unknown.
 
-  | SCPSeg14 Word8
-  | SCPSeg15
-  | SCPSeg16Wadai
-  | SCPSeg17 Word8 Word8
-  | SCPSeg18 Word8 Word8
-  | SCPSeg19 Word8 Word8
+  | Seg14 W8
+  | Seg15
+  | Seg16Wadai
+  | Seg17 W8 W8
+  | Seg18 W8 W8
+  | Seg19 W8 W8
   -- no 0x1A
   -- no 0x1B
   -- no 0x1C
-  | SCPSeg1D
-  | SCPSeg1E Word8
-  | SCPSeg1FDelay
-  | SCPSeg20 Word8
-  | SCPSeg21
+  | Seg1D
+  | Seg1E W8
+  | Seg1FDelay
+  | Seg20 W8
+  | Seg21
 
-  | SCPSeg22 bs [(bs, Word32)]
+  | Seg22 a (AW32Pairs v a)
   -- ^ Includes player-facing text. Choice, plus an extra string. Seem to be
   --   used in the conversation events.
 
-  | SCPSeg23SFX
+  | Seg23SFX
 
-  | SCPSeg24 bs
+  | Seg24 a
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg25
-  | SCPSeg26
+  | Seg25
+  | Seg26
 
-  | SCPSeg27 bs Word8 Word8
+  | Seg27 a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg28 bs Word8 Word8
+  | Seg28 a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg29 bs Word8 Word8
+  | Seg29 a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg2A Word8 Word8
+  | Seg2A W8 W8
 
-  | SCPSeg2B Word8 Word8 Word8 bs SCPSeg0ADyn
+  | Seg2B W8 W8 W8 a (W322Block v)
 
-  | SCPSeg2CMap
+  | Seg2CMap
 
-  | SCPSeg2D bs Word8 Word8
+  | Seg2D a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg2E Word8 Word8 Word32 Word32
-  | SCPSeg2F Word8
-  | SCPSeg30 Word8
-  | SCPSeg31
-  | SCPSeg32 Word32 Word8
-  | SCPSeg33 Word8 Word8
-  | SCPSeg34 Word32
+  | Seg2E W8 W8 W32 W32
+  | Seg2F W8
+  | Seg30 W8
+  | Seg31
+  | Seg32 W32 W8
+  | Seg33 W8 W8
+  | Seg34 W32
 
-  | SCPSeg35 bs
+  | Seg35 a
   -- ^ Likely player-facing. Kinda sounds like it's a type of Banri choice.
 
-  | SCPSeg36 Word8 Word32
-  | SCPSeg37 Word8 Word32
-  | SCPSeg38 Word8 Word32
-  | SCPSeg39
-  | SCPSeg3A Word8 Word8
-  | SCPSeg3B Word8
-  | SCPSeg3C Word8 Word8
-  | SCPSeg3D
-  | SCPSeg3E Word8 Word8
-  | SCPSeg3F Word8 Word32 Word32
-  | SCPSeg40 Word8
-  | SCPSeg41 Word8 Word32 Word32
-  | SCPSeg42 Word8
+  | Seg36 W8 W32
+  | Seg37 W8 W32
+  | Seg38 W8 W32
+  | Seg39
+  | Seg3A W8 W8
+  | Seg3B W8
+  | Seg3C W8 W8
+  | Seg3D
+  | Seg3E W8 W8
+  | Seg3F W8 W32 W32
+  | Seg40 W8
+  | Seg41 W8 W32 W32
+  | Seg42 W8
 
   -- these don't appear very SFXy in code, but did in data
-  | SCPSeg43SFX bs
-  | SCPSeg44SFX bs
-  | SCPSeg45SFX bs Word8
+  | Seg43SFX a
+  | Seg44SFX a
+  | Seg45SFX a W8
 
-  | SCPSeg46 Word8 Word8
-  | SCPSeg47 Word8 Word8
-  | SCPSeg48
-  | SCPSeg49
-  | SCPSeg4A
-  | SCPSeg4B
+  | Seg46 W8 W8
+  | Seg47 W8 W8
+  | Seg48
+  | Seg49
+  | Seg4A
+  | Seg4B
 
-  | SCPSeg4C bs
+  | Seg4C a
   -- Unknown. Appears unused.
 
-  | SCPSeg4D
-  | SCPSeg4E
+  | Seg4D
+  | Seg4E
 
-  | SCPSeg4F bs Word8 Word8
+  | Seg4F a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg50 bs Word8 Word8
+  | Seg50 a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg51 bs Word8 Word8
+  | Seg51 a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg52 bs
+  | Seg52 a
   -- ^ Text not user-facing. Refers to a @sound/voice@ file - all the uses I've
   --   seen are girls telling you 飲んで飲んで！
 
-  | SCPSeg53 bs Word8 Word8
+  | Seg53 a W8 W8
   -- ^ Unknown. Text seems to correspond to MDL files in the @r2d@ directory.
 
-  | SCPSeg54 Word8 Word8
-  | SCPSeg55 Word8 Word8
-  | SCPSeg56 Word8 Word8
-  | SCPSeg57 Word8 Word8
-  | SCPSeg58 Word8 Word8
-  | SCPSeg59 Word8
-  | SCPSeg5A Word32 Word8
-  | SCPSeg5B Word32
-  | SCPSeg5C Word8
-  | SCPSeg5D Word32
-  | SCPSeg5E Word32
-  | SCPSeg5F Word32
-  | SCPSeg60 Word32
-  | SCPSeg61 Word8 Word8
-  | SCPSeg62 Word8 -- 0x01 <= w8 <= 0x11, no default
-  | SCPSeg63
-  | SCPSeg64
-  | SCPSeg65Trophy
-  | SCPSeg66
-  | SCPSeg67
-  | SCPSeg68
-  | SCPSeg69
-  | SCPSeg6A Word8
-  | SCPSeg6B Word8
-  | SCPSeg6CWipe Word8 Word32 Word32 Word32
-  | SCPSeg6DWipe Word8 Word32 Word32 Word32
-  | SCPSeg6E
-  | SCPSeg6F
-  | SCPSeg70 Word8 Word8
-  | SCPSeg71 Word8 Word8
-  | SCPSeg72
-  | SCPSeg73Kyoro Word8 Word32 -- 0x01 <= w8 <= 0x06, with default
-  | SCPSeg74
-  | SCPSeg75 Word8
-  | SCPSeg76
-  | SCPSeg77SCP Word8
-    deriving stock (Generic, Eq, Show, Functor, Foldable, Traversable)
+  | Seg54 W8 W8
+  | Seg55 W8 W8
+  | Seg56 W8 W8
+  | Seg57 W8 W8
+  | Seg58 W8 W8
+  | Seg59 W8
+  | Seg5A W32 W8
+  | Seg5B W32
+  | Seg5C W8
+  | Seg5D W32
+  | Seg5E W32
+  | Seg5F W32
+  | Seg60 W32
+  | Seg61 W8 W8
+  | Seg62 W8 -- 0x01 <= w8 <= 0x11, no default
+  | Seg63
+  | Seg64
+  | Seg65Trophy
+  | Seg66
+  | Seg67
+  | Seg68
+  | Seg69
+  | Seg6A W8
+  | Seg6B W8
+  | Seg6CWipe W8 W32 W32 W32
+  | Seg6DWipe W8 W32 W32 W32
+  | Seg6E
+  | Seg6F
+  | Seg70 W8 W8
+  | Seg71 W8 W8
+  | Seg72
+  | Seg73Kyoro W8 W32 -- 0x01 <= w8 <= 0x06, with default
+  | Seg74
+  | Seg75 W8
+  | Seg76
+  | Seg77SCP W8
+    deriving stock (Generic, Show, Eq, Foldable)
 
--- | SCP segment JSON en/decoding config.
---
--- For selecting the constructor, only the 2 hex digits are used.
-jcSCPSeg :: Options
-jcSCPSeg = defaultOptions
-  { constructorTagModifier = take 2 . drop 6
-  , sumEncoding = TaggedObject
-    { tagFieldName = "command_byte"
-    , contentsFieldName = "arguments" }}
+deriving stock instance Functor     (Seg UV)
+deriving stock instance Traversable (Seg UV)
 
-instance ToJSON   a => ToJSON   (SCPSeg a) where
-    toJSON     = genericToJSON     jcSCPSeg
-    toEncoding = genericToEncoding jcSCPSeg
-instance FromJSON a => FromJSON (SCPSeg a) where
-    parseJSON  = genericParseJSON  jcSCPSeg
+brcSeg :: Binrep.Cfg W8
+brcSeg = Binrep.Cfg { Binrep.cSumTag = Binrep.cSumTagHex extractTagByte }
+  where extractTagByte = take 2 . drop (length ("Seg" :: String))
 
-bsToText :: SCP BS.ByteString -> Either Text.UnicodeException (SCP Text)
-bsToText = traverse (traverse Text.decodeUtf8')
+instance BLen a => BLen (Seg V a) where blen = blenGeneric brcSeg
+instance Put  a => Put  (Seg V a) where put  = putGeneric  brcSeg
+instance Get  a => Get  (Seg V a) where get  = getGeneric  brcSeg
 
-textToBs :: SCP Text -> SCP BS.ByteString
-textToBs = map (fmap Text.encodeUtf8)
+jcSeg :: Aeson.Options
+jcSeg = jcSum id (take 2 . drop (length ("Seg" :: String))) "command_byte" "arguments"
 
-data SCPSeg05Textbox bs = SCPSeg05Textbox'
-  { scpSeg05TextboxSpeakerUnkCharID :: Word8
-  -- ^ Unknown identifier. Game SCP parser uses it (places in memory, uses in a
-  --   call to set a value). Appears to be a "character ID" -- stronger than a
-  --   speaker ID, which can change between the same character to display their
-  --   name differently (e.g. if the player hasn't been introduced).
-  --
-  --   @0@ is shared by multiple non-important characters (e.g. random unnamed
-  --   university kids).
+instance ToJSON   a => ToJSON   (Seg v a) where
+    toJSON     = genericToJSON     jcSeg
+    toEncoding = genericToEncoding jcSeg
+instance FromJSON a => FromJSON (Seg UV a) where
+    parseJSON  = genericParseJSON  jcSeg
+instance (FromJSON a, Typeable a) => FromJSON (Seg V a) where
+    parseJSON  = genericParseJSON  jcSeg
 
-  , scpSeg05TextboxSpeakerID :: Word32
-  -- ^ Speaker ID. Selects the textbox name graphic and name used in backlog.
-  --   @0@ is apparently invalid (points to an empty string in one of (?) the
-  --   speaker ID arrays).
+type SCP v a = [Seg v a]
 
-  , scpSeg05TextboxText :: bs
-  -- ^ Textbox text. (Warning: Game imposes harsh length limitations.)
-
-  , scpSeg05TextboxVoiceLine :: bs
-  -- ^ No voice line is allowed, and indicated by the empty string.
-  --
-  -- There's also apparently a check for Banri's thought lines, accomplished via
-  -- a string search for the @（@ character. If it's found, the voice line isn't
-  -- copied. However, regardless of if that's correct or not, copying the empty
-  -- string accomplishes pretty much the same thing.
-
-  , scpSeg05TextboxCounter :: Word32
-  -- ^ Some sort of counter used throughout all SCPs.
-  --
-  --   TODO: May be globally unique. In which case, we want to determine the
-  --   "canonical" route through the SCPs, to potentially recalculate them.
-
-  } deriving stock (Generic, Eq, Show, Functor, Foldable, Traversable)
-
-jcSCPSeg05Textbox :: Options
-jcSCPSeg05Textbox =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpSeg05Textbox" :: String)
-
-instance ToJSON   a => ToJSON   (SCPSeg05Textbox a) where
-    toJSON     = genericToJSON     jcSCPSeg05Textbox
-    toEncoding = genericToEncoding jcSCPSeg05Textbox
-instance FromJSON a => FromJSON (SCPSeg05Textbox a) where
-    parseJSON  = genericParseJSON  jcSCPSeg05Textbox
-
--- | A weird dynamic bit used in 0A and 2B.
---
--- Other dynamic parts are simple, and done in line. This data is read and
--- handled by a dedicated function, used exactly twice - once in 0A (simple) and
--- once in 2B (also stores a bunch of other data).
-newtype SCPSeg0ADyn = SCPSeg0ADyn
-  { scpSeg0ADynData :: [[Word32]]
-  } deriving stock (Generic, Eq, Show)
-    deriving (ToJSON, FromJSON) via [[Word32]]
-
--- | Encode an SCP to pretty YAML.
---
--- We use a convenient trick provided by Snoyman's YAML library to allow even
--- prettier YAML, where we force field order via overriding string comparison.
-encodeYamlPretty :: ToJSON a => SCP a -> BS.ByteString
-encodeYamlPretty = YamlPretty.encodePretty yamlPrettyCfg
+prettyYamlCfg :: Yaml.Pretty.Config
+prettyYamlCfg =
+      Yaml.Pretty.setConfCompare f
+    $ Yaml.Pretty.setConfDropNull True
+    $ Yaml.Pretty.defConfig
   where
-    yamlPrettyCfg = YamlPretty.setConfCompare cmp $ YamlPretty.setConfDropNull True YamlPretty.defConfig
-    cmp "command_byte" _ = LT
-    cmp _ "command_byte" = GT
-    cmp k1 k2 = Prelude.compare k1 k2
+    f "command_byte" _ = LT
+    f _ "command_byte" = GT
+    f k1 k2 = compare k1 k2
+
+traverseSCP :: Applicative t => (a -> t b) -> SCP UV a -> t (SCP UV b)
+traverseSCP f = traverse (traverse f)
+
+refineSCP :: Typeable a => SCP UV a -> Either RefineException (SCP V a)
+refineSCP = traverse refineSeg
+
+refineAW32Pairs :: Typeable a => AW32Pairs UV a -> Either RefineException (AW32Pairs V a)
+refineAW32Pairs = refineWith
+
+unrefineAW32Pairs :: AW32Pairs V a -> AW32Pairs UV a
+unrefineAW32Pairs = unrefineWith
+
+refineW322Block :: W322Block UV -> Either RefineException (W322Block V)
+refineW322Block d = do
+    d' <- traverse refineWith $ withoutRefine d
+    refine d'
+
+unrefineW322Block :: W322Block V -> W322Block UV
+unrefineW322Block d = do
+    let d' = fmap unrefineWith $ withoutRefine d
+    withRefine d'
+
+refineSeg :: Typeable a => Seg UV a -> Either RefineException (Seg V a)
+refineSeg = \case
+  Seg00 -> r Seg00
+  Seg01BG a1 w1 w2 -> r $ Seg01BG a1 w1 w2
+  Seg02SFX a1 w1 -> r $ Seg02SFX a1 w1
+  Seg09Choice w1 d1 -> do
+    d1' <- refineAW32Pairs d1
+    r $ Seg09Choice w1 d1'
+  Seg03 w1 a1 w2 -> r $ Seg03 w1 a1 w2
+  Seg04 w1 w2 -> r $ Seg04 w1 w2
+  Seg05 d1 -> r $ Seg05 d1
+  -- no 0x06
+  Seg07SCP a1 -> r $ Seg07SCP a1
+  Seg08 -> r Seg08
+  Seg0A d1 -> do
+      d1' <- refineW322Block d1
+      r $ Seg0A d1'
+  Seg0B w1 w2 -> r $ Seg0B w1 w2
+  Seg0CFlag w1 w2 -> r $ Seg0CFlag w1 w2
+  Seg0D w1 -> r $ Seg0D w1
+  Seg0E w1 -> r $ Seg0E w1
+  Seg0F -> r Seg0F
+  Seg10 w1 w2 w3 -> r $ Seg10 w1 w2 w3
+  Seg11EventCG a1 -> r $ Seg11EventCG a1
+  Seg12 -> r Seg12
+  Seg13 w1 a1 w2 w3 -> r $ Seg13 w1 a1 w2 w3
+  Seg14 w1 -> r $ Seg14 w1
+  Seg15 -> r Seg15
+  Seg16Wadai -> r Seg16Wadai
+  Seg17 w1 w2 -> r $ Seg17 w1 w2
+  Seg18 w1 w2 -> r $ Seg18 w1 w2
+  Seg19 w1 w2 -> r $ Seg19 w1 w2
+  -- no 0x1A
+  -- no 0x1B
+  -- no 0x1C
+  Seg1D -> r Seg1D
+  Seg1E w1 -> r $ Seg1E w1
+  Seg1FDelay -> r Seg1FDelay
+  Seg20 w1 -> r $ Seg20 w1
+  Seg21 -> r Seg21
+  Seg22 a1 d1 -> do
+    d1' <- refineAW32Pairs d1
+    r $ Seg22 a1 d1'
+  Seg23SFX -> r Seg23SFX
+  Seg24 a1 -> r $ Seg24 a1
+  Seg25 -> r Seg25
+  Seg26 -> r Seg26
+  Seg27 a1 w1 w2 -> r $ Seg27 a1 w1 w2
+  Seg28 a1 w1 w2 -> r $ Seg28 a1 w1 w2
+  Seg29 a1 w1 w2 -> r $ Seg29 a1 w1 w2
+  Seg2A w1 w2 -> r $ Seg2A w1 w2
+  Seg2B w1 w2 w3 a1 d1 -> do
+    d1' <- refineW322Block d1
+    r $ Seg2B w1 w2 w3 a1 d1'
+  Seg2CMap -> r Seg2CMap
+  Seg2D a1 w1 w2 -> r $ Seg2D a1 w1 w2
+  Seg2E w1 w2 w3 w4 -> r $ Seg2E w1 w2 w3 w4
+  Seg2F w1 -> r $ Seg2F w1
+  Seg30 w1 -> r $ Seg30 w1
+  Seg31 -> r Seg31
+  Seg32 w1 w2 -> r $ Seg32 w1 w2
+  Seg33 w1 w2 -> r $ Seg33 w1 w2
+  Seg34 w1 -> r $ Seg34 w1
+  Seg35 a1 -> r $ Seg35 a1
+  Seg36 w1 w2 -> r $ Seg36 w1 w2
+  Seg37 w1 w2 -> r $ Seg37 w1 w2
+  Seg38 w1 w2 -> r $ Seg38 w1 w2
+  Seg39 -> r $ Seg39
+  Seg3A w1 w2 -> r $ Seg3A w1 w2
+  Seg3B w1 -> r $ Seg3B w1
+  Seg3C w1 w2 -> r $ Seg3C w1 w2
+  Seg3D -> r $ Seg3D
+  Seg3E w1 w2 -> r $ Seg3E w1 w2
+  Seg3F w1 w2 w3 -> r $ Seg3F w1 w2 w3
+  Seg40 w1 -> r $ Seg40 w1
+  Seg41 w1 w2 w3 -> r $ Seg41 w1 w2 w3
+  Seg42 w1 -> r $ Seg42 w1
+  Seg43SFX a1 -> r $ Seg43SFX a1
+  Seg44SFX a1 -> r $ Seg44SFX a1
+  Seg45SFX a1 w1 -> r $ Seg45SFX a1 w1
+  Seg46 w1 w2 -> r $ Seg46 w1 w2
+  Seg47 w1 w2 -> r $ Seg47 w1 w2
+  Seg48 -> r $ Seg48
+  Seg49 -> r $ Seg49
+  Seg4A -> r $ Seg4A
+  Seg4B -> r $ Seg4B
+  Seg4C a1 -> r $ Seg4C a1
+  Seg4D -> r $ Seg4D
+  Seg4E -> r $ Seg4E
+  Seg4F a1 w1 w2 -> r $ Seg4F a1 w1 w2
+  Seg50 a1 w1 w2 -> r $ Seg50 a1 w1 w2
+  Seg51 a1 w1 w2 -> r $ Seg51 a1 w1 w2
+  Seg52 a1 -> r $ Seg52 a1
+  Seg53 a1 w1 w2 -> r $ Seg53 a1 w1 w2
+  Seg54 w1 w2 -> r $ Seg54 w1 w2
+  Seg55 w1 w2 -> r $ Seg55 w1 w2
+  Seg56 w1 w2 -> r $ Seg56 w1 w2
+  Seg57 w1 w2 -> r $ Seg57 w1 w2
+  Seg58 w1 w2 -> r $ Seg58 w1 w2
+  Seg59 w1 -> r $ Seg59 w1
+  Seg5A w1 w2 -> r $ Seg5A w1 w2
+  Seg5B w1 -> r $ Seg5B w1
+  Seg5C w1 -> r $ Seg5C w1
+  Seg5D w1 -> r $ Seg5D w1
+  Seg5E w1 -> r $ Seg5E w1
+  Seg5F w1 -> r $ Seg5F w1
+  Seg60 w1 -> r $ Seg60 w1
+  Seg61 w1 w2 -> r $ Seg61 w1 w2
+  Seg62 w1 -> r $ Seg62 w1
+  Seg63 -> r $ Seg63
+  Seg64 -> r $ Seg64
+  Seg65Trophy -> r $ Seg65Trophy
+  Seg66 -> r $ Seg66
+  Seg67 -> r $ Seg67
+  Seg68 -> r $ Seg68
+  Seg69 -> r $ Seg69
+  Seg6A w1 -> r $ Seg6A w1
+  Seg6B w1 -> r $ Seg6B w1
+  Seg6CWipe w1 w2 w3 w4 -> r $ Seg6CWipe w1 w2 w3 w4
+  Seg6DWipe w1 w2 w3 w4 -> r $ Seg6DWipe w1 w2 w3 w4
+  Seg6E -> r $ Seg6E
+  Seg6F -> r $ Seg6F
+  Seg70 w1 w2 -> r $ Seg70 w1 w2
+  Seg71 w1 w2 -> r $ Seg71 w1 w2
+  Seg72 -> r $ Seg72
+  Seg73Kyoro w1 w2 -> r $ Seg73Kyoro w1 w2
+  Seg74 -> r $ Seg74
+  Seg75 w1 -> r $ Seg75 w1
+  Seg76 -> r $ Seg76
+  Seg77SCP w1 -> r $ Seg77SCP w1
+  where r = Right
+
+unrefineSCP :: SCP V a -> SCP UV a
+unrefineSCP = fmap unrefineSeg
+
+unrefineSeg :: Seg V a -> Seg UV a
+unrefineSeg = \case
+  Seg00 -> r Seg00
+  Seg01BG a1 w1 w2 -> r $ Seg01BG a1 w1 w2
+  Seg02SFX a1 w1 -> r $ Seg02SFX a1 w1
+  Seg09Choice w1 d1 -> do
+    let d1' = unrefineAW32Pairs d1
+    r $ Seg09Choice w1 d1'
+  Seg03 w1 a1 w2 -> r $ Seg03 w1 a1 w2
+  Seg04 w1 w2 -> r $ Seg04 w1 w2
+  Seg05 d1 -> r $ Seg05 d1
+  -- no 0x06
+  Seg07SCP a1 -> r $ Seg07SCP a1
+  Seg08 -> r Seg08
+  Seg0A d1 -> do
+    let d1' = unrefineW322Block d1
+    r $ Seg0A d1'
+  Seg0B w1 w2 -> r $ Seg0B w1 w2
+  Seg0CFlag w1 w2 -> r $ Seg0CFlag w1 w2
+  Seg0D w1 -> r $ Seg0D w1
+  Seg0E w1 -> r $ Seg0E w1
+  Seg0F -> r Seg0F
+  Seg10 w1 w2 w3 -> r $ Seg10 w1 w2 w3
+  Seg11EventCG a1 -> r $ Seg11EventCG a1
+  Seg12 -> r Seg12
+  Seg13 w1 a1 w2 w3 -> r $ Seg13 w1 a1 w2 w3
+  Seg14 w1 -> r $ Seg14 w1
+  Seg15 -> r Seg15
+  Seg16Wadai -> r Seg16Wadai
+  Seg17 w1 w2 -> r $ Seg17 w1 w2
+  Seg18 w1 w2 -> r $ Seg18 w1 w2
+  Seg19 w1 w2 -> r $ Seg19 w1 w2
+  -- no 0x1A
+  -- no 0x1B
+  -- no 0x1C
+  Seg1D -> r Seg1D
+  Seg1E w1 -> r $ Seg1E w1
+  Seg1FDelay -> r Seg1FDelay
+  Seg20 w1 -> r $ Seg20 w1
+  Seg21 -> r Seg21
+  Seg22 a1 d1 -> do
+    let d1' = unrefineAW32Pairs d1
+    r $ Seg22 a1 d1'
+  Seg23SFX -> r Seg23SFX
+  Seg24 a1 -> r $ Seg24 a1
+  Seg25 -> r Seg25
+  Seg26 -> r Seg26
+  Seg27 a1 w1 w2 -> r $ Seg27 a1 w1 w2
+  Seg28 a1 w1 w2 -> r $ Seg28 a1 w1 w2
+  Seg29 a1 w1 w2 -> r $ Seg29 a1 w1 w2
+  Seg2A w1 w2 -> r $ Seg2A w1 w2
+  Seg2B w1 w2 w3 a1 d1 -> do
+    let d1' = unrefineW322Block d1
+    r $ Seg2B w1 w2 w3 a1 d1'
+  Seg2CMap -> r Seg2CMap
+  Seg2D a1 w1 w2 -> r $ Seg2D a1 w1 w2
+  Seg2E w1 w2 w3 w4 -> r $ Seg2E w1 w2 w3 w4
+  Seg2F w1 -> r $ Seg2F w1
+  Seg30 w1 -> r $ Seg30 w1
+  Seg31 -> r Seg31
+  Seg32 w1 w2 -> r $ Seg32 w1 w2
+  Seg33 w1 w2 -> r $ Seg33 w1 w2
+  Seg34 w1 -> r $ Seg34 w1
+  Seg35 a1 -> r $ Seg35 a1
+  Seg36 w1 w2 -> r $ Seg36 w1 w2
+  Seg37 w1 w2 -> r $ Seg37 w1 w2
+  Seg38 w1 w2 -> r $ Seg38 w1 w2
+  Seg39 -> r $ Seg39
+  Seg3A w1 w2 -> r $ Seg3A w1 w2
+  Seg3B w1 -> r $ Seg3B w1
+  Seg3C w1 w2 -> r $ Seg3C w1 w2
+  Seg3D -> r $ Seg3D
+  Seg3E w1 w2 -> r $ Seg3E w1 w2
+  Seg3F w1 w2 w3 -> r $ Seg3F w1 w2 w3
+  Seg40 w1 -> r $ Seg40 w1
+  Seg41 w1 w2 w3 -> r $ Seg41 w1 w2 w3
+  Seg42 w1 -> r $ Seg42 w1
+  Seg43SFX a1 -> r $ Seg43SFX a1
+  Seg44SFX a1 -> r $ Seg44SFX a1
+  Seg45SFX a1 w1 -> r $ Seg45SFX a1 w1
+  Seg46 w1 w2 -> r $ Seg46 w1 w2
+  Seg47 w1 w2 -> r $ Seg47 w1 w2
+  Seg48 -> r $ Seg48
+  Seg49 -> r $ Seg49
+  Seg4A -> r $ Seg4A
+  Seg4B -> r $ Seg4B
+  Seg4C a1 -> r $ Seg4C a1
+  Seg4D -> r $ Seg4D
+  Seg4E -> r $ Seg4E
+  Seg4F a1 w1 w2 -> r $ Seg4F a1 w1 w2
+  Seg50 a1 w1 w2 -> r $ Seg50 a1 w1 w2
+  Seg51 a1 w1 w2 -> r $ Seg51 a1 w1 w2
+  Seg52 a1 -> r $ Seg52 a1
+  Seg53 a1 w1 w2 -> r $ Seg53 a1 w1 w2
+  Seg54 w1 w2 -> r $ Seg54 w1 w2
+  Seg55 w1 w2 -> r $ Seg55 w1 w2
+  Seg56 w1 w2 -> r $ Seg56 w1 w2
+  Seg57 w1 w2 -> r $ Seg57 w1 w2
+  Seg58 w1 w2 -> r $ Seg58 w1 w2
+  Seg59 w1 -> r $ Seg59 w1
+  Seg5A w1 w2 -> r $ Seg5A w1 w2
+  Seg5B w1 -> r $ Seg5B w1
+  Seg5C w1 -> r $ Seg5C w1
+  Seg5D w1 -> r $ Seg5D w1
+  Seg5E w1 -> r $ Seg5E w1
+  Seg5F w1 -> r $ Seg5F w1
+  Seg60 w1 -> r $ Seg60 w1
+  Seg61 w1 w2 -> r $ Seg61 w1 w2
+  Seg62 w1 -> r $ Seg62 w1
+  Seg63 -> r $ Seg63
+  Seg64 -> r $ Seg64
+  Seg65Trophy -> r $ Seg65Trophy
+  Seg66 -> r $ Seg66
+  Seg67 -> r $ Seg67
+  Seg68 -> r $ Seg68
+  Seg69 -> r $ Seg69
+  Seg6A w1 -> r $ Seg6A w1
+  Seg6B w1 -> r $ Seg6B w1
+  Seg6CWipe w1 w2 w3 w4 -> r $ Seg6CWipe w1 w2 w3 w4
+  Seg6DWipe w1 w2 w3 w4 -> r $ Seg6DWipe w1 w2 w3 w4
+  Seg6E -> r $ Seg6E
+  Seg6F -> r $ Seg6F
+  Seg70 w1 w2 -> r $ Seg70 w1 w2
+  Seg71 w1 w2 -> r $ Seg71 w1 w2
+  Seg72 -> r $ Seg72
+  Seg73Kyoro w1 w2 -> r $ Seg73Kyoro w1 w2
+  Seg74 -> r $ Seg74
+  Seg75 w1 -> r $ Seg75 w1
+  Seg76 -> r $ Seg76
+  Seg77SCP w1 -> r $ Seg77SCP w1
+  where r = id

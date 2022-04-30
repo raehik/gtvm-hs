@@ -6,14 +6,14 @@ import Common.Util
 import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
-import Data.Text ( Text )
-import GTVM.SCP qualified as SCP
-import GTVM.SCP ( SCP )
-import GTVM.SCP.Serialize qualified as GSS
-import GTVM.SCP.Parse qualified as GSP
-import GTVM.Common.Binary qualified as GCB
-import GTVM.Common.Binary.Parse qualified as GCBP
+import GTVM.SCP
+import Binrep
+import Binrep.Type.ByteString
+import Binrep.Type.Text
 import GTVM.Common.IO ( badParseYAML )
+import Data.Yaml.Pretty qualified as Yaml.Pretty
+import Data.ByteString qualified as B
+import Refined
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"
@@ -35,17 +35,19 @@ parseCLIOptsDecode = CfgDecode <$> pStreamIn <*> pStreamOut
 runEncode :: MonadIO m => CfgEncode -> m ()
 runEncode cfg = do
     scpYAMLBs <- readStreamBytes $ cfgEncodeStreamIn cfg
-    scp <- badParseYAML @(SCP Text) scpYAMLBs
-    let scp'  = SCP.textToBs scp
-        scpBs = GSS.sSCP scp' GCB.binCfgSCP
-    writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) scpBs
+    scpYAML <- badParseYAML @(SCP UV (AsText 'UTF8)) scpYAMLBs
+    scpBin <- liftErr show $ do
+        scpBin <- traverseSCP (encodeToRep @'C) scpYAML
+        refineSCP scpBin
+    let scpBinBs = runPut scpBin
+    writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) scpBinBs
 
-runDecode :: MonadIO m => CfgDecode -> m ()
+runDecode :: (MonadFail m, MonadIO m) => CfgDecode -> m ()
 runDecode cfg = do
-    scp <- badParseStream (GCBP.parseBin GSP.pSCP GCB.binCfgSCP) $ cfgDecodeStreamIn cfg
-    case SCP.bsToText scp of
-      Left err ->
-        badExit "decoding UTF-8 bytestring" err
-      Right scp' ->
-        let scpYAMLBs = SCP.encodeYamlPretty scp'
-         in writeStreamTextualBytes (cfgDecodeStreamOut cfg) scpYAMLBs
+    scpBinBs <- readStreamBytes $ cfgDecodeStreamIn cfg
+    (scpBin, bs) <- liftErr show $ runGet @(SCP V (AsByteString 'C)) scpBinBs
+    if not (B.null bs) then fail "dangling bytes"
+    else do
+        scpText <- liftErr id $ traverseSCP (decode @'UTF8 . withoutRefine) $ unrefineSCP scpBin
+        let scpYAMLBs = Yaml.Pretty.encodePretty prettyYamlCfg scpText
+        writeStreamTextualBytes (cfgDecodeStreamOut cfg) scpYAMLBs

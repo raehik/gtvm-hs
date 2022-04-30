@@ -8,7 +8,7 @@ extra-deps:
   commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
 
 - git: https://github.com/raehik/refined
-  commit: f53784ccb97123c5e001fc4f0c3e4fdcc6586dce
+  commit: b283c73689b6ca937d8795582c8b232f4cb8ba70
 
 - git: https://github.com/raehik/binrep
-  commit: 0afa31a7c0eda04fdd4827ff3655d8d47b2ce3db
+  commit: 5fcb77f91a85751a40d8a57bc501085683bd1bf7

@@ -41,7 +41,6 @@ badExit errStr s = do
     liftIO $ putStrLn $ "error: while " <> errStr <> ": " <> show s
     liftIO $ exitWith $ ExitFailure 1
 
-
 liftErr :: MonadIO m => (e -> String) -> Either e a -> m a
 liftErr f = \case
   Left e -> do

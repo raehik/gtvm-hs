@@ -25,155 +25,159 @@ import Data.Map ( Map )
 import Data.Map qualified as Map
 import Data.Char qualified
 import Data.Maybe ( fromMaybe )
-import Data.Word
 import Util ( tshow )
 
-import Data.Yaml.Pretty qualified
+import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import GTVM.SCP
+import Refined
 
 import Control.Monad.State
+
+type Seg' = Seg UV Text
+type SCP' = [Seg']
+
+type SCPTL c a = [TLSeg c a]
 
 data Env = Env
   { envPendingPlaceholder :: Text
 
-  , envSpeakerIDMap       :: Maybe (Word32 -> Maybe Text)
+  , envSpeakerIDMap       :: W32 -> Maybe Text
   -- ^ Attempt to obtain a pretty speaker name from an ID.
   --
   -- This data isn't stored in the repo, and must instead be parsed at runtime.
 
   } deriving (Generic)
 
--- | See 'GTVM.SCP' for details.
-data SCPTL (c :: Check) bs
-  = SCPTLTextbox'  (SCPTLTextbox c bs)
-  | SCPTLChoice'   [SCPTLChoice c bs]
-  | SCPTL22Choice' (SCPTL22 c bs)
-  | SCPTL35Choice' (SCPTLChoice c bs)
-  | SCPTLComment'  SCPTLComment
+data TLSeg (c :: Check) a
+  = TLSegTextbox'  (TLSegTextbox c a)
+  | TLSegChoice'   [TLSegChoice c a]
+  | TLSeg22Choice' (TLSeg22 c a)
+  | TLSeg35Choice' (TLSegChoice c a)
+  | TLSegComment'  TLSegComment
     deriving (Generic)
 
-deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTL c bs)
-deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTL c bs)
+deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSeg c a)
+deriving instance (Show (CheckRep c a), Show a) => Show (TLSeg c a)
 
-deriving instance Functor     (SCPTL 'CheckEqual)
-deriving instance Foldable    (SCPTL 'CheckEqual)
-deriving instance Traversable (SCPTL 'CheckEqual)
+deriving instance Functor     (TLSeg 'CheckEqual)
+deriving instance Foldable    (TLSeg 'CheckEqual)
+deriving instance Traversable (TLSeg 'CheckEqual)
 
-jcSCPTL :: Aeson.Options
-jcSCPTL = Aeson.defaultOptions
+jcTLSeg :: Aeson.Options
+jcTLSeg = Aeson.defaultOptions
   { Aeson.constructorTagModifier = map Data.Char.toLower . init . drop 5
   , Aeson.sumEncoding = Aeson.TaggedObject
     { Aeson.tagFieldName = "type"
     , Aeson.contentsFieldName = "contents" }}
 
-instance (ToJSON   (CheckRep c bs), ToJSON   bs) => ToJSON   (SCPTL c bs) where
-    toJSON     = genericToJSON     jcSCPTL
-    toEncoding = genericToEncoding jcSCPTL
-instance (FromJSON (CheckRep c bs), FromJSON bs) => FromJSON (SCPTL c bs) where
-    parseJSON  = genericParseJSON  jcSCPTL
+instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSeg c a) where
+    toJSON     = genericToJSON     jcTLSeg
+    toEncoding = genericToEncoding jcTLSeg
+instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSeg c a) where
+    parseJSON  = genericParseJSON  jcTLSeg
 
-data SCPTLComment = SCPTLComment
+data TLSegComment = TLSegComment
   { scpTLCommentCommentary :: [Text]
   , scpTLCommentMeta       :: Map Text Text
   } deriving stock (Generic, Eq, Show)
 
-jcSCPTLComment :: Aeson.Options
-jcSCPTLComment =
+jcTLSegComment :: Aeson.Options
+jcTLSegComment =
     jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpTLComment" :: String)
 
-instance ToJSON   SCPTLComment where
-    toJSON     = genericToJSON     jcSCPTLComment
-    toEncoding = genericToEncoding jcSCPTLComment
-instance FromJSON SCPTLComment where
-    parseJSON  = genericParseJSON  jcSCPTLComment
+instance ToJSON   TLSegComment where
+    toJSON     = genericToJSON     jcTLSegComment
+    toEncoding = genericToEncoding jcTLSegComment
+instance FromJSON TLSegComment where
+    parseJSON  = genericParseJSON  jcTLSegComment
 
-data SCPTLTextbox (c :: Check) bs = SCPTLTextbox
-  { scpTLTextboxSource      :: CheckRep c bs
-  , scpTLTextboxTranslation :: bs
-  , scpTLTextboxOverflow    :: Maybe bs
+data TLSegTextbox (c :: Check) a = TLSegTextbox
+  { tlSegTextboxSource      :: CheckRep c a
+  , tlSegTextboxTranslation :: a
+  , tlSegTextboxOverflow    :: Maybe a
   } deriving (Generic)
 
-deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTLTextbox c bs)
-deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTLTextbox c bs)
+deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSegTextbox c a)
+deriving instance (Show (CheckRep c a), Show a) => Show (TLSegTextbox c a)
 
-instance Functor     (SCPTLTextbox 'CheckEqual) where
-    fmap     f (SCPTLTextbox s t o) = SCPTLTextbox (f s) (f t) (fmap f o)
-instance Foldable    (SCPTLTextbox 'CheckEqual) where
-    foldMap  f (SCPTLTextbox s t o) = f s <> f t <> foldMap f o
-instance Traversable (SCPTLTextbox 'CheckEqual) where
-    traverse f (SCPTLTextbox s t o) =
-        SCPTLTextbox <$> f s <*> f t <*> traverse f o
+instance Functor     (TLSegTextbox 'CheckEqual) where
+    fmap     f (TLSegTextbox s t o) = TLSegTextbox (f s) (f t) (fmap f o)
+instance Foldable    (TLSegTextbox 'CheckEqual) where
+    foldMap  f (TLSegTextbox s t o) = f s <> f t <> foldMap f o
+instance Traversable (TLSegTextbox 'CheckEqual) where
+    traverse f (TLSegTextbox s t o) =
+        TLSegTextbox <$> f s <*> f t <*> traverse f o
 
-jcSCPTLTextbox :: Aeson.Options
-jcSCPTLTextbox =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpTLTextbox" :: String)
+jcTLSegTextbox :: Aeson.Options
+jcTLSegTextbox =
+    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("tlSegTextbox" :: String)
 
-instance (ToJSON   (CheckRep c bs), ToJSON   bs) => ToJSON   (SCPTLTextbox c bs) where
-    toJSON     = genericToJSON     jcSCPTLTextbox
-    toEncoding = genericToEncoding jcSCPTLTextbox
-instance (FromJSON (CheckRep c bs), FromJSON bs) => FromJSON (SCPTLTextbox c bs) where
-    parseJSON  = genericParseJSON  jcSCPTLTextbox
+instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSegTextbox c a) where
+    toJSON     = genericToJSON     jcTLSegTextbox
+    toEncoding = genericToEncoding jcTLSegTextbox
+instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSegTextbox c a) where
+    parseJSON  = genericParseJSON  jcTLSegTextbox
 
-data SCPTLChoice (c :: Check) bs = SCPTLChoice
-  { scpTLChoiceSource      :: CheckRep c bs
-  , scpTLChoiceTranslation :: bs
+data TLSegChoice (c :: Check) a = TLSegChoice
+  { tlSegChoiceSource :: CheckRep c a
+  , tlSegChoiceTranslation :: a
   } deriving (Generic)
 
-deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTLChoice c bs)
-deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTLChoice c bs)
+deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSegChoice c a)
+deriving instance (Show (CheckRep c a), Show a) => Show (TLSegChoice c a)
 
-instance Functor     (SCPTLChoice 'CheckEqual) where
-    fmap     f (SCPTLChoice s t) = SCPTLChoice (f s) (f t)
-instance Foldable    (SCPTLChoice 'CheckEqual) where
-    foldMap  f (SCPTLChoice s t) = f s <> f t
-instance Traversable (SCPTLChoice 'CheckEqual) where
-    traverse f (SCPTLChoice s t) =
-        SCPTLChoice <$> f s <*> f t
+instance Functor     (TLSegChoice 'CheckEqual) where
+    fmap     f (TLSegChoice s t) = TLSegChoice (f s) (f t)
+instance Foldable    (TLSegChoice 'CheckEqual) where
+    foldMap  f (TLSegChoice s t) = f s <> f t
+instance Traversable (TLSegChoice 'CheckEqual) where
+    traverse f (TLSegChoice s t) =
+        TLSegChoice <$> f s <*> f t
 
-jcSCPTLChoice :: Aeson.Options
-jcSCPTLChoice =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpTLChoice" :: String)
+jcTLSegChoice :: Aeson.Options
+jcTLSegChoice =
+    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("tlSegChoice" :: String)
 
-instance (ToJSON   (CheckRep c bs), ToJSON   bs) => ToJSON   (SCPTLChoice c bs) where
-    toJSON     = genericToJSON     jcSCPTLChoice
-    toEncoding = genericToEncoding jcSCPTLChoice
-instance (FromJSON (CheckRep c bs), FromJSON bs) => FromJSON (SCPTLChoice c bs) where
-    parseJSON  = genericParseJSON  jcSCPTLChoice
+instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSegChoice c a) where
+    toJSON     = genericToJSON     jcTLSegChoice
+    toEncoding = genericToEncoding jcTLSegChoice
+instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSegChoice c a) where
+    parseJSON  = genericParseJSON  jcTLSegChoice
 
-data SCPTL22 (c :: Check) bs = SCPTL22
-  { scpTL22TopicSource      :: CheckRep c bs
-  , scpTL22TopicTranslation :: bs
-  , scpTL22Choices          :: [SCPTLChoice c bs]
+data TLSeg22 (c :: Check) a = TLSeg22
+  { tlSeg22TopicSource      :: CheckRep c a
+  , tlSeg22TopicTranslation :: a
+  , tlSeg22Choices          :: [TLSegChoice c a]
   } deriving (Generic)
 
-deriving instance (Eq   (CheckRep c bs), Eq   bs) => Eq   (SCPTL22 c bs)
-deriving instance (Show (CheckRep c bs), Show bs) => Show (SCPTL22 c bs)
+deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSeg22 c a)
+deriving instance (Show (CheckRep c a), Show a) => Show (TLSeg22 c a)
 
-instance Functor     (SCPTL22 'CheckEqual) where
-    fmap     f (SCPTL22 s t cs) = SCPTL22 (f s) (f t) (fmap (fmap f) cs)
-instance Foldable    (SCPTL22 'CheckEqual) where
-    foldMap  f (SCPTL22 s t cs) = f s <> f t <> foldMap (foldMap f) cs
-instance Traversable (SCPTL22 'CheckEqual) where
-    traverse f (SCPTL22 s t cs) =
-        SCPTL22 <$> f s <*> f t <*> traverse (traverse f) cs
+instance Functor     (TLSeg22 'CheckEqual) where
+    fmap     f (TLSeg22 s t cs) = TLSeg22 (f s) (f t) (fmap (fmap f) cs)
+instance Foldable    (TLSeg22 'CheckEqual) where
+    foldMap  f (TLSeg22 s t cs) = f s <> f t <> foldMap (foldMap f) cs
+instance Traversable (TLSeg22 'CheckEqual) where
+    traverse f (TLSeg22 s t cs) =
+        TLSeg22 <$> f s <*> f t <*> traverse (traverse f) cs
 
-jcSCPTL22 :: Aeson.Options
-jcSCPTL22 =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpTL22" :: String)
+jcTLSeg22 :: Aeson.Options
+jcTLSeg22 =
+    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("tlSeg22" :: String)
 
-instance (ToJSON   (CheckRep c bs), ToJSON   bs) => ToJSON   (SCPTL22 c bs) where
-    toJSON     = genericToJSON     jcSCPTL22
-    toEncoding = genericToEncoding jcSCPTL22
-instance (FromJSON (CheckRep c bs), FromJSON bs) => FromJSON (SCPTL22 c bs) where
-    parseJSON  = genericParseJSON  jcSCPTL22
+instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSeg22 c a) where
+    toJSON     = genericToJSON     jcTLSeg22
+    toEncoding = genericToEncoding jcTLSeg22
+instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSeg22 c a) where
+    parseJSON  = genericParseJSON  jcTLSeg22
 
 -- | Silly pretty config to get my preferred layout easily.
 --
 -- Looks silly, but gets the job done very smoothly. Snoyman's yaml library is
 -- based for exposing this.
-ycSCPTL :: Data.Yaml.Pretty.Config
-ycSCPTL = Data.Yaml.Pretty.setConfDropNull True $ Data.Yaml.Pretty.setConfCompare f $ Data.Yaml.Pretty.defConfig
+ycTLSeg :: Yaml.Pretty.Config
+ycTLSeg = Yaml.Pretty.setConfDropNull True $ Yaml.Pretty.setConfCompare f $ Yaml.Pretty.defConfig
   where
     f "type" _ = LT
     f _ "type" = GT
@@ -185,79 +189,76 @@ ycSCPTL = Data.Yaml.Pretty.setConfDropNull True $ Data.Yaml.Pretty.setConfCompar
     f _ "meta" = GT
     f s1 s2 = compare s1 s2
 
-genTL :: Env -> SCP Text -> [SCPTL 'CheckEqual Text]
+genTL :: Env -> SCP' -> [TLSeg 'CheckEqual Text]
 genTL env = concatMap go
   where
     go = \case
       -- Segments that contain text to translate. Some generation functions also
       -- handle the commentary, some are plain combinators.
-      SCPSeg05Textbox tb  -> genTLTextbox env tb
-      SCPSeg09Choice csi cs -> genTLChoiceOuter env csi (map fst cs)
-      SCPSeg22 s cs -> [SCPTL22Choice' $ genTL22Choices env s (map fst cs)]
-      SCPSeg35 c -> [SCPTL35Choice' $ genTLChoice env c]
+      Seg05 tb  -> genTLTextbox env tb
+      Seg09Choice csi cs -> genTLChoiceOuter env csi (map fst (withoutRefine cs))
+      Seg22 s cs -> [TLSeg22Choice' $ genTL22Choices env s (map fst (withoutRefine cs))]
+      Seg35 c -> [TLSeg35Choice' $ genTLChoice env c]
 
       -- Extra segments that are useful to know the presence of.
-      SCPSeg0B csi ci ->
+      Seg0B csi ci ->
         [ meta [ "Choice jump below. Check which choice & choice selection this corresponds to." ]
                [ ("choice_selection_index", tshow csi)
                , ("choice_index", tshow ci) ] ]
-      SCPSeg07SCP scp ->
+      Seg07SCP scp ->
         [ meta [ "Script jump. Any following text is likely accessed by a choice." ]
                [ ("scp_jump_target", scp) ] ]
-      SCPSeg0CFlag{} ->
+      Seg0CFlag{} ->
         [ meta [ "0C command here. Alters flow (perhaps checks a flag)." ]
                [] ]
 
       -- Don't care about the rest.
       _ -> []
 
-genTLTextbox :: Env -> SCPSeg05Textbox Text -> [SCPTL 'CheckEqual Text]
+genTLTextbox :: Env -> Seg05Text Text -> [TLSeg 'CheckEqual Text]
 genTLTextbox env tb =
-  [ SCPTLComment' ( SCPTLComment
+  [ TLSegComment' ( TLSegComment
     { scpTLCommentCommentary = []
     , scpTLCommentMeta       =
-        case envSpeakerIDMap env of
-          Nothing         -> Map.empty
-          Just speakerMap ->
-            let speakerName = fromMaybe "N/A" $ speakerMap $ scpSeg05TextboxSpeakerID tb
-             in Map.singleton "speaker" speakerName } )
-  , SCPTLTextbox'
-    ( SCPTLTextbox
-      { scpTLTextboxSource      = scpSeg05TextboxText tb
-      , scpTLTextboxTranslation = envPendingPlaceholder env
-      , scpTLTextboxOverflow    = Nothing } )
+        let speakerName = fromMaybe "N/A" $ envSpeakerIDMap env $ seg05TextSpeakerID tb
+         in Map.singleton "speaker" speakerName } )
+  , TLSegTextbox'
+    ( TLSegTextbox
+      { tlSegTextboxSource      = seg05TextText tb
+      , tlSegTextboxTranslation = envPendingPlaceholder env
+      , tlSegTextboxOverflow    = Nothing } )
   ]
 
-genTLChoiceOuter :: Env -> Word8 -> [Text] -> [SCPTL 'CheckEqual Text]
+genTLChoiceOuter :: Env -> W8 -> [Text] -> [TLSeg 'CheckEqual Text]
 genTLChoiceOuter env csi cs =
   [ meta [ "Choice selection below. Script flow jumps depending on selection." ]
          [ ("choice_selection_index", tshow csi) ]
-  , SCPTLChoice' $ map (genTLChoice env) cs ]
+  , TLSegChoice' $ map (genTLChoice env) cs ]
 
-genTLChoice :: Env -> Text -> SCPTLChoice 'CheckEqual Text
-genTLChoice env c = SCPTLChoice
-                      { scpTLChoiceTranslation = envPendingPlaceholder env
-                      , scpTLChoiceSource      = c }
+genTLChoice :: Env -> Text -> TLSegChoice 'CheckEqual Text
+genTLChoice env c = TLSegChoice
+                      { tlSegChoiceTranslation = envPendingPlaceholder env
+                      , tlSegChoiceSource      = c }
 
-genTL22Choices :: Env -> Text -> [Text] -> SCPTL22 'CheckEqual Text
-genTL22Choices env s ss = SCPTL22
-  { scpTL22TopicSource = s
-  , scpTL22TopicTranslation = envPendingPlaceholder env
-  , scpTL22Choices = map (genTLChoice env) ss }
+genTL22Choices :: Env -> Text -> [Text] -> TLSeg22 'CheckEqual Text
+genTL22Choices env s ss = TLSeg22
+  { tlSeg22TopicSource = s
+  , tlSeg22TopicTranslation = envPendingPlaceholder env
+  , tlSeg22Choices = map (genTLChoice env) ss }
 
-meta :: [Text] -> [(Text, Text)] -> SCPTL c s
-meta cms kvs = SCPTLComment' $ SCPTLComment { scpTLCommentCommentary = cms
+meta :: [Text] -> [(Text, Text)] -> TLSeg c s
+meta cms kvs = TLSegComment' $ TLSegComment { scpTLCommentCommentary = cms
                                         , scpTLCommentMeta = Map.fromList kvs }
 
 data Error
-  = ErrorSCPTLOverlong
+  = ErrorTLSegOverlong
   | ErrorSourceMismatch
-  | ErrorSCPTLTooShort
+  | ErrorTLSegTooShort
   | ErrorTypeMismatch
   | ErrorUnimplemented
     deriving (Generic, Eq, Show)
 
-apply :: SCP Text -> [SCPTL 'CheckEqual Text] -> Either Error (SCP Text)
+apply :: SCP' -> [TLSeg 'CheckEqual Text] -> Either Error SCP'
 apply scp scptl =
     let (scpSegsTled, scptl') = runState (traverseM applySeg scp) scptl
      in case scpSegsTled of
@@ -265,50 +266,50 @@ apply scp scptl =
           Right scpSegsTled' ->
             let scptl'' = skipToNextTL scptl'
              in case scptl'' of
-                  _:_ -> Left ErrorSCPTLOverlong
+                  _:_ -> Left ErrorTLSegOverlong
                   [] -> Right $ concat scpSegsTled'
 
-skipToNextTL :: [SCPTL c bs] -> [SCPTL c bs]
+skipToNextTL :: [TLSeg c a] -> [TLSeg c a]
 skipToNextTL = \case []   -> []
                      a:as -> case a of
-                               SCPTLComment'{} -> skipToNextTL as
+                               TLSegComment'{} -> skipToNextTL as
                                _ -> a:as
 
 -- Using highly explicit/manual prisms here. Could clean up.
 applySeg
-    :: MonadState [SCPTL 'CheckEqual Text] m
-    => SCPSeg Text -> m (Either Error [SCPSeg Text])
+    :: MonadState [TLSeg 'CheckEqual Text] m
+    => Seg' -> m (Either Error [Seg'])
 applySeg = \case
-  SCPSeg05Textbox tb -> tryApplySeg tryExtractTextbox (tryApplySegTextbox tb)
-  SCPSeg09Choice w8 cs -> tryApplySeg tryExtractChoice (tryApplySegChoice w8 cs)
-  SCPSeg22 topic cs -> tryApplySeg tryExtract22 (tryApplySeg22 topic cs)
-  SCPSeg35 bs -> tryApplySeg tryExtract35 (tryApplySeg35 bs)
+  Seg05 tb -> tryApplySeg tryExtractTextbox (tryApplySegTextbox tb)
+  Seg09Choice w8 cs -> tryApplySeg tryExtractChoice (tryApplySegChoice w8 (withoutRefine cs))
+  Seg22 topic cs -> tryApplySeg tryExtract22 (tryApplySeg22 topic (withoutRefine cs))
+  Seg35 a -> tryApplySeg tryExtract35 (tryApplySeg35 a)
   seg -> return $ Right [seg]
 
-tryExtractTextbox :: SCPTL c bs -> Maybe (SCPTLTextbox c bs)
-tryExtractTextbox = \case SCPTLTextbox' a -> Just a
+tryExtractTextbox :: TLSeg c a -> Maybe (TLSegTextbox c a)
+tryExtractTextbox = \case TLSegTextbox' a -> Just a
                           _               -> Nothing
 
-tryExtractChoice :: SCPTL c bs -> Maybe [SCPTLChoice c bs]
-tryExtractChoice = \case SCPTLChoice' a -> Just a
+tryExtractChoice :: TLSeg c a -> Maybe [TLSegChoice c a]
+tryExtractChoice = \case TLSegChoice' a -> Just a
                          _              -> Nothing
 
-tryExtract22 :: SCPTL c bs -> Maybe (SCPTL22 c bs)
-tryExtract22 = \case SCPTL22Choice' a -> Just a
+tryExtract22 :: TLSeg c a -> Maybe (TLSeg22 c a)
+tryExtract22 = \case TLSeg22Choice' a -> Just a
                      _                -> Nothing
 
-tryExtract35 :: SCPTL c bs -> Maybe (SCPTLChoice c bs)
-tryExtract35 = \case SCPTL35Choice' a -> Just a
+tryExtract35 :: TLSeg c a -> Maybe (TLSegChoice c a)
+tryExtract35 = \case TLSeg35Choice' a -> Just a
                      _                -> Nothing
 
 tryApplySeg
-    :: MonadState [SCPTL 'CheckEqual Text] m
-    => (SCPTL 'CheckEqual Text -> Maybe a)
-    -> (a -> Either Error [SCPSeg Text])
-    -> m (Either Error [SCPSeg Text])
+    :: MonadState [TLSeg 'CheckEqual Text] m
+    => (TLSeg 'CheckEqual Text -> Maybe a)
+    -> (a -> Either Error [Seg'])
+    -> m (Either Error [Seg'])
 tryApplySeg f1 f2 = do
     (skipToNextTL <$> get) >>= \case
-      []     -> return $ Left ErrorSCPTLTooShort
+      []     -> return $ Left ErrorTLSegTooShort
       tl:tls -> do
         put tls
         case f1 tl of
@@ -316,50 +317,50 @@ tryApplySeg f1 f2 = do
           Just a  -> return $ f2 a
 
 tryApplySegTextbox
-    :: SCPSeg05Textbox Text -> SCPTLTextbox 'CheckEqual Text
-    -> Either Error [SCPSeg Text]
+    :: Seg05Text Text -> TLSegTextbox 'CheckEqual Text
+    -> Either Error [Seg']
 tryApplySegTextbox tb tbTL
-  | scpSeg05TextboxText tb /= scpTLTextboxSource tbTL = Left ErrorSourceMismatch
-  | otherwise = Right $ SCPSeg05Textbox tb' : overflow
+  | seg05TextText tb /= tlSegTextboxSource tbTL = Left ErrorSourceMismatch
+  | otherwise = Right $ Seg05 tb' : overflow
   where
-    tb' = tb { scpSeg05TextboxText = scpTLTextboxTranslation tbTL }
-    overflow = maybe [] fakeTextboxSeg $ scpTLTextboxOverflow tbTL
+    tb' = tb { seg05TextText = tlSegTextboxTranslation tbTL }
+    overflow = maybe [] fakeTextboxSeg $ tlSegTextboxOverflow tbTL
     fakeTextboxSeg text =
-        [SCPSeg05Textbox $ tb { scpSeg05TextboxVoiceLine = Text.empty
-                              , scpSeg05TextboxText      = text } ]
+        [Seg05 $ tb { seg05TextVoiceLine = Text.empty
+                        , seg05TextText      = text } ]
 
 tryApplySegChoice
-    :: Word8 -> [(Text, Word32)] -> [SCPTLChoice 'CheckEqual Text]
-    -> Either Error [SCPSeg Text]
+    :: W8 -> [(Text, W32)] -> [TLSegChoice 'CheckEqual Text]
+    -> Either Error [Seg']
 tryApplySegChoice w8 cs csTL
   | length cs /= length csTL = Left ErrorSourceMismatch
   -- lol whatever XD
   | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
-  | otherwise = Right [SCPSeg09Choice w8 edited]
+  | otherwise = Right [Seg09Choice w8 (withRefine edited)]
   where
-    checks = zip (map scpTLChoiceSource csTL) (map fst cs)
-    edited = zip (map scpTLChoiceTranslation csTL) (map snd cs)
+    checks = zip (map tlSegChoiceSource csTL) (map fst cs)
+    edited = zip (map tlSegChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg22
-    :: Text -> [(Text, Word32)] -> (SCPTL22 'CheckEqual Text)
-    -> Either Error [SCPSeg Text]
+    :: Text -> [(Text, W32)] -> (TLSeg22 'CheckEqual Text)
+    -> Either Error [Seg']
 tryApplySeg22 topic cs segTL
-  | topic /= scpTL22TopicSource segTL = Left ErrorSourceMismatch
+  | topic /= tlSeg22TopicSource segTL = Left ErrorSourceMismatch
   | length cs /= length csTL = Left ErrorSourceMismatch
   -- lol whatever XD
   | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
-  | otherwise = Right [SCPSeg22 (scpTL22TopicTranslation segTL) edited]
+  | otherwise = Right [Seg22 (tlSeg22TopicTranslation segTL) (withRefine edited)]
   where
-    csTL = scpTL22Choices segTL
-    checks = zip (map scpTLChoiceSource csTL) (map fst cs)
-    edited = zip (map scpTLChoiceTranslation csTL) (map snd cs)
+    csTL = tlSeg22Choices segTL
+    checks = zip (map tlSegChoiceSource csTL) (map fst cs)
+    edited = zip (map tlSegChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg35
-    :: Text -> SCPTLChoice 'CheckEqual Text
-    -> Either Error [SCPSeg Text]
-tryApplySeg35 bs bsTL
-  | bs /= scpTLChoiceSource bsTL = Left ErrorSourceMismatch
-  | otherwise = Right [SCPSeg35 (scpTLChoiceTranslation bsTL)]
+    :: Text -> TLSegChoice 'CheckEqual Text
+    -> Either Error [Seg']
+tryApplySeg35 a aTL
+  | a /= tlSegChoiceSource aTL = Left ErrorSourceMismatch
+  | otherwise = Right [Seg35 (tlSegChoiceTranslation aTL)]
 
 -- lol. ty hw-kafka-client
 traverseM
