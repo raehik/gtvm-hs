@@ -7,6 +7,8 @@ import Data.Data ( Typeable )
 import Data.Aeson qualified as Aeson
 import Data.Aeson ( ToJSON(..), genericToJSON, genericToEncoding, FromJSON(..), genericParseJSON )
 import Binrep
+import Binrep.Generic
+import Binrep.Generic qualified as BR
 import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.Int ( I(..), ISize(..), ISign(..) )
 import Binrep.Type.ByteString ( Rep(..), AsByteString )
@@ -23,8 +25,8 @@ type W32 = I 'U 'I4 Endian
 type PfxLenW8 = 'Pascal 'I1 Endian
 type AW32Pairs v a = WithRefine v PfxLenW8 [(a, W32)]
 
-brcNoSum :: Binrep.Cfg W8
-brcNoSum = Binrep.Cfg { Binrep.cSumTag = undefined }
+brcNoSum :: BR.Cfg W8
+brcNoSum = BR.Cfg { BR.cSumTag = undefined }
 
 jcProd :: (String -> String) -> Aeson.Options
 jcProd f = Aeson.defaultOptions
@@ -258,8 +260,8 @@ data Seg (v :: Validation) a
 deriving stock instance Functor     (Seg UV)
 deriving stock instance Traversable (Seg UV)
 
-brcSeg :: Binrep.Cfg W8
-brcSeg = Binrep.Cfg { Binrep.cSumTag = Binrep.cSumTagHex extractTagByte }
+brcSeg :: BR.Cfg W8
+brcSeg = BR.Cfg { BR.cSumTag = BR.cSumTagHex extractTagByte }
   where extractTagByte = take 2 . drop (length ("Seg" :: String))
 
 instance BLen a => BLen (Seg V a) where blen = blenGeneric brcSeg

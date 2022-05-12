@@ -3,6 +3,7 @@
 module GTVM.Flowchart where
 
 import Binrep
+import Binrep.Generic
 import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.ByteString ( Rep(..) )
 import Binrep.Type.Text qualified

@@ -1,60 +1,48 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module GTVM.Assorted.SL01
-  ( compress
-  , decompress
-  , pSL01
-  , sSL01
-  ) where
+module GTVM.Assorted.SL01 where
 
 import Codec.Compression.Lzo qualified as LZO
-import Data.ByteString qualified as BS
-import Control.Monad.Reader
-import Data.Void
-import Text.Megaparsec
-import Data.Word
-import GTVM.Common.Binary
-import GTVM.Common.Binary.Parse
-import GTVM.Common.Binary.Serialize
+import Data.ByteString qualified as B
 
-type Bytes = BS.ByteString
+import Binrep
+import Binrep.Generic
+import Binrep.Generic qualified as BR
+import Binrep.Type.Common ( Endianness(..) )
+import Binrep.Type.Int
+import Binrep.Type.Magic
+import Binrep.Type.ByteString
 
-data SL01 = SL01 Word32 Bytes deriving (Eq, Show)
+import Refined
 
-compress :: Bytes -> SL01
-compress bs =
-    case integralToBounded (BS.length bs) of
-      Nothing     -> error "that's a YUGE file friend, no can do"
-      Just lenW32 -> SL01 lenW32 (LZO.compress bs)
+import GHC.Generics ( Generic )
 
-decompress :: SL01 -> Bytes
-decompress (SL01 decompressedSize compressedBytes) =
-    LZO.decompress compressedBytes (fromIntegral decompressedSize)
+import GTVM.Common.Binary ( integralToBounded ) -- TODO move
 
-pSL01
-    :: (MonadParsec Void Bytes m, MonadReader BinaryCfg m) => m SL01
-pSL01 = do
-    _ <- chunk "SL01"
-    decompressedSize <- pW32
-    compressedSize <- pW32
-    compressedBytes <- takeP (Just (show compressedSize <> "-byte bytestring")) (fromIntegral compressedSize)
-    eof
-    return $ SL01 decompressedSize compressedBytes
+-- | Don't construct values of this type manually, use the helper!
+data SL01 = SL01
+  { sl01Magic            :: Magic "SL01"
+  , sl01DecompressedSize :: I 'U 'I4 'LE
+  , sl01Data             :: LenPfx 'I4 'LE B.ByteString
+  } deriving (Generic, Eq, Show)
 
-sSL01 :: (MonadReader BinaryCfg m) => SL01 -> m Bytes
-sSL01 = serialize bSL01
+brCfgNoSum :: BR.Cfg (I 'U 'I1 'LE)
+brCfgNoSum = BR.Cfg { BR.cSumTag = undefined }
 
-bSL01 :: MonadReader BinaryCfg m => SL01 -> m Builder
-bSL01 (SL01 decompressedSize compressedBytes) =
-    case integralToBounded (BS.length compressedBytes) of
-      Nothing -> error $
-        "that's a YUGE file friend, no can do..."
-        <> " but how did you manage to create this data in the first place?"
-        <> " if the compressed bytes exceeds Word32,"
-        <> " the decompressed certainly does. How are you here"
-      Just compressedSize ->
-        concatM
-            [ bBS' "SL01"
-            , bW32 decompressedSize
-            , bW32 compressedSize
-            , bBS' compressedBytes ]
+instance BLen SL01 where blen = blenGeneric brCfgNoSum
+instance Put  SL01 where put  = putGeneric  brCfgNoSum
+instance Get  SL01 where get  = getGeneric  brCfgNoSum
+
+compress :: B.ByteString -> Either String SL01
+compress bs = do
+    case integralToBounded (B.length bs) of
+      Nothing -> Left $ "TODO too long"
+      Just lenW32 ->
+        case refine (LZO.compress bs) of
+          Left err -> Left $ show err
+          Right bs' -> Right $ SL01 Magic lenW32 bs'
+
+decompress :: SL01 -> B.ByteString
+decompress sl01 =
+    LZO.decompress compressedBs (fromIntegral (sl01DecompressedSize sl01))
+  where compressedBs = unrefine $ sl01Data sl01

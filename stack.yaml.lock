@@ -19,6 +19,13 @@ packages:
   original:
     hackage: blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
 - completed:
+    hackage: mason-0.2.5@sha256:44ead52c404f49006e4759d746b9008f8a6b2c642cbb27d26e7e25e7ba9a6f71,1221
+    pantry-tree:
+      size: 574
+      sha256: 4eda0ef67a4f4475f8ab1dc38aca2a86ff5a522eab57e7c63ddc66b4da9bd874
+  original:
+    hackage: mason-0.2.5@sha256:44ead52c404f49006e4759d746b9008f8a6b2c642cbb27d26e7e25e7ba9a6f71,1221
+- completed:
     name: hash-graph
     version: 0.1.0.0
     git: https://github.com/raehik/hash-graph
@@ -56,12 +63,12 @@ packages:
     version: 0.2.0
     git: https://github.com/raehik/binrep
     pantry-tree:
-      size: 1951
-      sha256: 1e38cc9928443ceb441ead36031b449c515ef96dd8354b6dc4c5e9127ee9a5b1
-    commit: 372d710dbfa9e982a0cad41f8f65409193a5fe4e
+      size: 2891
+      sha256: cc1080fd8587f9099ff7446c46d894196f215467fa0acf699870ffd3faeea795
+    commit: 6a21ae06b7e23604c34477734f392ca372861926
   original:
     git: https://github.com/raehik/binrep
-    commit: 372d710dbfa9e982a0cad41f8f65409193a5fe4e
+    commit: 6a21ae06b7e23604c34477734f392ca372861926
 snapshots:
 - completed:
     size: 539378

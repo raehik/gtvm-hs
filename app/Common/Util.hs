@@ -42,11 +42,12 @@ badExit errStr s = do
     liftIO $ exitWith $ ExitFailure 1
 
 liftErr :: MonadIO m => (e -> String) -> Either e a -> m a
-liftErr f = \case
-  Left e -> do
-    liftIO $ putStrLn $ "error: "<>f e
-    liftIO $ exitWith $ ExitFailure 2
-  Right a -> return a
+liftErr f = \case Left  e -> exit (f e)
+                  Right a -> return a
+
+exit :: MonadIO m => String -> m a
+exit s = do liftIO $ putStrLn $ "error: "<>s
+            liftIO $ exitWith $ ExitFailure 2
 
 badParseStream
     :: MonadIO m

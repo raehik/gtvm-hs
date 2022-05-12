@@ -6,9 +6,9 @@ import Common.Util
 import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
-import GTVM.Assorted.SL01 qualified as GAS
-import GTVM.Common.Binary qualified as GCB
-import GTVM.Common.Binary.Parse qualified as GCBP
+import GTVM.Assorted.SL01 qualified as SL01
+
+import Binrep
 
 data CfgCompress = CfgCompress
   { cfgCompressStreamIn  :: Stream 'StreamIn  "data"
@@ -30,15 +30,16 @@ parseCLIOptsDecompress = CfgDecompress <$> pStreamIn <*> pStreamOut <*> pPrintBi
 
 runCompress :: MonadIO m => CfgCompress -> m ()
 runCompress cfg = do
-    dataBs <- readStreamBytes $ cfgCompressStreamIn cfg
-    let compressed = GAS.compress dataBs
-        compressedBs = GAS.sSL01 compressed GCB.binCfgSCP
-    writeStreamBin (cfgCompressPrintBin cfg) (cfgCompressStreamOut cfg) compressedBs
+    bs <- readStreamBytes $ cfgCompressStreamIn cfg
+    sl01 <- liftErr id $ SL01.compress bs
+    writeStreamBin (cfgCompressPrintBin cfg) (cfgCompressStreamOut cfg) (runPut sl01)
 
 runDecompress :: MonadIO m => CfgDecompress -> m ()
 runDecompress cfg = do
-    compressed <- badParseStream parse $ cfgDecompressStreamIn cfg
-    let dataBs = GAS.decompress compressed
-    writeStreamBin (cfgDecompressPrintBin cfg) (cfgDecompressStreamOut cfg) dataBs
-  where
-    parse fp bs = GCBP.parseBin GAS.pSL01 GCB.binCfgSCP fp bs
+    sl01bs <- readStreamBytes $ cfgDecompressStreamIn cfg
+    (sl01, remainingBs) <- liftErr id $ runGet sl01bs
+    if remainingBs /= mempty then
+        exit "TODO SL01 had extra bytes left over"
+    else do
+        let bs = SL01.decompress sl01
+        writeStreamBin (cfgDecompressPrintBin cfg) (cfgDecompressStreamOut cfg) bs

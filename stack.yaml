@@ -4,6 +4,7 @@ packages: [.]
 extra-deps:
 - lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
 - blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
+- mason-0.2.5@sha256:44ead52c404f49006e4759d746b9008f8a6b2c642cbb27d26e7e25e7ba9a6f71,1221
 - git: https://github.com/raehik/hash-graph
   commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
 
@@ -14,4 +15,4 @@ extra-deps:
   commit: b9ef52192db3d986c965e1820252839d21c35e99
 
 - git: https://github.com/raehik/binrep
-  commit: 372d710dbfa9e982a0cad41f8f65409193a5fe4e
+  commit: 6a21ae06b7e23604c34477734f392ca372861926
