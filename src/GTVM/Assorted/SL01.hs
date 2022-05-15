@@ -12,6 +12,7 @@ import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.Int
 import Binrep.Type.Magic
 import Binrep.Type.ByteString
+import Binrep.Type.LenPfx
 
 import Refined
 
@@ -23,7 +24,7 @@ import GTVM.Common.Binary ( integralToBounded ) -- TODO move
 data SL01 = SL01
   { sl01Magic            :: Magic "SL01"
   , sl01DecompressedSize :: I 'U 'I4 'LE
-  , sl01Data             :: LenPfx 'I4 'LE B.ByteString
+  , sl01Data             :: AsByteString ('Pascal 'I4 'LE)
   } deriving (Generic, Eq, Show)
 
 brCfgNoSum :: BR.Cfg (I 'U 'I1 'LE)

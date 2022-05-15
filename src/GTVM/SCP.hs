@@ -3,7 +3,6 @@
 module GTVM.SCP where
 
 import GHC.Generics ( Generic )
-import Data.Data ( Typeable )
 import Data.Aeson qualified as Aeson
 import Data.Aeson ( ToJSON(..), genericToJSON, genericToEncoding, FromJSON(..), genericParseJSON )
 import Binrep
@@ -13,17 +12,19 @@ import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.Int ( I(..), ISize(..), ISign(..) )
 import Binrep.Type.ByteString ( Rep(..), AsByteString )
 import Binrep.Type.Text ( Encoding(..), AsText )
+import Binrep.Type.LenPfx
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 
-import Refined
-import Refined.Extra ( UV, V )
-import Refined.Class
+import Raehik.Validate
 
 type Endian = 'LE
 type W8  = I 'U 'I1 Endian
 type W32 = I 'U 'I4 Endian
-type PfxLenW8 = 'Pascal 'I1 Endian
-type AW32Pairs v a = WithRefine v PfxLenW8 [(a, W32)]
+type PfxLenW8 a = LenPfx 'I1 Endian a
+type AW32Pairs v a = Switch v (PfxLenW8 [(a, W32)])
+
+type UV = 'Unvalidated
+type V  = 'Validated
 
 brcNoSum :: BR.Cfg W8
 brcNoSum = BR.Cfg { BR.cSumTag = undefined }
@@ -44,7 +45,7 @@ jcSum f g tag contents = (jcProd f)
   }
 
 type W322Block (v :: Validation) =
-    WithRefine v PfxLenW8 [WithRefine v PfxLenW8 [W32]]
+    Switch v (PfxLenW8 (Switch v (PfxLenW8 W32)))
 
 data Seg05Text a = Seg05Text
   { seg05TextSpeakerUnkCharID :: W8
@@ -255,10 +256,10 @@ data Seg (v :: Validation) a
   | Seg75 W8
   | Seg76
   | Seg77SCP W8
-    deriving stock (Generic, Show, Eq, Foldable)
+    deriving stock (Generic)
 
-deriving stock instance Functor     (Seg UV)
-deriving stock instance Traversable (Seg UV)
+deriving stock instance Show a => Show (Seg UV a)
+deriving stock instance Eq   a => Eq   (Seg UV a)
 
 brcSeg :: BR.Cfg W8
 brcSeg = BR.Cfg { BR.cSumTag = BR.cSumTagHex extractTagByte }
@@ -271,16 +272,11 @@ instance Get  a => Get  (Seg V a) where get  = getGeneric  brcSeg
 jcSeg :: Aeson.Options
 jcSeg = jcSum id (take 2 . drop (length ("Seg" :: String))) "command_byte" "arguments"
 
-instance ToJSON   a => ToJSON   (Seg v a) where
+instance ToJSON   a => ToJSON   (Seg UV a) where
     toJSON     = genericToJSON     jcSeg
     toEncoding = genericToEncoding jcSeg
 instance FromJSON a => FromJSON (Seg UV a) where
     parseJSON  = genericParseJSON  jcSeg
-instance (FromJSON a, Typeable a) => FromJSON (Seg V a) where
-    parseJSON  = genericParseJSON  jcSeg
-
-deriving anyclass instance               Unrefine (Seg  V a) (Seg UV a)
-deriving anyclass instance Typeable a =>   Refine (Seg UV a) (Seg  V a)
 
 type SCP v a = [Seg v a]
 type SCPBin  = SCP V (AsByteString 'C)
@@ -295,6 +291,3 @@ prettyYamlCfg =
     f "command_byte" _ = LT
     f _ "command_byte" = GT
     f k1 k2 = compare k1 k2
-
-traverseSCP :: Applicative t => (a -> t b) -> SCP UV a -> t (SCP UV b)
-traverseSCP = traverse . traverse
