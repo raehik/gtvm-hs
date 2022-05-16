@@ -10,6 +10,9 @@
 
 module GTVM.SCP.TL where
 
+import GTVM.SCP
+import Strongweak
+
 import Raehik.Check
 
 import GHC.Generics ( Generic )
@@ -29,13 +32,11 @@ import Util ( tshow )
 
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 
-import GTVM.SCP
-
 import Control.Monad.State
 
 import Numeric.Natural ( Natural )
 
-type Seg' = Seg UV Text
+type Seg' = Seg 'Weak Text
 type SCP' = [Seg']
 
 type SCPTL c a = [TLSeg c a]
@@ -216,7 +217,7 @@ genTL env = concatMap go
       -- Don't care about the rest.
       _ -> []
 
-genTLTextbox :: Env -> Seg05Text UV Text -> [TLSeg 'CheckEqual Text]
+genTLTextbox :: Env -> Seg05Text 'Weak Text -> [TLSeg 'CheckEqual Text]
 genTLTextbox env tb =
   [ TLSegComment' ( TLSegComment
     { scpTLCommentCommentary = []
@@ -318,7 +319,7 @@ tryApplySeg f1 f2 = do
           Just a  -> return $ f2 a
 
 tryApplySegTextbox
-    :: Seg05Text UV Text -> TLSegTextbox 'CheckEqual Text
+    :: Seg05Text 'Weak Text -> TLSegTextbox 'CheckEqual Text
     -> Either Error [Seg']
 tryApplySegTextbox tb tbTL
   | seg05TextText tb /= tlSegTextboxSource tbTL = Left ErrorSourceMismatch

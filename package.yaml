@@ -78,6 +78,9 @@ dependencies:
 - refined
 - binrep
 - vector-sized
+- strongweak
+- validation
+- prettyprinter
 
 library:
   source-dirs: src

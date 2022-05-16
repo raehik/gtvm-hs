@@ -4,6 +4,8 @@ import Common.Config
 import Control.Monad.IO.Class
 import Data.ByteString qualified as BS
 import System.Exit
+import Prettyprinter
+import Data.Validation
 
 readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m BS.ByteString
 readStreamBytes = \case
@@ -65,3 +67,12 @@ badParseStream f = \case
     case f "<stdin>" bs of
       Left  err -> badExit "parsing input" err
       Right out -> return out
+
+-- | If there are errors, expects >=1.
+liftValidation :: (MonadIO m, Foldable f) => (f e -> Doc ann) -> Validation (f e) a -> m a
+liftValidation f = \case
+  Success a -> return a
+  Failure e -> liftIO $ do
+    putStrLn $ "error: "<>show (length e)<>" validation failure(s):"
+    print $ f e
+    exitWith $ ExitFailure 3

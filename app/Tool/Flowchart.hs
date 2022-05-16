@@ -8,7 +8,7 @@ import Common.Util
 import GTVM.Flowchart
 
 import Binrep
-import Raehik.Validate
+import Strongweak
 
 import Options.Applicative
 import GHC.Generics ( Generic )
@@ -42,14 +42,14 @@ runEncode cfg = do
     fcBsYaml <- readStreamBytes $ cfgEncodeStreamIn cfg
     fcText   <- badParseYAML fcBsYaml
     fcBin    <- liftErr show $ fcBytesRefine $ fcTextToBytes @'UTF8 fcText
-    fcBin'   <- liftErr show $ strengthen fcBin
-    let fcBsBin = runPut @(Flowchart V (AsByteString 'C)) fcBin'
+    fcBin'   <- liftValidation strengthenErrorPretty $ strengthen fcBin
+    let fcBsBin = runPut @(Flowchart 'Strong (AsByteString 'C)) fcBin'
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) fcBsBin
 
 runDecode :: MonadIO m => CfgDecode -> m ()
 runDecode cfg = do
     fcBsBin <- readStreamBytes $ cfgDecodeStreamIn cfg
-    (fcBin, bs) <- liftErr id  $ runGet @(Flowchart V (AsByteString 'C)) fcBsBin
+    (fcBin, bs) <- liftErr id  $ runGet @(Flowchart 'Strong (AsByteString 'C)) fcBsBin
     case BS.null bs of
       False -> error "TODO bytes left over"
       True -> do
