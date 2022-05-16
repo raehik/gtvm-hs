@@ -13,4 +13,4 @@ extra-deps:
   commit: 952e0348348aaf11c8b93c6e1ac6d33a0cbbb6b1
 
 - git: https://github.com/raehik/binrep
-  commit: f0c26085788dd951c1776919cac580c473bca214
+  commit: db1ea9edbd1837881f86606df2f32e4a1be7a2d9

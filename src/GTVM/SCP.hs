@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ApplicativeDo #-}
 
 module GTVM.SCP where
 
 import GHC.Generics ( Generic )
+
 import Data.Aeson qualified as Aeson
 import Data.Aeson ( ToJSON(..), genericToJSON, genericToEncoding, FromJSON(..), genericParseJSON )
 import Binrep
@@ -13,15 +15,64 @@ import Binrep.Type.Int ( I(..), ISize(..), ISign(..) )
 import Binrep.Type.ByteString ( Rep(..), AsByteString )
 import Binrep.Type.Text ( Encoding(..), AsText )
 import Binrep.Type.LenPfx
+import Data.Vector.Sized qualified as Vector
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import Raehik.Validate
+import Raehik.Validate.Generic
+
+import Optics
+
+import Numeric.Natural ( Natural )
 
 type Endian = 'LE
 type W8  = I 'U 'I1 Endian
 type W32 = I 'U 'I4 Endian
 type PfxLenW8 a = LenPfx 'I1 Endian a
-type AW32Pairs v a = Switch v (PfxLenW8 [(a, W32)])
+
+newtype AW32Pairs v a = AW32Pairs
+  { unAW32Pairs :: Switch v (PfxLenW8 (a, Switch v W32)) }
+    deriving (Generic)
+deriving stock instance Show a => Show (AW32Pairs UV a)
+deriving stock instance Eq   a => Eq   (AW32Pairs UV a)
+
+instance Functor (AW32Pairs UV) where
+    fmap f = AW32Pairs . map (over _1 f) . unAW32Pairs
+
+instance Foldable (AW32Pairs UV) where
+    foldMap f = mconcat . map (f . fst) . unAW32Pairs
+
+instance Traversable (AW32Pairs UV) where
+    traverse f (AW32Pairs xs) = do
+        xs' <- traverse (traverseFst f) xs
+        return $ AW32Pairs xs'
+
+traverseFst :: Applicative f => (a -> f b) -> (a, x) -> f (b, x)
+traverseFst f (a, x) = do
+    b <- f a
+    return (b, x)
+
+instance Weaken (AW32Pairs V a) (AW32Pairs UV a) where
+    weaken x =
+        case unAW32Pairs x of
+          LenPfx x' -> AW32Pairs $ map (\(l, r) -> (l, weaken r)) $ Vector.toList x'
+
+instance Strengthen (AW32Pairs UV a) (AW32Pairs V a) where
+    strengthen (AW32Pairs a) = do
+        b <- traverse go a
+        case lenPfxFromList b of
+          Nothing -> Left "TODO nope"
+          Just c  -> Right $ AW32Pairs c
+      where
+        go (l, r) = do
+            r' <- strengthen r
+            Right (l, r')
+
+deriving via (PfxLenW8 (a, W32)) instance BLen a => BLen (AW32Pairs V a)
+deriving via (PfxLenW8 (a, W32)) instance Put  a => Put  (AW32Pairs V a)
+deriving via (PfxLenW8 (a, W32)) instance Get  a => Get  (AW32Pairs V a)
+instance ToJSON   a => ToJSON   (AW32Pairs UV a)
+instance FromJSON a => FromJSON (AW32Pairs UV a)
 
 type UV = 'Unvalidated
 type V  = 'Validated
@@ -45,8 +96,34 @@ jcSum f g tag contents = (jcProd f)
     }
   }
 
-type W322Block (v :: Validation) =
-    Switch v (PfxLenW8 (Switch v (PfxLenW8 W32)))
+newtype W322Block (v :: Validation) = W322Block
+    { unW322Block :: Switch v (PfxLenW8 (Switch v (PfxLenW8 (Switch v W32)))) }
+    deriving (Generic)
+deriving stock instance Show (W322Block UV)
+deriving stock instance Eq   (W322Block UV)
+
+deriving via (PfxLenW8 (PfxLenW8 W32)) instance BLen (W322Block V)
+deriving via (PfxLenW8 (PfxLenW8 W32)) instance Put  (W322Block V)
+deriving via (PfxLenW8 (PfxLenW8 W32)) instance Get  (W322Block V)
+
+deriving via [[Natural]] instance ToJSON   (W322Block UV)
+deriving via [[Natural]] instance FromJSON (W322Block UV)
+
+instance Weaken (W322Block V) (W322Block UV) where
+    weaken (W322Block a) = W322Block $ map (map weaken . lenPfxToList) $ lenPfxToList a
+
+instance Strengthen (W322Block UV) (W322Block V) where
+    strengthen (W322Block a) = do
+        a' <- traverse (traverse strengthen) a -- strengthen integers
+        case traverse lenPfxFromList a' of -- strengthen inner lists
+          Nothing -> Left "TODO list sizing error"
+          Just b  -> do
+            case lenPfxFromList b of -- strengthen outer list
+              Nothing -> Left "TODO list sizing error 2"
+              Just  c -> Right $ W322Block c
+
+lenPfxToList :: LenPfx size end a -> [a]
+lenPfxToList (LenPfx v) = Vector.toList v
 
 data Seg05Text (v :: Validation) a = Seg05Text
   { seg05TextSpeakerUnkCharID :: Sw v W8
@@ -74,6 +151,9 @@ instance ToJSON   a => ToJSON   (Seg05Text UV a) where
     toEncoding = genericToEncoding jcSeg05Text
 instance FromJSON a => FromJSON (Seg05Text UV a) where
     parseJSON  = genericParseJSON  jcSeg05Text
+
+instance Weaken     (Seg05Text V  a) (Seg05Text UV a) where weaken     = weakenGeneric
+instance Strengthen (Seg05Text UV a) (Seg05Text V  a) where strengthen = strengthenGeneric
 
 data Seg (v :: Validation) a
   = Seg00
@@ -282,17 +362,15 @@ instance ToJSON   a => ToJSON   (Seg UV a) where
 instance FromJSON a => FromJSON (Seg UV a) where
     parseJSON  = genericParseJSON  jcSeg
 
-instance Weaken (Seg V a) (Seg UV a) where
-    weaken = \case
-      Seg77SCP w -> Seg77SCP (weaken w)
-
-instance Strengthen (Seg UV a) (Seg V a) where
-    strengthen = \case
-      Seg77SCP w -> Seg77SCP <$> strengthen w
-
 type SCP v a = [Seg v a]
 type SCPBin  = SCP V (AsByteString 'C)
 type SCPText = SCP UV (AsText 'UTF8)
+
+scpFmap :: (a -> b) -> SCP UV a -> SCP UV b
+scpFmap = fmap . fmap
+
+scpTraverse :: Applicative f => (a -> f b) -> SCP UV a -> f (SCP UV b)
+scpTraverse = traverse . traverse
 
 prettyYamlCfg :: Yaml.Pretty.Config
 prettyYamlCfg =
@@ -303,3 +381,10 @@ prettyYamlCfg =
     f "command_byte" _ = LT
     f _ "command_byte" = GT
     f k1 k2 = compare k1 k2
+
+deriving stock instance Functor     (Seg UV)
+deriving stock instance Foldable    (Seg UV)
+deriving stock instance Traversable (Seg UV)
+
+instance Weaken     (Seg V  a) (Seg UV a) where weaken     = weakenGeneric
+instance Strengthen (Seg UV a) (Seg V  a) where strengthen = strengthenGeneric

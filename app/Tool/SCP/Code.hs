@@ -12,7 +12,9 @@ import Binrep.Type.Text ( encodeToRep, decode )
 import GTVM.Common.IO ( badParseYAML )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
-import Refined
+import Refined hiding ( strengthen, weaken )
+import Raehik.Validate
+import Data.Either.Combinators ( mapLeft )
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"
@@ -35,9 +37,9 @@ runEncode :: MonadIO m => CfgEncode -> m ()
 runEncode cfg = do
     scpYAMLBs <- readStreamBytes $ cfgEncodeStreamIn cfg
     scpYAML <- badParseYAML @SCPText scpYAMLBs
-    scpBin :: SCPBin <- liftErr show $ do
-        scpBin <- traverseSCP encodeToRep scpYAML
-        refine' scpBin
+    scpBin :: SCPBin <- liftErr id $ do
+        scpBin <- mapLeft show $ scpTraverse encodeToRep scpYAML
+        strengthen scpBin
     let scpBinBs = runPut scpBin
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) scpBinBs
 
@@ -47,6 +49,6 @@ runDecode cfg = do
     (scpBin, bs) <- liftErr show $ runGet @SCPBin scpBinBs
     if not (B.null bs) then fail "dangling bytes"
     else do
-        scpText :: SCPText <- liftErr id $ traverse (traverse (traverse decode)) $ scpWeaken scpBin
+        scpText :: SCPText <- liftErr id $ scpTraverse decode $ scpFmap unrefine $ weaken scpBin
         let scpYAMLBs = Yaml.Pretty.encodePretty prettyYamlCfg scpText
         writeStreamTextualBytes (cfgDecodeStreamOut cfg) scpYAMLBs

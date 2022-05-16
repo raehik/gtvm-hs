@@ -12,8 +12,9 @@ import Binrep.Type.Int
 import Binrep.Type.LenPfx
 import Binrep.Type.NullPadded
 
-import Refined hiding ( Weaken, weaken, strengthen )
+import Refined ( Refined, Predicate, refine, unrefine, RefineException )
 import Raehik.Validate
+import Raehik.Validate.Generic
 
 import Data.Aeson qualified as Aeson
 import Data.Aeson
@@ -78,15 +79,8 @@ instance Traversable (Entry UV) where
         s' <- f s
         return $ Entry i t n' s'
 
-instance Weaken (Entry V a) (Entry UV a) where
-    weaken (Entry i t n s) = Entry (weaken i) t (weaken n) (weaken s)
-
-instance BLen a => Strengthen (Entry UV a) (Entry V a) where
-    strengthen (Entry i t n s) = do
-        i' <- strengthen i
-        n' <- strengthen n
-        s' <- strengthen s
-        return $ Entry i' t n' s'
+instance           Weaken     (Entry V  a) (Entry UV a) where weaken     = weakenGeneric
+instance BLen a => Strengthen (Entry UV a) (Entry V  a) where strengthen = strengthenGeneric
 
 jcEntry :: Aeson.Options
 jcEntry = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "entry"

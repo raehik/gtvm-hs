@@ -63,7 +63,6 @@ dependencies:
 - yaml
 - cassava
 - utf8-string
-- vector
 - barbies
 - text-latin1
 - blake3
@@ -78,6 +77,7 @@ dependencies:
 - unordered-containers
 - refined
 - binrep
+- vector-sized
 
 library:
   source-dirs: src
