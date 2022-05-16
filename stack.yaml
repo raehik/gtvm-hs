@@ -13,4 +13,7 @@ extra-deps:
   commit: 952e0348348aaf11c8b93c6e1ac6d33a0cbbb6b1
 
 - git: https://github.com/raehik/binrep
-  commit: db1ea9edbd1837881f86606df2f32e4a1be7a2d9
+  commit: 654cef739c25306591a6262459c74dd5f5403f60
+
+- git: https://github.com/raehik/strongweak
+  commit: 7a0e67bc7a9e27749bf9bca777017030ac9093bf

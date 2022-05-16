@@ -13,7 +13,7 @@ import GTVM.Common.IO ( badParseYAML )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
 import Refined hiding ( strengthen, weaken )
-import Raehik.Validate
+import Strongweak
 import Data.Either.Combinators ( mapLeft )
 
 data CfgEncode = CfgEncode
@@ -37,9 +37,8 @@ runEncode :: MonadIO m => CfgEncode -> m ()
 runEncode cfg = do
     scpYAMLBs <- readStreamBytes $ cfgEncodeStreamIn cfg
     scpYAML <- badParseYAML @SCPText scpYAMLBs
-    scpBin :: SCPBin <- liftErr id $ do
-        scpBin <- mapLeft show $ scpTraverse encodeToRep scpYAML
-        strengthen scpBin
+    scpBin' <- liftErr show $ scpTraverse encodeToRep scpYAML
+    scpBin :: SCPBin <- liftValidation strengthenErrorPretty $ strengthen scpBin'
     let scpBinBs = runPut scpBin
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) scpBinBs
 

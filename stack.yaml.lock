@@ -52,12 +52,23 @@ packages:
     version: 0.2.0
     git: https://github.com/raehik/binrep
     pantry-tree:
-      size: 3713
-      sha256: 1f3e1a7b05888df20d37754a8b11d3124aa2c1e07259e87fc3872ae5ed90daf8
-    commit: db1ea9edbd1837881f86606df2f32e4a1be7a2d9
+      size: 3087
+      sha256: 249a009d9c589af48f94a487ecf3240568667e9bce592efd0c7e0f56bc7a53dc
+    commit: 654cef739c25306591a6262459c74dd5f5403f60
   original:
     git: https://github.com/raehik/binrep
-    commit: db1ea9edbd1837881f86606df2f32e4a1be7a2d9
+    commit: 654cef739c25306591a6262459c74dd5f5403f60
+- completed:
+    name: strongweak
+    version: 0.1.0
+    git: https://github.com/raehik/strongweak
+    pantry-tree:
+      size: 1176
+      sha256: 79e52aca87d43c7cf0beb6771994202d041f911fcc95cae14bb32800f4b744b8
+    commit: 7a0e67bc7a9e27749bf9bca777017030ac9093bf
+  original:
+    git: https://github.com/raehik/strongweak
+    commit: 7a0e67bc7a9e27749bf9bca777017030ac9093bf
 snapshots:
 - completed:
     size: 539378
