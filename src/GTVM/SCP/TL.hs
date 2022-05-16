@@ -30,10 +30,10 @@ import Util ( tshow )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import GTVM.SCP
-import Refined
-import Refined.Extra
 
 import Control.Monad.State
+
+import Numeric.Natural ( Natural )
 
 type Seg' = Seg UV Text
 type SCP' = [Seg']
@@ -43,7 +43,7 @@ type SCPTL c a = [TLSeg c a]
 data Env = Env
   { envPendingPlaceholder :: Text
 
-  , envSpeakerIDMap       :: W32 -> Maybe Text
+  , envSpeakerIDMap       :: Natural -> Maybe Text
   -- ^ Attempt to obtain a pretty speaker name from an ID.
   --
   -- This data isn't stored in the repo, and must instead be parsed at runtime.
@@ -197,8 +197,8 @@ genTL env = concatMap go
       -- Segments that contain text to translate. Some generation functions also
       -- handle the commentary, some are plain combinators.
       Seg05 tb  -> genTLTextbox env tb
-      Seg09Choice csi cs -> genTLChoiceOuter env csi (map fst (withoutRefine cs))
-      Seg22 s cs -> [TLSeg22Choice' $ genTL22Choices env s (map fst (withoutRefine cs))]
+      Seg09Choice csi (AW32Pairs cs) -> genTLChoiceOuter env csi (map fst cs)
+      Seg22 s (AW32Pairs cs) -> [TLSeg22Choice' $ genTL22Choices env s (map fst cs)]
       Seg35 c -> [TLSeg35Choice' $ genTLChoice env c]
 
       -- Extra segments that are useful to know the presence of.
@@ -216,7 +216,7 @@ genTL env = concatMap go
       -- Don't care about the rest.
       _ -> []
 
-genTLTextbox :: Env -> Seg05Text Text -> [TLSeg 'CheckEqual Text]
+genTLTextbox :: Env -> Seg05Text UV Text -> [TLSeg 'CheckEqual Text]
 genTLTextbox env tb =
   [ TLSegComment' ( TLSegComment
     { scpTLCommentCommentary = []
@@ -230,7 +230,7 @@ genTLTextbox env tb =
       , tlSegTextboxOverflow    = Nothing } )
   ]
 
-genTLChoiceOuter :: Env -> W8 -> [Text] -> [TLSeg 'CheckEqual Text]
+genTLChoiceOuter :: Env -> Natural -> [Text] -> [TLSeg 'CheckEqual Text]
 genTLChoiceOuter env csi cs =
   [ meta [ "Choice selection below. Script flow jumps depending on selection." ]
          [ ("choice_selection_index", tshow csi) ]
@@ -282,8 +282,8 @@ applySeg
     => Seg' -> m (Either Error [Seg'])
 applySeg = \case
   Seg05 tb -> tryApplySeg tryExtractTextbox (tryApplySegTextbox tb)
-  Seg09Choice w8 cs -> tryApplySeg tryExtractChoice (tryApplySegChoice w8 (withoutRefine cs))
-  Seg22 topic cs -> tryApplySeg tryExtract22 (tryApplySeg22 topic (withoutRefine cs))
+  Seg09Choice n (AW32Pairs cs) -> tryApplySeg tryExtractChoice (tryApplySegChoice n cs)
+  Seg22 topic (AW32Pairs cs) -> tryApplySeg tryExtract22 (tryApplySeg22 topic cs)
   Seg35 a -> tryApplySeg tryExtract35 (tryApplySeg35 a)
   seg -> return $ Right [seg]
 
@@ -318,7 +318,7 @@ tryApplySeg f1 f2 = do
           Just a  -> return $ f2 a
 
 tryApplySegTextbox
-    :: Seg05Text Text -> TLSegTextbox 'CheckEqual Text
+    :: Seg05Text UV Text -> TLSegTextbox 'CheckEqual Text
     -> Either Error [Seg']
 tryApplySegTextbox tb tbTL
   | seg05TextText tb /= tlSegTextboxSource tbTL = Left ErrorSourceMismatch
@@ -331,26 +331,26 @@ tryApplySegTextbox tb tbTL
                         , seg05TextText      = text } ]
 
 tryApplySegChoice
-    :: W8 -> [(Text, W32)] -> [TLSegChoice 'CheckEqual Text]
+    :: Natural -> [(Text, Natural)] -> [TLSegChoice 'CheckEqual Text]
     -> Either Error [Seg']
-tryApplySegChoice w8 cs csTL
+tryApplySegChoice n cs csTL
   | length cs /= length csTL = Left ErrorSourceMismatch
   -- lol whatever XD
   | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
-  | otherwise = Right [Seg09Choice w8 (withRefine edited)]
+  | otherwise = Right [Seg09Choice n (AW32Pairs edited)]
   where
     checks = zip (map tlSegChoiceSource csTL) (map fst cs)
     edited = zip (map tlSegChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg22
-    :: Text -> [(Text, W32)] -> (TLSeg22 'CheckEqual Text)
+    :: Text -> [(Text, Natural)] -> (TLSeg22 'CheckEqual Text)
     -> Either Error [Seg']
 tryApplySeg22 topic cs segTL
   | topic /= tlSeg22TopicSource segTL = Left ErrorSourceMismatch
   | length cs /= length csTL = Left ErrorSourceMismatch
   -- lol whatever XD
   | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
-  | otherwise = Right [Seg22 (tlSeg22TopicTranslation segTL) (withRefine edited)]
+  | otherwise = Right [Seg22 (tlSeg22TopicTranslation segTL) (AW32Pairs edited)]
   where
     csTL = tlSeg22Choices segTL
     checks = zip (map tlSegChoiceSource csTL) (map fst cs)

@@ -24,6 +24,8 @@ import Data.Yaml.Pretty qualified as Yaml.Pretty
 import GTVM.Common.Json
 import GTVM.Common.IO ( badParseYAML )
 
+import Numeric.Natural ( Natural )
+
 data CfgToSCPTL = CfgToSCPTL
   { cfgToSCPTLStreamIn     :: Stream 'StreamIn  "YAML SCP"
   , cfgToSCPTLStreamOut    :: Stream 'StreamOut "SCPTL"
@@ -69,12 +71,12 @@ instance ToJSON   SCPSpeakerData where
 instance FromJSON SCPSpeakerData where
     parseJSON  = genericParseJSON  jcSCPSpeakerData
 
-parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn s -> m (W32 -> Maybe Text)
+parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn s -> m (Natural -> Maybe Text)
 parseSpeakerMap fp = do
     bs <- readStreamFileBytes fp
     speakers <- badParseYAML @[SCPSpeakerData] bs
     let speakerMap = Map.fromList $ zip [1..] speakers
-    return $ \w32 -> scpSpeakerDataStringAtPointer <$> Map.lookup w32 speakerMap
+    return $ \n -> scpSpeakerDataStringAtPointer <$> Map.lookup n speakerMap
 
 data CfgApplySCPTL = CfgApplySCPTL
   { cfgApplySCPTLStreamIn  :: Stream     'StreamIn  "YAML SCP"
