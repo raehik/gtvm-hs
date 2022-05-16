@@ -8,6 +8,7 @@ import Common.Util
 import GTVM.Flowchart
 
 import Binrep
+import Raehik.Validate
 
 import Options.Applicative
 import GHC.Generics ( Generic )
@@ -40,19 +41,19 @@ runEncode :: MonadIO m => CfgEncode -> m ()
 runEncode cfg = do
     fcBsYaml <- readStreamBytes $ cfgEncodeStreamIn cfg
     fcText   <- badParseYAML fcBsYaml
-    fcBin    <- liftErr show $ fcBytesRefine @'C $ fcTextToBytes @'UTF8 fcText
-    fcBin'   <- liftErr show $ refineFlowchart fcBin
-    let fcBsBin = runPut fcBin'
+    fcBin    <- liftErr show $ fcBytesRefine $ fcTextToBytes @'UTF8 fcText
+    fcBin'   <- liftErr show $ strengthen fcBin
+    let fcBsBin = runPut @(Flowchart V (AsByteString 'C)) fcBin'
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) fcBsBin
 
 runDecode :: MonadIO m => CfgDecode -> m ()
 runDecode cfg = do
     fcBsBin <- readStreamBytes $ cfgDecodeStreamIn cfg
-    (fcBin, bs) <- liftErr id  $ runGet fcBsBin
+    (fcBin, bs) <- liftErr id  $ runGet @(Flowchart V (AsByteString 'C)) fcBsBin
     case BS.null bs of
       False -> error "TODO bytes left over"
       True -> do
-        fcText  <- liftErr show $ fcBytesToText @'UTF8 @'C $ unrefineFlowchart fcBin
+        fcText  <- liftErr show $ fcBytesToText @'UTF8 $ weaken fcBin
         let fcBsYaml = Data.Yaml.Pretty.encodePretty ycFCTL fcText
         writeStreamTextualBytes (cfgDecodeStreamOut cfg) fcBsYaml
 

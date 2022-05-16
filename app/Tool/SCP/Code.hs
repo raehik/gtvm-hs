@@ -13,7 +13,6 @@ import GTVM.Common.IO ( badParseYAML )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
 import Refined
-import Refined.Class
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"
@@ -48,6 +47,6 @@ runDecode cfg = do
     (scpBin, bs) <- liftErr show $ runGet @SCPBin scpBinBs
     if not (B.null bs) then fail "dangling bytes"
     else do
-        scpText :: SCPText <- liftErr id $ traverseSCP (decode . withoutRefine) $ unrefine' scpBin
+        scpText :: SCPText <- liftErr id $ traverse (traverse (traverse decode)) $ scpWeaken scpBin
         let scpYAMLBs = Yaml.Pretty.encodePretty prettyYamlCfg scpText
         writeStreamTextualBytes (cfgDecodeStreamOut cfg) scpYAMLBs
