@@ -69,7 +69,6 @@ dependencies:
 - memory
 - optics
 - generic-optics
-- cereal
 - filepath
 - containers
 - algebraic-graphs

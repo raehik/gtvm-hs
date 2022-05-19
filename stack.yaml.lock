@@ -53,11 +53,11 @@ packages:
     git: https://github.com/raehik/binrep
     pantry-tree:
       size: 3087
-      sha256: 249a009d9c589af48f94a487ecf3240568667e9bce592efd0c7e0f56bc7a53dc
-    commit: 654cef739c25306591a6262459c74dd5f5403f60
+      sha256: 5839eb2dae5d039201a3841f2cc6fbd88442b56f9b5b2280a95f2c6467a55a52
+    commit: 0cacb15842db1bcf692a4122f6f5fa2552d83647
   original:
     git: https://github.com/raehik/binrep
-    commit: 654cef739c25306591a6262459c74dd5f5403f60
+    commit: 0cacb15842db1bcf692a4122f6f5fa2552d83647
 - completed:
     name: strongweak
     version: 0.1.0
@@ -69,6 +69,24 @@ packages:
   original:
     git: https://github.com/raehik/strongweak
     commit: 7a0e67bc7a9e27749bf9bca777017030ac9093bf
+- completed:
+    name: flatparse
+    version: 0.3.2.0
+    git: https://github.com/raehik/flatparse
+    pantry-tree:
+      size: 1434
+      sha256: e433f1760b7261f8f3f01222d3bd5b911348106b93c37a4f64e1b7fafb929977
+    commit: 3d71cc39f4f81cd5e6b0b3eb82e31dc249a2e91e
+  original:
+    git: https://github.com/raehik/flatparse
+    commit: 3d71cc39f4f81cd5e6b0b3eb82e31dc249a2e91e
+- completed:
+    hackage: text-icu-0.8.0.1@sha256:22d21c91e7a81f1ee5766b3406f4fe9df0ff8cc426581a861de3f6f2fa413449,4624
+    pantry-tree:
+      size: 3223
+      sha256: 71ed32ecdce71adba6df6220e717b8ec4bd252cc403714c5c4ba70cf6d1aa1e4
+  original:
+    hackage: text-icu-0.8.0.1@sha256:22d21c91e7a81f1ee5766b3406f4fe9df0ff8cc426581a861de3f6f2fa413449,4624
 snapshots:
 - completed:
     size: 539378

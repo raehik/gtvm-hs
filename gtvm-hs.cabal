@@ -82,7 +82,6 @@ library
     , blake3
     , bytestring
     , cassava
-    , cereal
     , containers
     , directory
     , either
@@ -165,7 +164,6 @@ executable gtvm-hs
     , blake3
     , bytestring
     , cassava
-    , cereal
     , containers
     , directory
     , either

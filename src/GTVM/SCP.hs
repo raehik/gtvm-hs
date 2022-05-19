@@ -115,7 +115,7 @@ instance Weaken (W322Block 'Strong) (W322Block 'Weak) where
 
 instance Strengthen (W322Block 'Weak) (W322Block 'Strong) where
     strengthen (W322Block a) = do
-        case traverse (traverse strengthen) a of
+        case traverse (traverse strengthen) a of -- strengthen ints
           Failure err -> Failure err
           Success b   -> do
             case traverse lenPfxFromList b of -- strengthen inner lists
