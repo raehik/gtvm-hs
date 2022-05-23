@@ -6,6 +6,7 @@ import Data.ByteString qualified as BS
 import System.Exit
 import Prettyprinter
 import Data.Validation
+import Strongweak
 
 readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m BS.ByteString
 readStreamBytes = \case
@@ -76,3 +77,6 @@ liftValidation f = \case
     putStrLn $ "error: "<>show (length e)<>" validation failure(s):"
     print $ f e
     exitWith $ ExitFailure 3
+
+liftStrengthen :: (MonadIO m, Strengthen w s) => w -> m s
+liftStrengthen = liftValidation strengthenErrorPretty . strengthen

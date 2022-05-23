@@ -7,8 +7,10 @@ import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
 import GTVM.Assorted.SL01 qualified as SL01
+import GTVM.Assorted.SL01 ( SL01 )
 
 import Binrep
+import Strongweak
 
 data CfgCompress = CfgCompress
   { cfgCompressStreamIn  :: Stream 'StreamIn  "data"
@@ -31,15 +33,15 @@ parseCLIOptsDecompress = CfgDecompress <$> pStreamIn <*> pStreamOut <*> pPrintBi
 runCompress :: MonadIO m => CfgCompress -> m ()
 runCompress cfg = do
     bs <- readStreamBytes $ cfgCompressStreamIn cfg
-    sl01 <- liftErr id $ SL01.compress bs
+    sl01 :: SL01 'Strong <- liftStrengthen $ SL01.compress bs
     writeStreamBin (cfgCompressPrintBin cfg) (cfgCompressStreamOut cfg) (runPut sl01)
 
 runDecompress :: MonadIO m => CfgDecompress -> m ()
 runDecompress cfg = do
     sl01bs <- readStreamBytes $ cfgDecompressStreamIn cfg
-    (sl01, remainingBs) <- liftErr id $ runGet sl01bs
+    (sl01, remainingBs) <- liftErr id $ runGet @(SL01 'Strong) sl01bs
     if remainingBs /= mempty then
         exit "TODO SL01 had extra bytes left over"
     else do
-        let bs = SL01.decompress sl01
+        let bs = SL01.decompress $ weaken sl01
         writeStreamBin (cfgDecompressPrintBin cfg) (cfgDecompressStreamOut cfg) bs

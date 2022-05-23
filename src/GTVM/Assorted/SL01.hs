@@ -12,38 +12,31 @@ import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.Int
 import Binrep.Type.Magic
 import Binrep.Type.ByteString
-import Binrep.Type.LenPfx
 
-import Refined
+import Strongweak
+import Strongweak.Generic
 
 import GHC.Generics ( Generic )
 
-import GTVM.Common.Binary ( integralToBounded ) -- TODO move
-
--- | Don't construct values of this type manually, use the helper!
-data SL01 = SL01
+data SL01 (s :: Strength) = SL01
   { sl01Magic            :: Magic "SL01"
-  , sl01DecompressedSize :: I 'U 'I4 'LE
-  , sl01Data             :: AsByteString ('Pascal 'I4 'LE)
-  } deriving (Generic, Eq, Show)
+  , sl01DecompressedSize :: SW s (I 'U 'I4 'LE)
+  , sl01Data             :: SW s (AsByteString ('Pascal 'I4 'LE))
+  } deriving stock (Generic)
+deriving stock instance Show (SL01 'Strong)
+deriving stock instance Eq   (SL01 'Strong)
+deriving stock instance Show (SL01 'Weak)
+deriving stock instance Eq   (SL01 'Weak)
 
-brCfgNoSum :: BR.Cfg (I 'U 'I1 'LE)
-brCfgNoSum = BR.Cfg { BR.cSumTag = undefined }
+instance BLen (SL01 'Strong) where blen = blenGeneric BR.cDef
+instance Put  (SL01 'Strong) where put  = putGeneric  BR.cDef
+instance Get  (SL01 'Strong) where get  = getGeneric  BR.cDef
 
-instance BLen SL01 where blen = blenGeneric brCfgNoSum
-instance Put  SL01 where put  = putGeneric  brCfgNoSum
-instance Get  SL01 where get  = getGeneric  brCfgNoSum
+instance Weaken     (SL01 'Strong) (SL01 'Weak)   where weaken     = weakenGeneric
+instance Strengthen (SL01 'Weak)   (SL01 'Strong) where strengthen = strengthenGeneric
 
-compress :: B.ByteString -> Either String SL01
-compress bs = do
-    case integralToBounded (B.length bs) of
-      Nothing -> Left $ "TODO too long"
-      Just lenW32 ->
-        case refine (LZO.compress bs) of
-          Left err -> Left $ show err
-          Right bs' -> Right $ SL01 Magic lenW32 bs'
+compress :: B.ByteString -> SL01 'Weak
+compress bs = SL01 Magic (fromIntegral (B.length bs)) (LZO.compress bs)
 
-decompress :: SL01 -> B.ByteString
-decompress sl01 =
-    LZO.decompress compressedBs (fromIntegral (sl01DecompressedSize sl01))
-  where compressedBs = unrefine $ sl01Data sl01
+decompress :: SL01 'Weak -> B.ByteString
+decompress (SL01 _ s d) = LZO.decompress d (fromIntegral s)
