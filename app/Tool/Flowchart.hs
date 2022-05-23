@@ -42,7 +42,7 @@ runEncode cfg = do
     fcBsYaml <- readStreamBytes $ cfgEncodeStreamIn cfg
     fcText   <- badParseYAML fcBsYaml
     fcBin    <- liftErr show $ fcBytesRefine $ fcTextToBytes @'UTF8 fcText
-    fcBin'   <- liftValidation strengthenErrorPretty $ strengthen fcBin
+    fcBin'   <- liftStrengthen fcBin
     let fcBsBin = runPut @(Flowchart 'Strong (AsByteString 'C)) fcBin'
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) fcBsBin
 

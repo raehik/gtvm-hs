@@ -14,7 +14,6 @@ import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
 import Refined hiding ( strengthen, weaken )
 import Strongweak
-import Data.Either.Combinators ( mapLeft )
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"
@@ -38,7 +37,7 @@ runEncode cfg = do
     scpYAMLBs <- readStreamBytes $ cfgEncodeStreamIn cfg
     scpYAML <- badParseYAML @SCPText scpYAMLBs
     scpBin' <- liftErr show $ scpTraverse encodeToRep scpYAML
-    scpBin :: SCPBin <- liftValidation strengthenErrorPretty $ strengthen scpBin'
+    scpBin :: SCPBin <- liftStrengthen scpBin'
     let scpBinBs = runPut scpBin
     writeStreamBin (cfgEncodePrintBin cfg) (cfgEncodeStreamOut cfg) scpBinBs
 
