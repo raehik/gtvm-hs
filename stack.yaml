@@ -8,18 +8,19 @@ extra-deps:
 - git: https://github.com/raehik/hash-graph
   commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
 
-- git: https://github.com/raehik/refined
-#  commit: c0ec11fc6463eb78622b5fc3553cf7bbf5897997
-  commit: 952e0348348aaf11c8b93c6e1ac6d33a0cbbb6b1
+- git: https://github.com/nikita-volkov/refined
+  commit: 91566f4e313937b7315a401fd116fa0aa2a15f06
 
 - git: https://github.com/raehik/binrep
-  commit: 67558410c85dffd679cfd01fc2e24cdd206aa34b
-
-- git: https://github.com/raehik/strongweak
-  commit: 70bdffa1010ebe517e3fe5a133dbfc81a2865f31
+  commit: 04d84c4102cef2784a4e6be27f751c04bf36602f
 
 # lol more forks
-- git: https://github.com/raehik/flatparse
-  commit: c1c36a0c17ed5932082c11cef495c2b2727558db
+- git: https://github.com/AndrasKovacs/flatparse
+  commit: c4b5dd8d4378377993697dac61ce1716e0ef19ea
 
 - text-icu-0.8.0.1@sha256:22d21c91e7a81f1ee5766b3406f4fe9df0ff8cc426581a861de3f6f2fa413449,4624
+- strongweak-0.3.0@sha256:bf98985ca1850e0106fff07a20233d34bbd247135fcc3474ded30a1a1fbcdec9,3588
+
+flags:
+  strongweak:
+    refined-polykind: true

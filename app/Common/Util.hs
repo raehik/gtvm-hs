@@ -5,7 +5,7 @@ import Control.Monad.IO.Class
 import Data.ByteString qualified as BS
 import System.Exit
 import Prettyprinter
-import Data.Validation
+import Data.Either.Validation
 import Strongweak
 
 readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m BS.ByteString
@@ -78,5 +78,5 @@ liftValidation f = \case
     print $ f e
     exitWith $ ExitFailure 3
 
-liftStrengthen :: (MonadIO m, Strengthen w s) => w -> m s
-liftStrengthen = liftValidation strengthenErrorPretty . strengthen
+liftStrengthen :: (MonadIO m, Strengthen a) => Weak a -> m a
+liftStrengthen = liftValidation strengthenFailPretty . strengthen
