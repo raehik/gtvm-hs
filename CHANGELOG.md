@@ -1,6 +1,6 @@
 ## 0.10.0 (Unreleased)
-  * refactor binary representation handling: SCP, flowchart now handled
-    generically via binrep and refined-extra
+  * large binary representation refactor: SCP, flowchart now handled generically
+    via binrep, strongweak, refined
   * work on graphing SCP links
 
 ## 0.9.0 (2022-03-22)
