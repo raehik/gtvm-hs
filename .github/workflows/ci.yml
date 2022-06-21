@@ -55,9 +55,7 @@ jobs:
       fail-fast: false  # don't stop if one job (= GHC version) fails
       matrix:
         cabal: ["3.6"]  # ghcup recommended as of 2021-12-02
-        ghc:
-        - "8.10"
-        - "9.0"
+        ghc: ["9.2"]
 
     steps:
 
@@ -110,7 +108,7 @@ jobs:
       fail-fast: false  # don't stop if one job (= GHC version) fails
       matrix:
         cabal: ["3.6"]  # ghcup recommended as of 2021-12-02
-        ghc: ["9.0"]
+        ghc: ["9.2"]
 
     steps:
 
@@ -160,7 +158,7 @@ jobs:
       fail-fast: false  # don't stop if one job (= GHC version) fails
       matrix:
         cabal: ["3.6"]  # ghcup recommended as of 2021-12-02
-        ghc: ["9.0"]
+        ghc: ["9.2"]
 
     steps:
 
