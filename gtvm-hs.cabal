@@ -153,7 +153,7 @@ executable gtvm-hs
       UndecidableInstances
       MagicHash
       ScopedTypeVariables
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , aeson-pretty

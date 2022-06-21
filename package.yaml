@@ -81,10 +81,11 @@ dependencies:
 - validation
 - prettyprinter
 
+ghc-options:
+- -Wall
+
 library:
   source-dirs: src
-  ghc-options:
-  - -Wall
 
 executables:
   gtvm-hs:
