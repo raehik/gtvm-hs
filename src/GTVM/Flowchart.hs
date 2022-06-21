@@ -15,7 +15,7 @@ import Binrep.Type.NullPadded
 import Refined ( Refined, Predicate, refine, unrefine, RefineException )
 import Strongweak
 import Strongweak.Generic
-import Data.Validation
+import Data.Either.Validation
 
 import Data.Aeson qualified as Aeson
 import Data.Aeson hiding ( Success )
@@ -76,8 +76,11 @@ instance Traversable (Entry 'Weak) where
         s' <- f s
         return $ Entry i t n' s'
 
-instance           Weaken     (Entry 'Strong a) (Entry 'Weak   a) where weaken     = weakenGeneric
-instance (BLen a, Typeable a, Show a) => Strengthen (Entry 'Weak   a) (Entry 'Strong a) where strengthen = strengthenGeneric
+instance Weaken (Entry 'Strong a) where
+    type Weak   (Entry 'Strong a) = Entry 'Weak a
+    weaken = weakenGeneric
+instance (BLen a, Typeable a, Show a) => Strengthen (Entry 'Strong a) where
+    strengthen = strengthenGeneric
 
 jcEntry :: Aeson.Options
 jcEntry = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "entry"
@@ -113,11 +116,11 @@ instance Traversable (Block 'Weak) where
         es' <- traverse (traverse f) es
         return $ Block n' es'
 
-instance Weaken (Block 'Strong a) (Block 'Weak a) where
+instance Weaken (Block 'Strong a) where
+    type Weak   (Block 'Strong a) = Block 'Weak a
     weaken (Block n es) = Block (weaken n) (weaken (weaken es))
 
--- TODO aww this is even worse than Flowchart :(
-instance (BLen a, Show a, Typeable a) => Strengthen (Block 'Weak a) (Block 'Strong a) where
+instance (BLen a, Show a, Typeable a) => Strengthen (Block 'Strong a) where
     strengthen (Block n es) = do
         case strengthen n of
           Failure err -> Failure err
@@ -163,11 +166,11 @@ instance Foldable (Flowchart 'Weak) where
 instance Traversable (Flowchart 'Weak) where
     traverse f (Flowchart es) = Flowchart <$> traverse (traverse f) es
 
-instance Weaken (Flowchart 'Strong a) (Flowchart 'Weak a) where
+instance Weaken (Flowchart 'Strong a) where
+    type Weak   (Flowchart 'Strong a) = Flowchart 'Weak a
     weaken (Flowchart es) = Flowchart (weaken (weaken es))
 
--- TODO ApplicativeDo doesn't work here due to shtuff. Is this OK though?
-instance (BLen a, Typeable a, Show a) => Strengthen (Flowchart 'Weak a) (Flowchart 'Strong a) where
+instance (BLen a, Typeable a, Show a) => Strengthen (Flowchart 'Strong a) where
     strengthen (Flowchart es) = do
         case strengthen es of
           Failure err -> Failure err

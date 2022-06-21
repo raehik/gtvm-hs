@@ -21,7 +21,7 @@ import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import Strongweak
 import Strongweak.Generic
-import Data.Validation
+import Data.Either.Validation
 
 import Optics
 
@@ -54,18 +54,19 @@ traverseFst f (a, x) = do
     b <- f a
     return (b, x)
 
-instance Weaken (AW32Pairs 'Strong a) (AW32Pairs 'Weak a) where
+instance Weaken (AW32Pairs 'Strong a) where
+    type Weak   (AW32Pairs 'Strong a) = AW32Pairs 'Weak a
     weaken x =
         case unAW32Pairs x of
           LenPfx x' -> AW32Pairs $ map (\(l, r) -> (l, weaken r)) $ Vector.toList x'
 
-instance (Typeable a, Show a) => Strengthen (AW32Pairs 'Weak a) (AW32Pairs 'Strong a) where
+instance (Typeable a, Show a) => Strengthen (AW32Pairs 'Strong a) where
     strengthen (AW32Pairs a) = do
         case traverse go a of
           Failure err -> Failure err
           Success b   -> do
             case lenPfxFromList b of
-              Nothing -> strengthenErrorBase b "TODO nope"
+              Nothing -> strengthenFailBase b "TODO nope"
               Just c  -> Success $ AW32Pairs c
       where
         go (l, r) = do
@@ -110,19 +111,20 @@ deriving via (PfxLenW8 (PfxLenW8 W32)) instance Get  (W322Block 'Strong)
 deriving via [[Natural]] instance ToJSON   (W322Block 'Weak)
 deriving via [[Natural]] instance FromJSON (W322Block 'Weak)
 
-instance Weaken (W322Block 'Strong) (W322Block 'Weak) where
+instance Weaken (W322Block 'Strong) where
+    type Weak   (W322Block 'Strong) = W322Block 'Weak
     weaken (W322Block a) = W322Block $ map (map weaken . lenPfxToList) $ lenPfxToList a
 
-instance Strengthen (W322Block 'Weak) (W322Block 'Strong) where
+instance Strengthen (W322Block 'Strong) where
     strengthen (W322Block a) = do
         case traverse (traverse strengthen) a of -- strengthen ints
           Failure err -> Failure err
           Success b   -> do
             case traverse lenPfxFromList b of -- strengthen inner lists
-              Nothing -> strengthenErrorBase b "TODO list sizing error"
+              Nothing -> strengthenFailBase b "TODO list sizing error"
               Just c  -> do
                 case lenPfxFromList c of -- strengthen outer list
-                  Nothing -> strengthenErrorBase c "TODO list sizing error 2"
+                  Nothing -> strengthenFailBase c "TODO list sizing error 2"
                   Just  d -> Success $ W322Block d
 
 lenPfxToList :: LenPfx size end a -> [a]
@@ -155,8 +157,11 @@ instance ToJSON   a => ToJSON   (Seg05Text 'Weak a) where
 instance FromJSON a => FromJSON (Seg05Text 'Weak a) where
     parseJSON  = genericParseJSON  jcSeg05Text
 
-instance Weaken     (Seg05Text 'Strong a) (Seg05Text 'Weak   a) where weaken     = weakenGeneric
-instance Strengthen (Seg05Text 'Weak   a) (Seg05Text 'Strong a) where strengthen = strengthenGeneric
+instance Weaken (Seg05Text 'Strong a) where
+    type Weak   (Seg05Text 'Strong a) = Seg05Text 'Weak a
+    weaken = weakenGeneric
+instance Strengthen (Seg05Text 'Strong a) where
+    strengthen = strengthenGeneric
 
 data Seg (s :: Strength) a
   = Seg00
@@ -389,5 +394,8 @@ deriving stock instance Functor     (Seg 'Weak)
 deriving stock instance Foldable    (Seg 'Weak)
 deriving stock instance Traversable (Seg 'Weak)
 
-instance Weaken     (Seg 'Strong a) (Seg 'Weak   a) where weaken     = weakenGeneric
-instance (Typeable a, Show a) => Strengthen (Seg 'Weak   a) (Seg 'Strong a) where strengthen = strengthenGeneric
+instance Weaken (Seg 'Strong a) where
+    type Weak   (Seg 'Strong a) = Seg 'Weak a
+    weaken = weakenGeneric
+instance (Typeable a, Show a) => Strengthen (Seg 'Strong a) where
+    strengthen = strengthenGeneric
