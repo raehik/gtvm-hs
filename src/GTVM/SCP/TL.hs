@@ -11,16 +11,16 @@
 module GTVM.SCP.TL where
 
 import GTVM.SCP
+
+import GTVM.Internal.Json
+import Util.Text ( tshow )
+import Data.Aeson qualified as Aeson
+
 import Strongweak
 
 import Raehik.Check
 
 import GHC.Generics ( Generic )
-
-import Data.Aeson qualified as Aeson
-import Data.Aeson ( ToJSON(..), FromJSON(..)
-                  , genericToJSON, genericToEncoding , genericParseJSON )
-import GTVM.Common.Json
 
 import Data.Text ( Text )
 import Data.Text qualified as Text
@@ -28,9 +28,6 @@ import Data.Map ( Map )
 import Data.Map qualified as Map
 import Data.Char qualified
 import Data.Maybe ( fromMaybe )
-import Util ( tshow )
-
-import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import Control.Monad.State
 
@@ -84,15 +81,11 @@ data TLSegComment = TLSegComment
   , scpTLCommentMeta       :: Map Text Text
   } deriving stock (Generic, Eq, Show)
 
-jcTLSegComment :: Aeson.Options
-jcTLSegComment =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpTLComment" :: String)
-
 instance ToJSON   TLSegComment where
-    toJSON     = genericToJSON     jcTLSegComment
-    toEncoding = genericToEncoding jcTLSegComment
+    toJSON     = gtjg "scpTLComment"
+    toEncoding = gteg "scpTLComment"
 instance FromJSON TLSegComment where
-    parseJSON  = genericParseJSON  jcTLSegComment
+    parseJSON  = gpjg "scpTLComment"
 
 data TLSegTextbox (c :: Check) a = TLSegTextbox
   { tlSegTextboxSource      :: CheckRep c a
@@ -111,15 +104,11 @@ instance Traversable (TLSegTextbox 'CheckEqual) where
     traverse f (TLSegTextbox s t o) =
         TLSegTextbox <$> f s <*> f t <*> traverse f o
 
-jcTLSegTextbox :: Aeson.Options
-jcTLSegTextbox =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("tlSegTextbox" :: String)
-
 instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSegTextbox c a) where
-    toJSON     = genericToJSON     jcTLSegTextbox
-    toEncoding = genericToEncoding jcTLSegTextbox
+    toJSON     = gtjg "tlSegTextbox"
+    toEncoding = gteg "tlSegTextbox"
 instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSegTextbox c a) where
-    parseJSON  = genericParseJSON  jcTLSegTextbox
+    parseJSON  = gpjg "tlSegTextbox"
 
 data TLSegChoice (c :: Check) a = TLSegChoice
   { tlSegChoiceSource :: CheckRep c a
@@ -137,15 +126,11 @@ instance Traversable (TLSegChoice 'CheckEqual) where
     traverse f (TLSegChoice s t) =
         TLSegChoice <$> f s <*> f t
 
-jcTLSegChoice :: Aeson.Options
-jcTLSegChoice =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("tlSegChoice" :: String)
-
 instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSegChoice c a) where
-    toJSON     = genericToJSON     jcTLSegChoice
-    toEncoding = genericToEncoding jcTLSegChoice
+    toJSON     = gtjg "tlSegChoice"
+    toEncoding = gteg "tlSegChoice"
 instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSegChoice c a) where
-    parseJSON  = genericParseJSON  jcTLSegChoice
+    parseJSON  = gpjg "tlSegChoice"
 
 data TLSeg22 (c :: Check) a = TLSeg22
   { tlSeg22TopicSource      :: CheckRep c a
@@ -164,32 +149,11 @@ instance Traversable (TLSeg22 'CheckEqual) where
     traverse f (TLSeg22 s t cs) =
         TLSeg22 <$> f s <*> f t <*> traverse (traverse f) cs
 
-jcTLSeg22 :: Aeson.Options
-jcTLSeg22 =
-    jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("tlSeg22" :: String)
-
 instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSeg22 c a) where
-    toJSON     = genericToJSON     jcTLSeg22
-    toEncoding = genericToEncoding jcTLSeg22
+    toJSON     = gtjg "tlSeg22"
+    toEncoding = gteg "tlSeg22"
 instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSeg22 c a) where
-    parseJSON  = genericParseJSON  jcTLSeg22
-
--- | Silly pretty config to get my preferred layout easily.
---
--- Looks silly, but gets the job done very smoothly. Snoyman's yaml library is
--- based for exposing this.
-ycTLSeg :: Yaml.Pretty.Config
-ycTLSeg = Yaml.Pretty.setConfDropNull True $ Yaml.Pretty.setConfCompare f $ Yaml.Pretty.defConfig
-  where
-    f "type" _ = LT
-    f _ "type" = GT
-    f "source" _ = LT
-    f _ "source" = GT
-    f "translation" _ = LT
-    f _ "translation" = GT
-    f "meta" _ = LT
-    f _ "meta" = GT
-    f s1 s2 = compare s1 s2
+    parseJSON  = gpjg "tlSeg22"
 
 genTL :: Env -> SCP' -> [TLSeg 'CheckEqual Text]
 genTL env = concatMap go
@@ -371,3 +335,19 @@ traverseM
     -> t v
     -> m (f (t v'))
 traverseM f xs = sequenceA <$> traverse f xs
+
+-- | Field ordering. To be used for pretty printing 'TLSeg's.
+--
+-- TODO use \cases on GHC 9.4
+tlSegFieldOrdering :: Text -> Text -> Ordering
+tlSegFieldOrdering = go
+  where
+    go "type" _ = LT
+    go _ "type" = GT
+    go "source" _ = LT
+    go _ "source" = GT
+    go "translation" _ = LT
+    go _ "translation" = GT
+    go "meta" _ = LT
+    go _ "meta" = GT
+    go s1 s2 = compare s1 s2

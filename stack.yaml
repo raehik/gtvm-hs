@@ -1,26 +1,15 @@
-resolver: nightly-2022-03-30
+resolver: nightly-2022-07-04
 packages: [.]
 
 extra-deps:
 - lzo-0.1.1.3@sha256:19984772e1cacb27d86727d3ccd0a7ebe40fb61383cb4388172b40a81bb25d0c,3037
 - blake3-0.2@sha256:d1146b9a51ccfbb0532780778b6d016a614e3d44c05d8c1923dde9a8be869045,2448
-- mason-0.2.5@sha256:44ead52c404f49006e4759d746b9008f8a6b2c642cbb27d26e7e25e7ba9a6f71,1221
 - git: https://github.com/raehik/hash-graph
   commit: eb625d3c010b53d01a61a9e411daf4aa382b58ed
 
-- git: https://github.com/nikita-volkov/refined
-  commit: 91566f4e313937b7315a401fd116fa0aa2a15f06
-
-- git: https://github.com/raehik/binrep
-  commit: 04d84c4102cef2784a4e6be27f751c04bf36602f
-
-# lol more forks
-- git: https://github.com/AndrasKovacs/flatparse
-  commit: c4b5dd8d4378377993697dac61ce1716e0ef19ea
-
 - text-icu-0.8.0.1@sha256:22d21c91e7a81f1ee5766b3406f4fe9df0ff8cc426581a861de3f6f2fa413449,4624
-- strongweak-0.3.0@sha256:bf98985ca1850e0106fff07a20233d34bbd247135fcc3474ded30a1a1fbcdec9,3588
 
-flags:
-  strongweak:
-    refined-polykind: true
+- binrep-0.2.0@sha256:18525a90f2efe6e8905330a1853e83337afb7738daf5ae512d40b7a4ec18f675,4314
+- mason-0.2.5@sha256:44ead52c404f49006e4759d746b9008f8a6b2c642cbb27d26e7e25e7ba9a6f71,1221
+- flatparse-0.3.5.1@sha256:f10369df044cf9782dfd1ce7bd865f2d3e2ea7d71cc0040df62b3ac921021a45,3936
+- strongweak-0.3.1@sha256:86cb3ccda0955bbdfc70a8fd90dc80e32a5283b05cd3f2b39858925fc4bad988,3343

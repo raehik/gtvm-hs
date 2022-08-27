@@ -3,13 +3,15 @@ module Tool.SCP.Code where
 import Common.Config
 import Common.CLIOptions
 import Common.Util
+import Common.IO ( badParseYAML )
+import Tool.SCP.Common ( scpPrettyYamlCfg )
+
 import Options.Applicative
 import GHC.Generics
 import Control.Monad.IO.Class
 import GTVM.SCP
 import Binrep
 import Binrep.Type.Text ( encodeToRep, decode )
-import GTVM.Common.IO ( badParseYAML )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
 import Refined hiding ( strengthen, weaken )
@@ -48,5 +50,5 @@ runDecode cfg = do
     if not (B.null bs) then fail "dangling bytes"
     else do
         scpText :: SCPText <- liftErr id $ scpTraverse decode $ scpFmap unrefine $ weaken scpBin
-        let scpYAMLBs = Yaml.Pretty.encodePretty prettyYamlCfg scpText
+        let scpYAMLBs = Yaml.Pretty.encodePretty scpPrettyYamlCfg scpText
         writeStreamTextualBytes (cfgDecodeStreamOut cfg) scpYAMLBs

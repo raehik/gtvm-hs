@@ -5,12 +5,17 @@ module Tool.SCP.TL where
 import Common.Config
 import Common.CLIOptions
 import Common.Util
+import Common.IO ( badParseYAML )
+
+import Tool.SCP.Common ( scpPrettyYamlCfg )
+
+import GTVM.Internal.Json
+
 import Options.Applicative
 
 import GHC.Generics
 import Control.Monad.IO.Class
 
-import GTVM.SCP as SCP
 import GTVM.SCP.TL
 import Raehik.Check
 
@@ -18,11 +23,7 @@ import Data.Text ( Text )
 import Data.Yaml.Pretty qualified
 import Data.Map qualified as Map
 
-import Data.Aeson
-import Data.Aeson qualified as Aeson
 import Data.Yaml.Pretty qualified as Yaml.Pretty
-import GTVM.Common.Json
-import GTVM.Common.IO ( badParseYAML )
 
 import Numeric.Natural ( Natural )
 
@@ -56,20 +57,26 @@ runToSCPTL cfg = do
         scptlBs = Data.Yaml.Pretty.encodePretty ycTLSeg scptl
     writeStreamTextualBytes (cfgToSCPTLStreamOut cfg) scptlBs
 
+-- | Silly pretty config to get my preferred layout easily.
+--
+-- Looks silly, but gets the job done very smoothly. Snoyman's yaml library is
+-- based for exposing this.
+ycTLSeg :: Yaml.Pretty.Config
+ycTLSeg =
+      Yaml.Pretty.setConfDropNull True
+    $ Yaml.Pretty.setConfCompare tlSegFieldOrdering
+    $ Yaml.Pretty.defConfig
+
 data SCPSpeakerData = SCPSpeakerData
   { scpSpeakerDataStringAtPointer :: Text
   } deriving (Generic, Eq, Show)
 
-jcSCPSpeakerData :: Aeson.Options
-jcSCPSpeakerData =
-    (jsonCfgSepUnderscoreDropN $ fromIntegral $ length ("scpSpeakerData" :: String))
-      { rejectUnknownFields = False }
-
+-- TODO previously was rejectUnknownFields = False, now True...
 instance ToJSON   SCPSpeakerData where
-    toJSON     = genericToJSON     jcSCPSpeakerData
-    toEncoding = genericToEncoding jcSCPSpeakerData
+    toJSON     = gtjg "scpSpeakerData"
+    toEncoding = gteg "scpSpeakerData"
 instance FromJSON SCPSpeakerData where
-    parseJSON  = genericParseJSON  jcSCPSpeakerData
+    parseJSON  = gpjg "scpSpeakerData"
 
 parseSpeakerMap :: MonadIO m => StreamFile 'StreamIn s -> m (Natural -> Maybe Text)
 parseSpeakerMap fp = do
@@ -97,5 +104,5 @@ runApplySCPTL cfg = do
     case apply scp scptl of
       Left  err  -> error $ show err
       Right scp' ->
-        let scpYAMLBs' = Yaml.Pretty.encodePretty SCP.prettyYamlCfg scp'
+        let scpYAMLBs' = Yaml.Pretty.encodePretty scpPrettyYamlCfg scp'
          in writeStreamTextualBytes (cfgApplySCPTLStreamOut cfg) scpYAMLBs'

@@ -1,4 +1,4 @@
-module Util where
+module Util.Text where
 
 import Data.Text qualified as Text
 import Data.Text ( Text )

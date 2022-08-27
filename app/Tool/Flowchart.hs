@@ -5,6 +5,8 @@ module Tool.Flowchart where
 import Common.Config
 import Common.CLIOptions
 import Common.Util
+import Common.IO ( badParseYAML )
+
 import GTVM.Flowchart
 
 import Binrep
@@ -14,7 +16,6 @@ import Options.Applicative
 import GHC.Generics ( Generic )
 import Control.Monad.IO.Class
 import Data.Yaml.Pretty qualified
-import GTVM.Common.IO ( badParseYAML )
 import Data.ByteString qualified as BS
 
 import Binrep.Type.ByteString

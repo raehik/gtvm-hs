@@ -17,12 +17,10 @@ import Strongweak
 import Strongweak.Generic
 import Data.Either.Validation
 
-import Data.Aeson qualified as Aeson
-import Data.Aeson hiding ( Success )
 import GHC.Generics
 import Data.Typeable
 import Data.ByteString qualified as B
-import GTVM.Common.Json
+import GTVM.Internal.Json
 
 brcNoSum :: Cfg (I 'U 'I4 'LE) -- typevar doesn't matter, not used
 brcNoSum = Cfg { cSumTag = undefined }
@@ -35,15 +33,11 @@ data EntryType
   | EntryType4ClassSelection -- ^ 履修申請
     deriving stock (Generic, Show, Eq)
 
-jcEntryType :: Aeson.Options
-jcEntryType = Aeson.defaultOptions
-    { Aeson.constructorTagModifier = Aeson.camelTo2 '_' . drop (length "EntryTypeX") }
-
 instance ToJSON   EntryType where
-    toJSON     = genericToJSON     jcEntryType
-    toEncoding = genericToEncoding jcEntryType
+    toJSON     = gtjg "EntryTypeX"
+    toEncoding = gteg "EntryTypeX"
 instance FromJSON EntryType where
-    parseJSON  = genericParseJSON  jcEntryType
+    parseJSON  = gpjg "EntryTypeX"
 
 brcEntryType :: Cfg (I 'U 'I4 'LE)
 brcEntryType = Cfg
@@ -82,14 +76,11 @@ instance Weaken (Entry 'Strong a) where
 instance (BLen a, Typeable a, Show a) => Strengthen (Entry 'Strong a) where
     strengthen = strengthenGeneric
 
-jcEntry :: Aeson.Options
-jcEntry = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "entry"
-
 instance ToJSON   a => ToJSON   (Entry 'Weak a) where
-    toJSON     = genericToJSON     jcEntry
-    toEncoding = genericToEncoding jcEntry
+    toJSON     = gtjg "entry"
+    toEncoding = gteg "entry"
 instance FromJSON a => FromJSON (Entry 'Weak a) where
-    parseJSON  = genericParseJSON  jcEntry
+    parseJSON  = gpjg "entry"
 
 instance                    BLen (Entry 'Strong a) where blen = blenGeneric brcNoSum
 instance (BLen a, Put a) => Put  (Entry 'Strong a) where put  = putGeneric  brcNoSum
@@ -132,14 +123,11 @@ instance (BLen a, Show a, Typeable a) => Strengthen (Block 'Strong a) where
                   Failure err  -> Failure err
                   Success es'' -> Success $ Block n' es''
 
-jcBlock :: Aeson.Options
-jcBlock = jsonCfgSepUnderscoreDropN $ fromIntegral $ length "block"
-
 instance ToJSON   a => ToJSON   (Block 'Weak a) where
-    toJSON     = genericToJSON     jcBlock
-    toEncoding = genericToEncoding jcBlock
+    toJSON     = gtjg "block"
+    toEncoding = gteg "block"
 instance FromJSON a => FromJSON (Block 'Weak a) where
-    parseJSON  = genericParseJSON  jcBlock
+    parseJSON  = gpjg "block"
 
 instance                    BLen (Block 'Strong a) where blen = blenGeneric brcNoSum
 instance (BLen a, Put a) => Put  (Block 'Strong a) where put  = putGeneric  brcNoSum

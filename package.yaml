@@ -57,10 +57,8 @@ dependencies:
 - directory
 - unicode-show
 - aeson
-- aeson-pretty
 - lzo
 - filemanip
-- yaml
 - cassava
 - utf8-string
 - barbies
@@ -79,6 +77,7 @@ dependencies:
 - vector-sized
 - strongweak ^>= 0.3.0
 - prettyprinter
+#- aeson-pretty
 
 ghc-options:
 - -Wall
@@ -97,3 +96,4 @@ executables:
     dependencies:
     - gtvm-hs
     - optparse-applicative
+    - yaml

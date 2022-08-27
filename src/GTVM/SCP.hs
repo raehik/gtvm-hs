@@ -3,11 +3,12 @@
 
 module GTVM.SCP where
 
+import GTVM.Internal.Json
+
 import GHC.Generics ( Generic )
 import Data.Typeable ( Typeable )
 
 import Data.Aeson qualified as Aeson
-import Data.Aeson ( ToJSON(..), genericToJSON, genericToEncoding, FromJSON(..), genericParseJSON )
 import Binrep
 import Binrep.Generic
 import Binrep.Generic qualified as BR
@@ -17,7 +18,6 @@ import Binrep.Type.ByteString ( Rep(..), AsByteString )
 import Binrep.Type.Text ( Encoding(..), AsText )
 import Binrep.Type.LenPfx
 import Data.Vector.Sized qualified as Vector
-import Data.Yaml.Pretty qualified as Yaml.Pretty
 
 import Strongweak
 import Strongweak.Generic
@@ -26,6 +26,8 @@ import Data.Either.Validation
 import Optics
 
 import Numeric.Natural ( Natural )
+
+import Data.Text ( Text )
 
 type Endian = 'LE
 type W8  = I 'U 'I1 Endian
@@ -77,26 +79,13 @@ instance (Typeable a, Show a) => Strengthen (AW32Pairs 'Strong a) where
 deriving via (PfxLenW8 (a, W32)) instance BLen a => BLen (AW32Pairs 'Strong a)
 deriving via (PfxLenW8 (a, W32)) instance Put  a => Put  (AW32Pairs 'Strong a)
 deriving via (PfxLenW8 (a, W32)) instance Get  a => Get  (AW32Pairs 'Strong a)
+
+-- TODO wtf do these look like? and shouldn't I do deriving via?
 instance ToJSON   a => ToJSON   (AW32Pairs 'Weak a)
 instance FromJSON a => FromJSON (AW32Pairs 'Weak a)
 
 brcNoSum :: BR.Cfg W8
 brcNoSum = BR.Cfg { BR.cSumTag = undefined }
-
-jcProd :: (String -> String) -> Aeson.Options
-jcProd f = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = Aeson.camelTo2 '_' . f
-  , Aeson.rejectUnknownFields = True
-  }
-
-jcSum :: (String -> String) -> (String -> String) -> String -> String -> Aeson.Options
-jcSum f g tag contents = (jcProd f)
-  { Aeson.constructorTagModifier = g
-  , Aeson.sumEncoding = Aeson.TaggedObject
-    { Aeson.tagFieldName = tag
-    , Aeson.contentsFieldName = contents
-    }
-  }
 
 newtype W322Block (s :: Strength) = W322Block
     { unW322Block :: SW s (PfxLenW8 (SW s (PfxLenW8 (SW s W32)))) }
@@ -148,14 +137,11 @@ instance BLen a => BLen (Seg05Text 'Strong a) where blen = blenGeneric brcNoSum
 instance Put  a => Put  (Seg05Text 'Strong a) where put  = putGeneric  brcNoSum
 instance Get  a => Get  (Seg05Text 'Strong a) where get  = getGeneric  brcNoSum
 
-jcSeg05Text :: Aeson.Options
-jcSeg05Text = jcProd $ drop $ length ("seg05Text" :: String)
-
 instance ToJSON   a => ToJSON   (Seg05Text 'Weak a) where
-    toJSON     = genericToJSON     jcSeg05Text
-    toEncoding = genericToEncoding jcSeg05Text
+    toJSON     = gtjg "seg05Text"
+    toEncoding = gteg "seg05Text"
 instance FromJSON a => FromJSON (Seg05Text 'Weak a) where
-    parseJSON  = genericParseJSON  jcSeg05Text
+    parseJSON  = gpjg "seg05Text"
 
 instance Weaken (Seg05Text 'Strong a) where
     type Weak   (Seg05Text 'Strong a) = Seg05Text 'Weak a
@@ -362,7 +348,14 @@ instance Put  a => Put  (Seg 'Strong a) where put  = putGeneric  brcSeg
 instance Get  a => Get  (Seg 'Strong a) where get  = getGeneric  brcSeg
 
 jcSeg :: Aeson.Options
-jcSeg = jcSum id (take 2 . drop (length ("Seg" :: String))) "command_byte" "arguments"
+jcSeg = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier  = take 2 . drop (length ("Seg" :: String))
+  , Aeson.rejectUnknownFields = True
+  , Aeson.sumEncoding = Aeson.TaggedObject
+    { Aeson.tagFieldName      = "command_byte"
+    , Aeson.contentsFieldName = "arguments"
+    }
+  }
 
 instance ToJSON   a => ToJSON   (Seg 'Weak a) where
     toJSON     = genericToJSON     jcSeg
@@ -380,15 +373,12 @@ scpFmap = fmap . fmap
 scpTraverse :: Applicative f => (a -> f b) -> SCP 'Weak a -> f (SCP 'Weak b)
 scpTraverse = traverse . traverse
 
-prettyYamlCfg :: Yaml.Pretty.Config
-prettyYamlCfg =
-      Yaml.Pretty.setConfCompare f
-    $ Yaml.Pretty.setConfDropNull True
-    $ Yaml.Pretty.defConfig
+scpSegFieldOrdering :: Text -> Text -> Ordering
+scpSegFieldOrdering = go
   where
-    f "command_byte" _ = LT
-    f _ "command_byte" = GT
-    f k1 k2 = compare k1 k2
+    go "command_byte" _ = LT
+    go _ "command_byte" = GT
+    go k1 k2 = compare k1 k2
 
 deriving stock instance Functor     (Seg 'Weak)
 deriving stock instance Foldable    (Seg 'Weak)

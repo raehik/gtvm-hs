@@ -1,4 +1,4 @@
-module GTVM.Common.IO where
+module Common.IO where
 
 import Data.Aeson
 import Data.Yaml qualified as Yaml
