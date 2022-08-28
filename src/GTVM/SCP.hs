@@ -37,8 +37,12 @@ type PfxLenW8 a = LenPfx 'I1 Endian a
 newtype AW32Pairs s a = AW32Pairs
   { unAW32Pairs :: SW s (PfxLenW8 (a, SW s W32)) }
     deriving (Generic)
+
 deriving stock instance Show a => Show (AW32Pairs 'Weak a)
 deriving stock instance Eq   a => Eq   (AW32Pairs 'Weak a)
+
+deriving stock instance Show a => Show (AW32Pairs 'Strong a)
+deriving stock instance Eq   a => Eq   (AW32Pairs 'Strong a)
 
 instance Functor (AW32Pairs 'Weak) where
     fmap f = AW32Pairs . map (over _1 f) . unAW32Pairs
@@ -84,14 +88,15 @@ deriving via (PfxLenW8 (a, W32)) instance Get  a => Get  (AW32Pairs 'Strong a)
 instance ToJSON   a => ToJSON   (AW32Pairs 'Weak a)
 instance FromJSON a => FromJSON (AW32Pairs 'Weak a)
 
-brcNoSum :: BR.Cfg W8
-brcNoSum = BR.Cfg { BR.cSumTag = undefined }
-
 newtype W322Block (s :: Strength) = W322Block
     { unW322Block :: SW s (PfxLenW8 (SW s (PfxLenW8 (SW s W32)))) }
     deriving (Generic)
+
 deriving stock instance Show (W322Block 'Weak)
 deriving stock instance Eq   (W322Block 'Weak)
+
+deriving stock instance Show (W322Block 'Strong)
+deriving stock instance Eq   (W322Block 'Strong)
 
 deriving via (PfxLenW8 (PfxLenW8 W32)) instance BLen (W322Block 'Strong)
 deriving via (PfxLenW8 (PfxLenW8 W32)) instance Put  (W322Block 'Strong)
@@ -127,15 +132,18 @@ data Seg05Text (s :: Strength) a = Seg05Text
   , seg05TextCounter :: SW s W32
   } deriving stock (Generic)
 
-deriving stock instance Eq   a => Eq   (Seg05Text 'Weak a)
 deriving stock instance Show a => Show (Seg05Text 'Weak a)
+deriving stock instance Eq   a => Eq   (Seg05Text 'Weak a)
 deriving stock instance Functor     (Seg05Text 'Weak)
 deriving stock instance Foldable    (Seg05Text 'Weak)
 deriving stock instance Traversable (Seg05Text 'Weak)
 
-instance BLen a => BLen (Seg05Text 'Strong a) where blen = blenGeneric brcNoSum
-instance Put  a => Put  (Seg05Text 'Strong a) where put  = putGeneric  brcNoSum
-instance Get  a => Get  (Seg05Text 'Strong a) where get  = getGeneric  brcNoSum
+deriving stock instance Show a => Show (Seg05Text 'Strong a)
+deriving stock instance Eq   a => Eq   (Seg05Text 'Strong a)
+
+instance BLen a => BLen (Seg05Text 'Strong a) where blen = blenGeneric BR.cNoSum
+instance Put  a => Put  (Seg05Text 'Strong a) where put  = putGeneric  BR.cNoSum
+instance Get  a => Get  (Seg05Text 'Strong a) where get  = getGeneric  BR.cNoSum
 
 instance ToJSON   a => ToJSON   (Seg05Text 'Weak a) where
     toJSON     = gtjg "seg05Text"
@@ -339,17 +347,19 @@ data Seg (s :: Strength) a
 deriving stock instance Show a => Show (Seg 'Weak a)
 deriving stock instance Eq   a => Eq   (Seg 'Weak a)
 
-brcSeg :: BR.Cfg W8
-brcSeg = BR.Cfg { BR.cSumTag = BR.cSumTagHex extractTagByte }
-  where extractTagByte = take 2 . drop (length ("Seg" :: String))
+deriving stock instance Show a => Show (Seg 'Strong a)
+deriving stock instance Eq   a => Eq   (Seg 'Strong a)
 
-instance BLen a => BLen (Seg 'Strong a) where blen = blenGeneric brcSeg
-instance Put  a => Put  (Seg 'Strong a) where put  = putGeneric  brcSeg
-instance Get  a => Get  (Seg 'Strong a) where get  = getGeneric  brcSeg
+brCfgSeg :: BR.Cfg W8
+brCfgSeg = BR.cfg $ BR.cSumTagHex $ take 2 . drop (length ("Seg" :: String))
+
+instance BLen a => BLen (Seg 'Strong a) where blen = blenGeneric brCfgSeg
+instance Put  a => Put  (Seg 'Strong a) where put  = putGeneric  brCfgSeg
+instance Get  a => Get  (Seg 'Strong a) where get  = getGeneric  brCfgSeg
 
 jcSeg :: Aeson.Options
 jcSeg = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier  = take 2 . drop (length ("Seg" :: String))
+  { Aeson.constructorTagModifier  = take 2 . drop (length ("Seg" :: String))
   , Aeson.rejectUnknownFields = True
   , Aeson.sumEncoding = Aeson.TaggedObject
     { Aeson.tagFieldName      = "command_byte"

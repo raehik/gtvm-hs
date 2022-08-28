@@ -50,7 +50,7 @@ runEncode cfg = do
 runDecode :: MonadIO m => CfgDecode -> m ()
 runDecode cfg = do
     fcBsBin <- readStreamBytes $ cfgDecodeStreamIn cfg
-    (fcBin, bs) <- liftErr id  $ runGet @(Flowchart 'Strong (AsByteString 'C)) fcBsBin
+    (fcBin, bs) <- liftErr show $ runGet @(Flowchart 'Strong (AsByteString 'C)) fcBsBin
     case BS.null bs of
       False -> error "TODO bytes left over"
       True -> do

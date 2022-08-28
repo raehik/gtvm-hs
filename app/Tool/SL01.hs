@@ -39,7 +39,7 @@ runCompress cfg = do
 runDecompress :: MonadIO m => CfgDecompress -> m ()
 runDecompress cfg = do
     sl01bs <- readStreamBytes $ cfgDecompressStreamIn cfg
-    (sl01, remainingBs) <- liftErr id $ runGet @(SL01 'Strong) sl01bs
+    (sl01, remainingBs) <- liftErr show $ runGet @(SL01 'Strong) sl01bs
     if remainingBs /= mempty then
         exit "TODO SL01 had extra bytes left over"
     else do

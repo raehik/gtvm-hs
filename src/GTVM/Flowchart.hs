@@ -3,7 +3,8 @@
 module GTVM.Flowchart where
 
 import Binrep
-import Binrep.Generic
+import Binrep.Generic qualified as BR
+import Binrep.Generic ( blenGeneric, putGeneric, getGeneric )
 import Binrep.Type.Common ( Endianness(..) )
 import Binrep.Type.ByteString ( Rep(..), AsByteString )
 import Binrep.Type.Text qualified
@@ -22,9 +23,6 @@ import Data.Typeable
 import Data.ByteString qualified as B
 import GTVM.Internal.Json
 
-brcNoSum :: Cfg (I 'U 'I4 'LE) -- typevar doesn't matter, not used
-brcNoSum = Cfg { cSumTag = undefined }
-
 data EntryType
   = EntryType0Regular        -- ^ "regular" event, some story script
   | EntryType1Map            -- ^ MAP
@@ -39,13 +37,12 @@ instance ToJSON   EntryType where
 instance FromJSON EntryType where
     parseJSON  = gpjg "EntryTypeX"
 
-brcEntryType :: Cfg (I 'U 'I4 'LE)
-brcEntryType = Cfg
-  { cSumTag = cSumTagHex $ take 1 . drop (length "EntryType") }
+brCfgEntryType :: BR.Cfg (I 'U 'I4 'LE)
+brCfgEntryType = BR.cfg $ BR.cSumTagHex $ take 1 . drop (length "EntryType")
 
-instance BLen EntryType where blen = blenGeneric brcEntryType
-instance Put  EntryType where put  = putGeneric  brcEntryType
-instance Get  EntryType where get  = getGeneric  brcEntryType
+instance BLen EntryType where blen = blenGeneric brCfgEntryType
+instance Put  EntryType where put  = putGeneric  brCfgEntryType
+instance Get  EntryType where get  = getGeneric  brCfgEntryType
 
 data Entry (s :: Strength) a = Entry
   { entryIndex  :: SW s (I 'U 'I4 'LE)
@@ -82,9 +79,9 @@ instance ToJSON   a => ToJSON   (Entry 'Weak a) where
 instance FromJSON a => FromJSON (Entry 'Weak a) where
     parseJSON  = gpjg "entry"
 
-instance                    BLen (Entry 'Strong a) where blen = blenGeneric brcNoSum
-instance (BLen a, Put a) => Put  (Entry 'Strong a) where put  = putGeneric  brcNoSum
-instance (BLen a, Get a) => Get  (Entry 'Strong a) where get  = getGeneric  brcNoSum
+instance                    BLen (Entry 'Strong a) where blen = blenGeneric BR.cNoSum
+instance (BLen a, Put a) => Put  (Entry 'Strong a) where put  = putGeneric  BR.cNoSum
+instance (BLen a, Get a) => Get  (Entry 'Strong a) where get  = getGeneric  BR.cNoSum
 
 data Block (s :: Strength) a = Block
   { blockName    :: SW s (NullPadded 32 a)
@@ -129,9 +126,9 @@ instance ToJSON   a => ToJSON   (Block 'Weak a) where
 instance FromJSON a => FromJSON (Block 'Weak a) where
     parseJSON  = gpjg "block"
 
-instance                    BLen (Block 'Strong a) where blen = blenGeneric brcNoSum
-instance (BLen a, Put a) => Put  (Block 'Strong a) where put  = putGeneric  brcNoSum
-instance (BLen a, Get a) => Get  (Block 'Strong a) where get  = getGeneric  brcNoSum
+instance                    BLen (Block 'Strong a) where blen = blenGeneric BR.cNoSum
+instance (BLen a, Put a) => Put  (Block 'Strong a) where put  = putGeneric  BR.cNoSum
+instance (BLen a, Get a) => Get  (Block 'Strong a) where get  = getGeneric  BR.cNoSum
 
 newtype Flowchart (s :: Strength) a =
     Flowchart { flowchartEntries :: [SW s (NullPadded 2116 (Block s a))] }
