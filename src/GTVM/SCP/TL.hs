@@ -1,12 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Intent: A sum type with a constructor corresponding to each SCP macro that
---   stores user-facing text, with fields to allow checking & replacing such
---   text.
---
--- We need sum types if we want to handle everything in one place. CSVs don't
--- support sum types. YAML does. And with sum types, we can also generate
--- comments from a source SCP -- to e.g. say when another SCP is loaded.
+{- | Intent: A sum type with a constructor corresponding to each SCP macro that
+     stores user-facing text, with fields to allow checking & replacing such
+     text.
+
+We need sum types if we want to handle everything in one place. CSVs don't
+support sum types. YAML does. And with sum types, we can also generate
+comments from a source SCP -- to e.g. say when another SCP is loaded.
+
+TODO
+  * Aeson won't ever omit fields for generic parsing or serializing, except in
+    the specific case where you have a concrete @'Maybe' a@. To work around
+    that, I need to write a separate, structurally simplified type, which can be
+    used for the JSON, and converted to the more powerful internal data type for
+    operating on.
+-}
 
 module GTVM.SCP.TL where
 
@@ -18,8 +26,6 @@ import Data.Aeson qualified as Aeson
 
 import Strongweak
 
-import Raehik.Check
-
 import GHC.Generics ( Generic )
 
 import Data.Text ( Text )
@@ -28,6 +34,7 @@ import Data.Map ( Map )
 import Data.Map qualified as Map
 import Data.Char qualified
 import Data.Maybe ( fromMaybe )
+import Data.Functor.Identity
 
 import Control.Monad.State
 
@@ -36,7 +43,8 @@ import Numeric.Natural ( Natural )
 type Seg' = Seg 'Weak Text
 type SCP' = [Seg']
 
-type SCPTL c a = [TLSeg c a]
+type SCPTL f a = [TLSeg f a]
+type SCPTL' = SCPTL Identity Text
 
 data Env = Env
   { envPendingPlaceholder :: Text
@@ -48,20 +56,20 @@ data Env = Env
 
   } deriving (Generic)
 
-data TLSeg (c :: Check) a
-  = TLSegTextbox'  (TLSegTextbox c a)
-  | TLSegChoice'   [TLSegChoice c a]
-  | TLSeg22Choice' (TLSeg22 c a)
-  | TLSeg35Choice' (TLSegChoice c a)
+data TLSeg f a
+  = TLSegTextbox'  (TLSegTextbox f a)
+  | TLSegChoice'   [TLSegChoice f a]
+  | TLSeg22Choice' (TLSeg22 f a)
+  | TLSeg35Choice' (TLSegChoice f a)
   | TLSegComment'  TLSegComment
     deriving (Generic)
 
-deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSeg c a)
-deriving instance (Show (CheckRep c a), Show a) => Show (TLSeg c a)
+deriving instance (Eq   (f a), Eq   a) => Eq   (TLSeg f a)
+deriving instance (Show (f a), Show a) => Show (TLSeg f a)
 
-deriving instance Functor     (TLSeg 'CheckEqual)
-deriving instance Foldable    (TLSeg 'CheckEqual)
-deriving instance Traversable (TLSeg 'CheckEqual)
+deriving instance Functor     f => Functor     (TLSeg f)
+deriving instance Foldable    f => Foldable    (TLSeg f)
+deriving instance Traversable f => Traversable (TLSeg f)
 
 jcTLSeg :: Aeson.Options
 jcTLSeg = Aeson.defaultOptions
@@ -70,10 +78,10 @@ jcTLSeg = Aeson.defaultOptions
     { Aeson.tagFieldName = "type"
     , Aeson.contentsFieldName = "contents" }}
 
-instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSeg c a) where
+instance (ToJSON   (f a), ToJSON   a) => ToJSON   (TLSeg f a) where
     toJSON     = genericToJSON     jcTLSeg
     toEncoding = genericToEncoding jcTLSeg
-instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSeg c a) where
+instance (FromJSON (f a), FromJSON a) => FromJSON (TLSeg f a) where
     parseJSON  = genericParseJSON  jcTLSeg
 
 data TLSegComment = TLSegComment
@@ -87,75 +95,63 @@ instance ToJSON   TLSegComment where
 instance FromJSON TLSegComment where
     parseJSON  = gpjg "scpTLComment"
 
-data TLSegTextbox (c :: Check) a = TLSegTextbox
-  { tlSegTextboxSource      :: CheckRep c a
+data TLSegTextbox f a = TLSegTextbox
+  { tlSegTextboxSource      :: f a
   , tlSegTextboxTranslation :: a
   , tlSegTextboxOverflow    :: Maybe a
   } deriving (Generic)
 
-deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSegTextbox c a)
-deriving instance (Show (CheckRep c a), Show a) => Show (TLSegTextbox c a)
+deriving instance (Eq   (f a), Eq   a) => Eq   (TLSegTextbox f a)
+deriving instance (Show (f a), Show a) => Show (TLSegTextbox f a)
 
-instance Functor     (TLSegTextbox 'CheckEqual) where
-    fmap     f (TLSegTextbox s t o) = TLSegTextbox (f s) (f t) (fmap f o)
-instance Foldable    (TLSegTextbox 'CheckEqual) where
-    foldMap  f (TLSegTextbox s t o) = f s <> f t <> foldMap f o
-instance Traversable (TLSegTextbox 'CheckEqual) where
-    traverse f (TLSegTextbox s t o) =
-        TLSegTextbox <$> f s <*> f t <*> traverse f o
+deriving instance Functor     f => Functor     (TLSegTextbox f)
+deriving instance Foldable    f => Foldable    (TLSegTextbox f)
+deriving instance Traversable f => Traversable (TLSegTextbox f)
 
-instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSegTextbox c a) where
+instance (ToJSON   (f a), ToJSON   a) => ToJSON   (TLSegTextbox f a) where
     toJSON     = gtjg "tlSegTextbox"
     toEncoding = gteg "tlSegTextbox"
-instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSegTextbox c a) where
+instance (FromJSON (f a), FromJSON a) => FromJSON (TLSegTextbox f a) where
     parseJSON  = gpjg "tlSegTextbox"
 
-data TLSegChoice (c :: Check) a = TLSegChoice
-  { tlSegChoiceSource :: CheckRep c a
+data TLSegChoice f a = TLSegChoice
+  { tlSegChoiceSource :: f a
   , tlSegChoiceTranslation :: a
   } deriving (Generic)
 
-deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSegChoice c a)
-deriving instance (Show (CheckRep c a), Show a) => Show (TLSegChoice c a)
+deriving instance (Eq   (f a), Eq   a) => Eq   (TLSegChoice f a)
+deriving instance (Show (f a), Show a) => Show (TLSegChoice f a)
 
-instance Functor     (TLSegChoice 'CheckEqual) where
-    fmap     f (TLSegChoice s t) = TLSegChoice (f s) (f t)
-instance Foldable    (TLSegChoice 'CheckEqual) where
-    foldMap  f (TLSegChoice s t) = f s <> f t
-instance Traversable (TLSegChoice 'CheckEqual) where
-    traverse f (TLSegChoice s t) =
-        TLSegChoice <$> f s <*> f t
+deriving instance Functor     f => Functor     (TLSegChoice f)
+deriving instance Foldable    f => Foldable    (TLSegChoice f)
+deriving instance Traversable f => Traversable (TLSegChoice f)
 
-instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSegChoice c a) where
+instance (ToJSON   (f a), ToJSON   a) => ToJSON   (TLSegChoice f a) where
     toJSON     = gtjg "tlSegChoice"
     toEncoding = gteg "tlSegChoice"
-instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSegChoice c a) where
+instance (FromJSON (f a), FromJSON a) => FromJSON (TLSegChoice f a) where
     parseJSON  = gpjg "tlSegChoice"
 
-data TLSeg22 (c :: Check) a = TLSeg22
-  { tlSeg22TopicSource      :: CheckRep c a
+data TLSeg22 f a = TLSeg22
+  { tlSeg22TopicSource      :: f a
   , tlSeg22TopicTranslation :: a
-  , tlSeg22Choices          :: [TLSegChoice c a]
+  , tlSeg22Choices          :: [TLSegChoice f a]
   } deriving (Generic)
 
-deriving instance (Eq   (CheckRep c a), Eq   a) => Eq   (TLSeg22 c a)
-deriving instance (Show (CheckRep c a), Show a) => Show (TLSeg22 c a)
+deriving instance (Eq   (f a), Eq   a) => Eq   (TLSeg22 f a)
+deriving instance (Show (f a), Show a) => Show (TLSeg22 f a)
 
-instance Functor     (TLSeg22 'CheckEqual) where
-    fmap     f (TLSeg22 s t cs) = TLSeg22 (f s) (f t) (fmap (fmap f) cs)
-instance Foldable    (TLSeg22 'CheckEqual) where
-    foldMap  f (TLSeg22 s t cs) = f s <> f t <> foldMap (foldMap f) cs
-instance Traversable (TLSeg22 'CheckEqual) where
-    traverse f (TLSeg22 s t cs) =
-        TLSeg22 <$> f s <*> f t <*> traverse (traverse f) cs
+deriving instance Functor     f => Functor     (TLSeg22 f)
+deriving instance Foldable    f => Foldable    (TLSeg22 f)
+deriving instance Traversable f => Traversable (TLSeg22 f)
 
-instance (ToJSON   (CheckRep c a), ToJSON   a) => ToJSON   (TLSeg22 c a) where
+instance (ToJSON   (f a), ToJSON   a) => ToJSON   (TLSeg22 f a) where
     toJSON     = gtjg "tlSeg22"
     toEncoding = gteg "tlSeg22"
-instance (FromJSON (CheckRep c a), FromJSON a) => FromJSON (TLSeg22 c a) where
+instance (FromJSON (f a), FromJSON a) => FromJSON (TLSeg22 f a) where
     parseJSON  = gpjg "tlSeg22"
 
-genTL :: Env -> SCP' -> [TLSeg 'CheckEqual Text]
+genTL :: Env -> SCP' -> [TLSeg Identity Text]
 genTL env = concatMap go
   where
     go = \case
@@ -181,7 +177,7 @@ genTL env = concatMap go
       -- Don't care about the rest.
       _ -> []
 
-genTLTextbox :: Env -> Seg05Text 'Weak Text -> [TLSeg 'CheckEqual Text]
+genTLTextbox :: Env -> Seg05Text 'Weak Text -> [TLSeg Identity Text]
 genTLTextbox env tb =
   [ TLSegComment' ( TLSegComment
     { scpTLCommentCommentary = []
@@ -190,25 +186,25 @@ genTLTextbox env tb =
          in Map.singleton "speaker" speakerName } )
   , TLSegTextbox'
     ( TLSegTextbox
-      { tlSegTextboxSource      = seg05TextText tb
+      { tlSegTextboxSource      = Identity $ seg05TextText tb
       , tlSegTextboxTranslation = envPendingPlaceholder env
       , tlSegTextboxOverflow    = Nothing } )
   ]
 
-genTLChoiceOuter :: Env -> Natural -> [Text] -> [TLSeg 'CheckEqual Text]
+genTLChoiceOuter :: Env -> Natural -> [Text] -> [TLSeg Identity Text]
 genTLChoiceOuter env csi cs =
   [ meta [ "Choice selection below. Script flow jumps depending on selection." ]
          [ ("choice_selection_index", tshow csi) ]
   , TLSegChoice' $ map (genTLChoice env) cs ]
 
-genTLChoice :: Env -> Text -> TLSegChoice 'CheckEqual Text
+genTLChoice :: Env -> Text -> TLSegChoice Identity Text
 genTLChoice env c = TLSegChoice
                       { tlSegChoiceTranslation = envPendingPlaceholder env
-                      , tlSegChoiceSource      = c }
+                      , tlSegChoiceSource      = Identity c }
 
-genTL22Choices :: Env -> Text -> [Text] -> TLSeg22 'CheckEqual Text
+genTL22Choices :: Env -> Text -> [Text] -> TLSeg22 Identity Text
 genTL22Choices env s ss = TLSeg22
-  { tlSeg22TopicSource = s
+  { tlSeg22TopicSource = Identity s
   , tlSeg22TopicTranslation = envPendingPlaceholder env
   , tlSeg22Choices = map (genTLChoice env) ss }
 
@@ -224,7 +220,7 @@ data Error
   | ErrorUnimplemented
     deriving (Generic, Eq, Show)
 
-apply :: SCP' -> [TLSeg 'CheckEqual Text] -> Either Error SCP'
+apply :: SCP' -> [TLSeg Identity Text] -> Either Error SCP'
 apply scp scptl =
     let (scpSegsTled, scptl') = runState (traverseM applySeg scp) scptl
      in case scpSegsTled of
@@ -243,7 +239,7 @@ skipToNextTL = \case []   -> []
 
 -- Using highly explicit/manual prisms here. Could clean up.
 applySeg
-    :: MonadState [TLSeg 'CheckEqual Text] m
+    :: MonadState [TLSeg Identity Text] m
     => Seg' -> m (Either Error [Seg'])
 applySeg = \case
   Seg05 tb -> tryApplySeg tryExtractTextbox (tryApplySegTextbox tb)
@@ -269,8 +265,8 @@ tryExtract35 = \case TLSeg35Choice' a -> Just a
                      _                -> Nothing
 
 tryApplySeg
-    :: MonadState [TLSeg 'CheckEqual Text] m
-    => (TLSeg 'CheckEqual Text -> Maybe a)
+    :: MonadState [TLSeg Identity Text] m
+    => (TLSeg Identity Text -> Maybe a)
     -> (a -> Either Error [Seg'])
     -> m (Either Error [Seg'])
 tryApplySeg f1 f2 = do
@@ -283,10 +279,10 @@ tryApplySeg f1 f2 = do
           Just a  -> return $ f2 a
 
 tryApplySegTextbox
-    :: Seg05Text 'Weak Text -> TLSegTextbox 'CheckEqual Text
+    :: Seg05Text 'Weak Text -> TLSegTextbox Identity Text
     -> Either Error [Seg']
 tryApplySegTextbox tb tbTL
-  | seg05TextText tb /= tlSegTextboxSource tbTL = Left ErrorSourceMismatch
+  | seg05TextText tb /= runIdentity (tlSegTextboxSource tbTL) = Left ErrorSourceMismatch
   | otherwise = Right $ Seg05 tb' : overflow
   where
     tb' = tb { seg05TextText = tlSegTextboxTranslation tbTL }
@@ -296,7 +292,7 @@ tryApplySegTextbox tb tbTL
                         , seg05TextText      = text } ]
 
 tryApplySegChoice
-    :: Natural -> [(Text, Natural)] -> [TLSegChoice 'CheckEqual Text]
+    :: Natural -> [(Text, Natural)] -> [TLSegChoice Identity Text]
     -> Either Error [Seg']
 tryApplySegChoice n cs csTL
   | length cs /= length csTL = Left ErrorSourceMismatch
@@ -304,28 +300,28 @@ tryApplySegChoice n cs csTL
   | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
   | otherwise = Right [Seg09Choice n (AW32Pairs edited)]
   where
-    checks = zip (map tlSegChoiceSource csTL) (map fst cs)
+    checks = zip (map (runIdentity . tlSegChoiceSource) csTL) (map fst cs)
     edited = zip (map tlSegChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg22
-    :: Text -> [(Text, Natural)] -> (TLSeg22 'CheckEqual Text)
+    :: Text -> [(Text, Natural)] -> (TLSeg22 Identity Text)
     -> Either Error [Seg']
 tryApplySeg22 topic cs segTL
-  | topic /= tlSeg22TopicSource segTL = Left ErrorSourceMismatch
+  | topic /= runIdentity (tlSeg22TopicSource segTL) = Left ErrorSourceMismatch
   | length cs /= length csTL = Left ErrorSourceMismatch
   -- lol whatever XD
   | not (and (map (uncurry (==)) checks)) = Left ErrorSourceMismatch
   | otherwise = Right [Seg22 (tlSeg22TopicTranslation segTL) (AW32Pairs edited)]
   where
     csTL = tlSeg22Choices segTL
-    checks = zip (map tlSegChoiceSource csTL) (map fst cs)
+    checks = zip (map (runIdentity . tlSegChoiceSource) csTL) (map fst cs)
     edited = zip (map tlSegChoiceTranslation csTL) (map snd cs)
 
 tryApplySeg35
-    :: Text -> TLSegChoice 'CheckEqual Text
+    :: Text -> TLSegChoice Identity Text
     -> Either Error [Seg']
 tryApplySeg35 a aTL
-  | a /= tlSegChoiceSource aTL = Left ErrorSourceMismatch
+  | a /= runIdentity (tlSegChoiceSource aTL) = Left ErrorSourceMismatch
   | otherwise = Right [Seg35 (tlSegChoiceTranslation aTL)]
 
 -- lol. ty hw-kafka-client

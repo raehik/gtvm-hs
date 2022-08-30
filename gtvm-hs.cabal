@@ -25,8 +25,10 @@ library
       GTVM.Internal.Json
       GTVM.SCP
       GTVM.SCP.TL
-      Raehik.Check
-      Raehik.HexBytestring
+      Raehik.Hash
+      Raehik.Hash.Blake3
+      Raehik.Hash.Internal
+      Raehik.Verify
       Util.Text
   other-modules:
       Paths_gtvm_hs

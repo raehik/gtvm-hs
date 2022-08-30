@@ -17,7 +17,6 @@ import GHC.Generics
 import Control.Monad.IO.Class
 
 import GTVM.SCP.TL
-import Raehik.Check
 
 import Data.Text ( Text )
 import Data.Yaml.Pretty qualified
@@ -100,7 +99,7 @@ runApplySCPTL cfg = do
     scpYAMLBs <- readStreamBytes $ cfgApplySCPTLStreamIn cfg
     scp       <- badParseYAML @SCP' scpYAMLBs
     scptlYAMLBs <- readStreamFileBytes $ cfgApplySCPTLFileIn cfg
-    scptl       <- badParseYAML @(SCPTL 'CheckEqual Text) scptlYAMLBs
+    scptl       <- badParseYAML @SCPTL' scptlYAMLBs
     case apply scp scptl of
       Left  err  -> error $ show err
       Right scp' ->
