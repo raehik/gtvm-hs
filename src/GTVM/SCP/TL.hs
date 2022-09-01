@@ -35,6 +35,7 @@ import Data.Map qualified as Map
 import Data.Char qualified
 import Data.Maybe ( fromMaybe )
 import Data.Functor.Identity
+import Data.Functor.Const
 
 import Control.Monad.State
 
@@ -209,8 +210,9 @@ genTL22Choices env s ss = TLSeg22
   , tlSeg22Choices = map (genTLChoice env) ss }
 
 meta :: [Text] -> [(Text, Text)] -> TLSeg c s
-meta cms kvs = TLSegComment' $ TLSegComment { scpTLCommentCommentary = cms
-                                        , scpTLCommentMeta = Map.fromList kvs }
+meta cms kvs = TLSegComment' $ TLSegComment
+    { scpTLCommentCommentary = cms
+    , scpTLCommentMeta = Map.fromList kvs }
 
 data Error
   = ErrorTLSegOverlong
@@ -347,3 +349,27 @@ tlSegFieldOrdering = go
     go "meta" _ = LT
     go _ "meta" = GT
     go s1 s2 = compare s1 s2
+
+--------------------------------------------------------------------------------
+
+segIsTlTarget :: Seg f a -> Bool
+segIsTlTarget = \case
+  Seg05{}       -> True
+  Seg09Choice{} -> True
+  Seg22{}       -> True
+  Seg35{}       -> True
+  _             -> False
+
+-- TODO isn't there an easier way to define this??? natural transformation????
+segDropMeta :: TLSeg f a -> TLSeg (Const ()) a
+segDropMeta = \case
+  TLSegTextbox'  (TLSegTextbox _ t o) ->
+    TLSegTextbox' $ TLSegTextbox (Const ()) t o
+  TLSegChoice'   cs -> TLSegChoice' $ map handleChoice cs
+  TLSeg22Choice' (TLSeg22 _ t cs) ->
+    TLSeg22Choice' $ TLSeg22 (Const ()) t $ map handleChoice cs
+  TLSeg35Choice' c ->
+    TLSeg35Choice' $ handleChoice c
+  TLSegComment' x -> TLSegComment' x
+  where
+    handleChoice (TLSegChoice _ t) = TLSegChoice (Const ()) t

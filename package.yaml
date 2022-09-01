@@ -79,6 +79,12 @@ dependencies:
 - prettyprinter
 #- aeson-pretty
 
+# studio
+- polysemy
+- path
+- yaml
+- exceptions
+
 ghc-options:
 - -Wall
 
