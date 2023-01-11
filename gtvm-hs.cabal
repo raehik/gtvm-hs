@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -70,10 +70,9 @@ library
   ghc-options: -Wall
   build-depends:
       aeson
-    , algebraic-graphs
     , barbies
     , base
-    , binrep >=0.3.0 && <0.4
+    , binrep >=0.3.1 && <0.4
     , blake3
     , bytestring
     , cassava
@@ -84,7 +83,6 @@ library
     , filemanip
     , filepath
     , generic-optics
-    , hash-graph
     , lzo
     , megaparsec >=9.2.0 && <9.3
     , memory
@@ -155,10 +153,9 @@ executable gtvm-hs
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
-    , algebraic-graphs
     , barbies
     , base
-    , binrep >=0.3.0 && <0.4
+    , binrep >=0.3.1 && <0.4
     , blake3
     , bytestring
     , cassava
@@ -170,7 +167,6 @@ executable gtvm-hs
     , filepath
     , generic-optics
     , gtvm-hs
-    , hash-graph
     , lzo
     , megaparsec >=9.2.0 && <9.3
     , memory

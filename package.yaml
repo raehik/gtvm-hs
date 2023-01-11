@@ -69,11 +69,9 @@ dependencies:
 - generic-optics
 - filepath
 - containers
-- algebraic-graphs
-- hash-graph
 - unordered-containers
 - refined
-- binrep ^>= 0.3.0
+- binrep ^>= 0.3.1
 - vector-sized
 - strongweak ^>= 0.3.0
 - prettyprinter
