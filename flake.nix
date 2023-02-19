@@ -16,7 +16,7 @@
           };
           # buildTools = hp: { fourmolu = hp.fourmolu; ghcid = null; };
           overrides = self: super: {
-            # 2023-01-11 raehik: binrep broken
+            # 2023-01-11 raehik: nixpkgs binrep broken
             # pending PR: https://github.com/NixOS/nixpkgs/pull/210212
             binrep = pkgs.haskell.lib.overrideCabal super.binrep (oa: {
               version = "0.3.1";
@@ -25,11 +25,12 @@
               editedCabalFile = "17l5x2vpdwdp6x14n1wayh6751cpsxsywj205n94khnm1cgcfp1a";
               broken = false;
             });
+            # 2023-01-12 raehik: need lzo-0.1.1.3, but even that is broken
             lzo = pkgs.haskell.lib.overrideCabal super.lzo (oa: {
               version = "0.1.1.3";
               sha256 = "sha256-98R5APzOBIscMi5SgYvjMXO0qEd8jCv2HT9gz/d3iY4=";
-              broken = false;
               doCheck = false; # tests broken b/c a file got left out of sdist
+              broken = false;
             });
           };
           # hlintCheck.enable = true;
