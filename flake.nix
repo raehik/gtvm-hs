@@ -1,43 +1,81 @@
 {
   inputs = {
-    #nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    #flake-parts.url = "github:hercules-ci/flake-parts";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     haskell-flake.url = "github:srid/haskell-flake";
+    binrep.url   = "github:raehik/binrep";
+    binrep.flake = false;
+    bytezap.url   = "github:raehik/bytezap";
+    bytezap.flake = false;
   };
-  outputs = inputs@{ nixpkgs, flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = nixpkgs.lib.systems.flakeExposed;
+  outputs = inputs:
+  let
+    defDevShell = compiler: {
+      mkShellArgs.name = "${compiler}";
+      hoogle = false;
+      tools = _: {
+        haskell-language-server = null;
+        hlint = null;
+        ghcid = null;
+      };
+    };
+  in
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = inputs.nixpkgs.lib.systems.flakeExposed;
       imports = [ inputs.haskell-flake.flakeModule ];
-      perSystem = { self', pkgs, ... }: {
-        haskellProjects.default = {
-          #haskellPackages = pkgs.haskell.packages.ghc925;
-          packages = {
-            gtvm-hs.root = ./.;
-          };
-          # buildTools = hp: { fourmolu = hp.fourmolu; ghcid = null; };
-          overrides = self: super: {
-            # 2023-01-11 raehik: nixpkgs binrep broken
-            # pending PR: https://github.com/NixOS/nixpkgs/pull/210212
-            binrep = pkgs.haskell.lib.overrideCabal super.binrep (oa: {
-              version = "0.3.1";
-              sha256 = "lliwSmiIpql9GhXRnnjP9YrWQweVESzomCzG/lT+TQU=";
-              revision = "1";
-              editedCabalFile = "17l5x2vpdwdp6x14n1wayh6751cpsxsywj205n94khnm1cgcfp1a";
-              broken = false;
-            });
-            # 2023-01-12 raehik: need lzo-0.1.1.3, but even that is broken
-            lzo = pkgs.haskell.lib.overrideCabal super.lzo (oa: {
-              version = "0.1.1.3";
-              sha256 = "sha256-98R5APzOBIscMi5SgYvjMXO0qEd8jCv2HT9gz/d3iY4=";
-              doCheck = false; # tests broken b/c a file got left out of sdist
-              broken = false;
-            });
-          };
-          # hlintCheck.enable = true;
-          # hlsCheck.enable = true;
+      perSystem = { self', pkgs, config, ... }: {
+        packages.default  = self'.packages.ghc96-gtvm-hs;
+        devShells.default = self'.devShells.ghc96;
+        haskellProjects.ghc910 = {
+          basePackages = pkgs.haskell.packages.ghc910;
+          # v https://github.com/phadej/defun/pull/5
+          settings.defun-core.jailbreak = true;
+          settings.strongweak.broken = false;
+          settings.text-icu.check = false; # 2025-09-25: one test fails???
+          packages.bytezap.source = inputs.bytezap;
+          devShell = defDevShell "ghc98";
         };
-        # haskell-flake doesn't set the default package, but you can do it here.
-        packages.default = self'.packages.gtvm-hs;
+        haskellProjects.ghc98 = {
+          basePackages = pkgs.haskell.packages.ghc98;
+          devShell = defDevShell "ghc98";
+
+          # 2024-09-28 raehik: broken due to blake3-0.3 not working (idk why)
+
+          settings.strongweak.broken = false;
+          settings.text-icu.check = false; # 2025-09-25: one test fails???
+          packages.bytezap.source = inputs.bytezap;
+        };
+        haskellProjects.ghc96 = {
+          basePackages = pkgs.haskell.packages.ghc96;
+          devShell = defDevShell "ghc96";
+
+          # 0.1.1.3 is last version before backpack overhaul
+          # Nix doesn't support backpack
+          packages.lzo.source = "0.1.1.3"; # TODO last non-bp
+          # 2023-02-20: tests broken b/c a file got left out of sdist
+          # https://hub.darcs.net/vmchale/sak/issue/2 (unmerged 2024-09-28)
+          settings.lzo.check = false;
+
+          settings.strongweak.broken = false;
+          packages.binrep.source = inputs.binrep;
+          packages.bytezap.source = inputs.bytezap;
+        };
       };
     };
 }
+
+          # packages.example.root = ./.;  # This value is detected based on .cabal files
+          #overrides = self: super: with pkgs.haskell.lib; {
+            # 2023-02-20: tests broken on GHC 9.4
+            # https://github.com/well-typed/optics/issues/478
+            #optics = dontCheck super.optics;
+
+            #lzo = overrideCabal super.lzo (oa: {
+              # 0.1.1.3 is last version before backpack overhaul; Nix doesn't
+              # support backpack
+              #version = "0.1.1.3";
+              #sha256 = "sha256-98R5APzOBIscMi5SgYvjMXO0qEd8jCv2HT9gz/d3iY4=";
+              # 2023-02-20: tests broken b/c a file got left out of sdist
+              # https://hub.darcs.net/vmchale/sak/issue/2
+              #doCheck = false;
+              #broken = false;
