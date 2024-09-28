@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.1.
+-- This file has been generated from package.yaml by hpack version 0.36.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -36,43 +36,22 @@ library
   hs-source-dirs:
       src
   default-extensions:
-      EmptyCase
-      FlexibleContexts
-      FlexibleInstances
-      InstanceSigs
-      MultiParamTypeClasses
-      PolyKinds
       LambdaCase
-      DerivingStrategies
-      StandaloneDeriving
-      DeriveAnyClass
-      DeriveGeneric
-      DeriveDataTypeable
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      DeriveLift
-      ImportQualifiedPost
-      StandaloneKindSignatures
+      NoStarIsType
       DerivingVia
-      RoleAnnotations
-      TypeApplications
-      DataKinds
-      TypeFamilies
-      TypeOperators
-      BangPatterns
+      DeriveAnyClass
       GADTs
+      RoleAnnotations
       DefaultSignatures
-      RankNTypes
-      UndecidableInstances
+      TypeFamilies
+      DataKinds
       MagicHash
-      ScopedTypeVariables
   ghc-options: -Wall
   build-depends:
       aeson
     , barbies
     , base
-    , binrep >=0.3.1 && <0.4
+    , binrep
     , blake3
     , bytestring
     , cassava
@@ -92,16 +71,15 @@ library
     , polysemy
     , prettyprinter
     , refined
-    , strongweak >=0.3.0 && <0.4
-    , text
+    , strongweak >=0.8.0 && <0.9
+    , text >=2.0.1 && <2.1
     , text-latin1
     , transformers
     , unicode-show
     , unordered-containers
-    , utf8-string
     , vector-sized
     , yaml
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable gtvm-hs
   main-is: Main.hs
@@ -119,43 +97,22 @@ executable gtvm-hs
   hs-source-dirs:
       app
   default-extensions:
-      EmptyCase
-      FlexibleContexts
-      FlexibleInstances
-      InstanceSigs
-      MultiParamTypeClasses
-      PolyKinds
       LambdaCase
-      DerivingStrategies
-      StandaloneDeriving
-      DeriveAnyClass
-      DeriveGeneric
-      DeriveDataTypeable
-      DeriveFunctor
-      DeriveFoldable
-      DeriveTraversable
-      DeriveLift
-      ImportQualifiedPost
-      StandaloneKindSignatures
+      NoStarIsType
       DerivingVia
-      RoleAnnotations
-      TypeApplications
-      DataKinds
-      TypeFamilies
-      TypeOperators
-      BangPatterns
+      DeriveAnyClass
       GADTs
+      RoleAnnotations
       DefaultSignatures
-      RankNTypes
-      UndecidableInstances
+      TypeFamilies
+      DataKinds
       MagicHash
-      ScopedTypeVariables
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , barbies
     , base
-    , binrep >=0.3.1 && <0.4
+    , binrep
     , blake3
     , bytestring
     , cassava
@@ -177,13 +134,12 @@ executable gtvm-hs
     , polysemy
     , prettyprinter
     , refined
-    , strongweak >=0.3.0 && <0.4
-    , text
+    , strongweak >=0.8.0 && <0.9
+    , text >=2.0.1 && <2.1
     , text-latin1
     , transformers
     , unicode-show
     , unordered-containers
-    , utf8-string
     , vector-sized
     , yaml
-  default-language: Haskell2010
+  default-language: GHC2021

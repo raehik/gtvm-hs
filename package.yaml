@@ -6,50 +6,47 @@ extra-source-files:
 - README.md
 - CHANGELOG.md
 
-# mostly Alexis King's 2018 recommended defaults
-# (most can be replaced with GHC 9.2's GHC2021 language extension
+# raehik's extensions (GHC 9.2; last updated: 2022-10-09)
+language: GHC2021
 default-extensions:
-# essential
-- EmptyCase
-- FlexibleContexts
-- FlexibleInstances
-- InstanceSigs
-- MultiParamTypeClasses
-- PolyKinds
+# syntax that should be default
 - LambdaCase
-# deriving-related
-- DerivingStrategies
-- StandaloneDeriving
+- NoStarIsType
+
+## deriving-related
+- DerivingVia # implies DerivingStrategies
 - DeriveAnyClass
-- DeriveGeneric
-- DeriveDataTypeable
-- DeriveFunctor
-- DeriveFoldable
-- DeriveTraversable
-- DeriveLift
-# essential syntax but too recent
-- ImportQualifiedPost # 8.10
-- StandaloneKindSignatures # 8.10
-- DerivingVia # 8.6
-# less essential but still gimmes
-- RoleAnnotations
-- TypeApplications
-- DataKinds
-- TypeFamilies
-- TypeOperators
-- BangPatterns
+
+# features that should be default
 - GADTs
+- RoleAnnotations
+
+# other features
 - DefaultSignatures
-- RankNTypes
-# extra
-- UndecidableInstances # honestly fine but...
-- MagicHash # pretty much syntactic, but too weird
-- ScopedTypeVariables # probs dangerous to have as default
+- TypeFamilies
+- DataKinds
+
+# other syntax
+- MagicHash
+
+# useful extensions to know about, but which should be specified on-demand
+#
+# UndecidableInstances:
+#   required for type class wizardry
+#   generally only enable if you were expecting to & compilation fails without
+# AllowAmbiguousTypes:
+#   often goes hand in hand with TypeApplications-heavy code
+#   enabling on demand brings attention to the sort of functions to expect
+# StarIsType:
+#   may need to enable if you're working with old code that uses `Int :: *`
+
+ghc-options:
+- -Wall
 
 dependencies:
 - base
 - bytestring
-- text
+- text ^>= 2.0.1
 - megaparsec ^>= 9.2.0 # for my binary number parsing additions
 - mtl
 - transformers
@@ -60,7 +57,6 @@ dependencies:
 - lzo
 - filemanip
 - cassava
-- utf8-string
 - barbies
 - text-latin1
 - blake3
@@ -71,9 +67,9 @@ dependencies:
 - containers
 - unordered-containers
 - refined
-- binrep ^>= 0.3.1
+- binrep
 - vector-sized
-- strongweak ^>= 0.3.0
+- strongweak ^>= 0.8.0
 - prettyprinter
 #- aeson-pretty
 
@@ -82,9 +78,6 @@ dependencies:
 - path
 - yaml
 - exceptions
-
-ghc-options:
-- -Wall
 
 library:
   source-dirs: src
