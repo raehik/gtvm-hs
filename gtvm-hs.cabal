@@ -26,10 +26,6 @@ library
       GTVM.SCP
       GTVM.SCP.TL
       GTVM.Studio
-      Raehik.Hash
-      Raehik.Hash.Blake3
-      Raehik.Hash.Internal
-      Raehik.Verify
       Util.Text
   other-modules:
       Paths_gtvm_hs
@@ -54,6 +50,7 @@ library
     , binrep
     , blake3
     , bytestring
+    , bytezap
     , cassava
     , containers
     , directory
@@ -71,7 +68,8 @@ library
     , polysemy
     , prettyprinter
     , refined
-    , strongweak >=0.8.0 && <0.9
+    , rerefined
+    , strongweak
     , text >=2.0.1 && <2.1
     , text-latin1
     , transformers
@@ -115,6 +113,7 @@ executable gtvm-hs
     , binrep
     , blake3
     , bytestring
+    , bytezap
     , cassava
     , containers
     , directory
@@ -134,7 +133,8 @@ executable gtvm-hs
     , polysemy
     , prettyprinter
     , refined
-    , strongweak >=0.8.0 && <0.9
+    , rerefined
+    , strongweak
     , text >=2.0.1 && <2.1
     , text-latin1
     , transformers

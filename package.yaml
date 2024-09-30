@@ -45,6 +45,13 @@ ghc-options:
 
 dependencies:
 - base
+
+- binrep
+- bytezap
+- refined
+- strongweak
+- rerefined
+
 - bytestring
 - text ^>= 2.0.1
 - megaparsec ^>= 9.2.0 # for my binary number parsing additions
@@ -66,10 +73,7 @@ dependencies:
 - filepath
 - containers
 - unordered-containers
-- refined
-- binrep
 - vector-sized
-- strongweak ^>= 0.8.0
 - prettyprinter
 #- aeson-pretty
 

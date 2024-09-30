@@ -10,33 +10,34 @@ import Data.Typeable ( Typeable )
 
 import Data.Aeson qualified as Aeson
 import Binrep
+import Binrep.Util.ByteOrder
 import Binrep.Generic
 import Binrep.Generic qualified as BR
-import Binrep.Type.Common ( Endianness(..) )
-import Binrep.Type.Int ( I(..), ISize(..), ISign(..) )
-import Binrep.Type.ByteString ( Rep(..), AsByteString )
-import Binrep.Type.Text ( Encoding(..), AsText )
-import Binrep.Type.LenPfx
+import Binrep.Type.Prefix.Count ( CountPrefixed )
 import Data.Vector.Sized qualified as Vector
 
 import Strongweak
+import Strongweak.Strengthen ( failStrengthen1 )
 import Strongweak.Generic
 import Data.Either.Validation
 
+import Rerefined.Refine ( Refined, unrefine, refine )
+
 import Optics
 
+import Data.ByteString qualified as B
+
 import Numeric.Natural ( Natural )
-
 import Data.Text ( Text )
+import Data.Word ( Word8, Word32 )
 
-type Endian = 'LE
-type W8  = I 'U 'I1 Endian
-type W32 = I 'U 'I4 Endian
-type PfxLenW8 a = LenPfx 'I1 Endian a
+type W8  = Word8
+type W32 = ByteOrdered LittleEndian Word32
+type PfxLenW8 = CountPrefixed Word8 []
 
 newtype AW32Pairs s a = AW32Pairs
   { unAW32Pairs :: SW s (PfxLenW8 (a, SW s W32)) }
-    deriving (Generic)
+    deriving stock Generic
 
 deriving stock instance Show a => Show (AW32Pairs 'Weak a)
 deriving stock instance Eq   a => Eq   (AW32Pairs 'Weak a)
@@ -62,23 +63,21 @@ traverseFst f (a, x) = do
 
 instance Weaken (AW32Pairs 'Strong a) where
     type Weak   (AW32Pairs 'Strong a) = AW32Pairs 'Weak a
-    weaken x =
-        case unAW32Pairs x of
-          LenPfx x' -> AW32Pairs $ map (\(l, r) -> (l, weaken r)) $ Vector.toList x'
+    weaken (AW32Pairs x) = AW32Pairs $ map (\(l, r) -> (l, weaken r)) $ weaken x
 
 instance (Typeable a, Show a) => Strengthen (AW32Pairs 'Strong a) where
     strengthen (AW32Pairs a) = do
         case traverse go a of
-          Failure err -> Failure err
-          Success b   -> do
-            case lenPfxFromList b of
-              Nothing -> strengthenFailBase b "TODO nope"
-              Just c  -> Success $ AW32Pairs c
+          Left  e -> Left e
+          Right b -> do
+            case strengthen b of
+              Left  e -> Left e
+              Right c -> Right $ AW32Pairs c
       where
         go (l, r) = do
             case strengthen r of
-              Failure err -> Failure err
-              Success r'  -> Success (l, r')
+              Left  e  -> Left e
+              Right r' -> Right (l, r')
 
 deriving via (PfxLenW8 (a, W32)) instance BLen a => BLen (AW32Pairs 'Strong a)
 deriving via (PfxLenW8 (a, W32)) instance Put  a => Put  (AW32Pairs 'Strong a)
@@ -107,22 +106,19 @@ deriving via [[Natural]] instance FromJSON (W322Block 'Weak)
 
 instance Weaken (W322Block 'Strong) where
     type Weak   (W322Block 'Strong) = W322Block 'Weak
-    weaken (W322Block a) = W322Block $ map (map weaken . lenPfxToList) $ lenPfxToList a
+    weaken (W322Block a) = W322Block $ map (map weaken . weaken) $ weaken a
 
 instance Strengthen (W322Block 'Strong) where
     strengthen (W322Block a) = do
         case traverse (traverse strengthen) a of -- strengthen ints
-          Failure err -> Failure err
-          Success b   -> do
-            case traverse lenPfxFromList b of -- strengthen inner lists
-              Nothing -> strengthenFailBase b "TODO list sizing error"
-              Just c  -> do
-                case lenPfxFromList c of -- strengthen outer list
-                  Nothing -> strengthenFailBase c "TODO list sizing error 2"
-                  Just  d -> Success $ W322Block d
-
-lenPfxToList :: LenPfx size end a -> [a]
-lenPfxToList (LenPfx v) = Vector.toList v
+          Left  e -> Left e
+          Right b -> do
+            case traverse strengthen b of -- strengthen inner lists
+              Left e -> Left e
+              Right c  -> do
+                case strengthen c of -- strengthen outer list
+                  Left e -> Left e
+                  Right d -> Right $ W322Block d
 
 data Seg05Text (s :: Strength) a = Seg05Text
   { seg05TextSpeakerUnkCharID :: SW s W8
@@ -141,9 +137,11 @@ deriving stock instance Traversable (Seg05Text 'Weak)
 deriving stock instance Show a => Show (Seg05Text 'Strong a)
 deriving stock instance Eq   a => Eq   (Seg05Text 'Strong a)
 
+{-
 instance BLen a => BLen (Seg05Text 'Strong a) where blen = blenGeneric BR.cNoSum
 instance Put  a => Put  (Seg05Text 'Strong a) where put  = putGeneric  BR.cNoSum
 instance Get  a => Get  (Seg05Text 'Strong a) where get  = getGeneric  BR.cNoSum
+-}
 
 instance ToJSON   a => ToJSON   (Seg05Text 'Weak a) where
     toJSON     = gtjg "seg05Text"
@@ -350,12 +348,14 @@ deriving stock instance Eq   a => Eq   (Seg 'Weak a)
 deriving stock instance Show a => Show (Seg 'Strong a)
 deriving stock instance Eq   a => Eq   (Seg 'Strong a)
 
+{-
 brCfgSeg :: BR.Cfg W8
 brCfgSeg = BR.cfg $ BR.cSumTagHex $ take 2 . drop (length ("Seg" :: String))
 
 instance BLen a => BLen (Seg 'Strong a) where blen = blenGeneric brCfgSeg
 instance Put  a => Put  (Seg 'Strong a) where put  = putGeneric  brCfgSeg
 instance Get  a => Get  (Seg 'Strong a) where get  = getGeneric  brCfgSeg
+-}
 
 jcSeg :: Aeson.Options
 jcSeg = Aeson.defaultOptions
@@ -373,9 +373,9 @@ instance ToJSON   a => ToJSON   (Seg 'Weak a) where
 instance FromJSON a => FromJSON (Seg 'Weak a) where
     parseJSON  = genericParseJSON  jcSeg
 
-type SCP v a = [Seg v a]
-type SCPBin  = SCP 'Strong (AsByteString 'C)
-type SCPText = SCP 'Weak (AsText 'UTF8)
+type SCP s a = [Seg s a]
+--type SCPBin  = SCP 'Strong (Refined NullTerminated B.ByteString)
+--type SCPText = SCP 'Weak (AsText 'UTF8)
 
 scpFmap :: (a -> b) -> SCP 'Weak a -> SCP 'Weak b
 scpFmap = fmap . fmap
