@@ -386,8 +386,6 @@ instance FromJSON a => FromJSON (Seg 'Weak a) where
     parseJSON  = genericParseJSON  jcSeg
 
 type SCP s a = [Seg s a]
---type SCPBin  = SCP 'Strong (Refined NullTerminated B.ByteString)
---type SCPText = SCP 'Weak (AsText 'UTF8)
 
 scpFmap :: (a -> b) -> SCP 'Weak a -> SCP 'Weak b
 scpFmap = fmap . fmap

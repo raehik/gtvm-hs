@@ -48,7 +48,6 @@ dependencies:
 
 - binrep
 - bytezap
-- refined
 - strongweak
 - rerefined
 - generic-data-functions
@@ -56,7 +55,6 @@ dependencies:
 
 - bytestring
 - text ^>= 2.0.1
-- megaparsec ^>= 9.2.0 # for my binary number parsing additions
 - mtl
 - transformers
 - either

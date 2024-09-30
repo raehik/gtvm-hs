@@ -59,14 +59,12 @@ library
     , generic-data-functions
     , generic-optics
     , lzo
-    , megaparsec >=9.2.0 && <9.3
     , memory
     , mtl
     , optics
     , path
     , polysemy
     , prettyprinter
-    , refined
     , rerefined
     , strongweak
     , symparsec
@@ -86,11 +84,9 @@ executable gtvm-hs
       Common.Config
       Common.IO
       Common.Util
-      Tool.Flowchart
       Tool.SCP.Code
       Tool.SCP.Common
       Tool.SCP.TL
-      Tool.SL01
       Paths_gtvm_hs
   hs-source-dirs:
       app
@@ -125,7 +121,6 @@ executable gtvm-hs
     , generic-optics
     , gtvm-hs
     , lzo
-    , megaparsec >=9.2.0 && <9.3
     , memory
     , mtl
     , optics
@@ -133,7 +128,6 @@ executable gtvm-hs
     , path
     , polysemy
     , prettyprinter
-    , refined
     , rerefined
     , strongweak
     , symparsec
