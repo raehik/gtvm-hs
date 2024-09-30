@@ -7,8 +7,8 @@ import Control.Monad.IO.Class
 import Options.Applicative
 import Tool.SCP.Code qualified
 import Tool.SCP.TL qualified
-import Tool.SL01 qualified
-import Tool.Flowchart qualified
+--import Tool.SL01 qualified
+--import Tool.Flowchart qualified
 
 main :: IO ()
 main = execParserWithDefaults desc pCmd >>= \case
@@ -20,6 +20,7 @@ main = execParserWithDefaults desc pCmd >>= \case
         case scptlCmd of
           CmdSCPTLGenerate cfg -> Tool.SCP.TL.runToSCPTL    cfg
           CmdSCPTLApply    cfg -> Tool.SCP.TL.runApplySCPTL cfg
+{-
   CmdSL01 sl01Cmd ->
     case sl01Cmd of
       CmdSL01Compress   cfg -> Tool.SL01.runCompress   cfg
@@ -28,12 +29,13 @@ main = execParserWithDefaults desc pCmd >>= \case
     case flowchartCmd of
       CmdFlowchartEncode cfg -> Tool.Flowchart.runEncode cfg
       CmdFlowchartDecode cfg -> Tool.Flowchart.runDecode cfg
+-}
   where desc = "Various tools for working with GTVM assets."
 
 data Cmd
   = CmdSCP       CmdSCP
-  | CmdSL01      CmdSL01
-  | CmdFlowchart CmdFlowchart
+  -- | CmdSL01      CmdSL01
+  -- | CmdFlowchart CmdFlowchart
     deriving (Eq, Show, Generic)
 
 data CmdSCP
@@ -47,6 +49,7 @@ data CmdSCPTL
   | CmdSCPTLApply    Tool.SCP.TL.CfgApplySCPTL
     deriving (Eq, Show, Generic)
 
+{-
 data CmdSL01
   = CmdSL01Compress   Tool.SL01.CfgCompress
   | CmdSL01Decompress Tool.SL01.CfgDecompress
@@ -56,16 +59,17 @@ data CmdFlowchart
   = CmdFlowchartEncode Tool.Flowchart.CfgEncode
   | CmdFlowchartDecode Tool.Flowchart.CfgDecode
     deriving (Eq, Show, Generic)
+-}
 
 pCmd :: Parser Cmd
 pCmd = hsubparser $
        cmd "scp"       descSCP       (CmdSCP       <$> pCmdSCP)
-    <> cmd "sl01"      descSL01      (CmdSL01      <$> pCmdSL01)
-    <> cmd "flowchart" descFlowchart (CmdFlowchart <$> pCmdFlowchart)
+    -- <> cmd "sl01"      descSL01      (CmdSL01      <$> pCmdSL01)
+    -- <> cmd "flowchart" descFlowchart (CmdFlowchart <$> pCmdFlowchart)
   where
     descSCP       = "Game script file (SCP, script/*.scp) tools."
-    descSL01      = "SL01 (LZO1x-compressed file) tools."
-    descFlowchart = "flow_chart.bin tools."
+    --descSL01      = "SL01 (LZO1x-compressed file) tools."
+    --descFlowchart = "flow_chart.bin tools."
 
 pCmdSCP :: Parser CmdSCP
 pCmdSCP = hsubparser $
@@ -85,6 +89,7 @@ pCmdSCPTL = hsubparser $
     descGen   = "Generate a template SCPTL from a YAML SCP."
     descApply = "Apply a SCPTL to a given YAML SCP."
 
+{-
 pCmdSL01 :: Parser CmdSL01
 pCmdSL01 = hsubparser $
        cmd "compress"   descCompress   (CmdSL01Compress   <$> Tool.SL01.parseCLIOptsCompress)
@@ -100,6 +105,7 @@ pCmdFlowchart = hsubparser $
   where
     descEncode = "TODO encode"
     descDecode = "TODO decode"
+-}
 
 -- | Execute a 'Parser' with decent defaults.
 execParserWithDefaults :: MonadIO m => String -> Parser a -> m a

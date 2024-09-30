@@ -11,11 +11,24 @@ import GHC.Generics
 import Control.Monad.IO.Class
 import GTVM.SCP
 import Binrep
-import Binrep.Type.Text ( encodeToRep, decode )
+import Binrep.Type.NullTerminated
+import Binrep.Type.Text ( encodeToRep, decode, AsText, Utf8 )
 import Data.Yaml.Pretty qualified as Yaml.Pretty
 import Data.ByteString qualified as B
-import Refined hiding ( strengthen, weaken )
+import Rerefined
 import Strongweak
+import Data.Text ( Text )
+import Data.Aeson qualified as Aeson
+
+type SCPBin  = SCP Strong (NullTerminated B.ByteString)
+type SCPText = SCP 'Weak (AsText Utf8)
+
+-- TODO ugly workaround because IDK
+instance Aeson.FromJSON (Refined Utf8 Text) where
+    parseJSON x = unsafeRefine <$> Aeson.parseJSON x
+instance Aeson.ToJSON   (Refined Utf8 Text) where
+    toJSON     = Aeson.toJSON     . unrefine
+    toEncoding = Aeson.toEncoding . unrefine
 
 data CfgEncode = CfgEncode
   { cfgEncodeStreamIn  :: Stream 'StreamIn  "YAML SCP"

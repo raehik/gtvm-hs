@@ -69,14 +69,10 @@ badParseStream f = \case
       Left  err -> badExit "parsing input" err
       Right out -> return out
 
--- | If there are errors, expects >=1.
-liftValidation :: (MonadIO m, Foldable f) => (f e -> Doc ann) -> Validation (f e) a -> m a
-liftValidation f = \case
-  Success a -> return a
-  Failure e -> liftIO $ do
-    putStrLn $ "error: "<>show (length e)<>" validation failure(s):"
-    print $ f e
-    exitWith $ ExitFailure 3
-
 liftStrengthen :: (MonadIO m, Strengthen a) => Weak a -> m a
-liftStrengthen = liftValidation strengthenFailPretty . strengthen
+liftStrengthen wa =
+    case strengthen wa of
+      Right sa  -> pure sa
+      Left  err -> liftIO $ do
+        print err -- TODO no strongweak prettifier yet. oops
+        exitWith $ ExitFailure 3
