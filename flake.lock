@@ -3,11 +3,11 @@
     "binrep": {
       "flake": false,
       "locked": {
-        "lastModified": 1727489539,
-        "narHash": "sha256-BDFMNLs/9dG25c6O2JRlQRcpOHfYxtW6qmOTZ5DLwCc=",
+        "lastModified": 1727720944,
+        "narHash": "sha256-ZSBrTZstTy6bkRXSqlOs91+duRiTWRn9VwrHIg60Noo=",
         "owner": "raehik",
         "repo": "binrep",
-        "rev": "491dc872a823069eefdde6196448f3be81287bc1",
+        "rev": "06e3b54e3242a3f3be13c684762d3a6c1fd8b55f",
         "type": "github"
       },
       "original": {
