@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE TemplateHaskell #-} -- for g-d-f workaround (search `$(pure [])`)
+{-# LANGUAGE UndecidableInstances #-} -- for Symparsec
 
 module GTVM.SCP where
 
@@ -11,21 +13,18 @@ import Data.Typeable ( Typeable )
 import Data.Aeson qualified as Aeson
 import Binrep
 import Binrep.Util.ByteOrder
-import Binrep.Generic
-import Binrep.Generic qualified as BR
+import Binrep.Common.Via.Generically.NonSum
 import Binrep.Type.Prefix.Count ( CountPrefixed )
-import Data.Vector.Sized qualified as Vector
 
 import Strongweak
-import Strongweak.Strengthen ( failStrengthen1 )
 import Strongweak.Generic
-import Data.Either.Validation
 
-import Rerefined.Refine ( Refined, unrefine, refine )
+import Symparsec.Parsers qualified as Symparsec
+import Symparsec.Run     qualified as Symparsec
+import Generic.Data.MetaParse.Cstr -- TODO what to import
+import GHC.TypeLits ( KnownNat, natVal' )
 
 import Optics
-
-import Data.ByteString qualified as B
 
 import Numeric.Natural ( Natural )
 import Data.Text ( Text )
@@ -137,11 +136,12 @@ deriving stock instance Traversable (Seg05Text 'Weak)
 deriving stock instance Show a => Show (Seg05Text 'Strong a)
 deriving stock instance Eq   a => Eq   (Seg05Text 'Strong a)
 
-{-
-instance BLen a => BLen (Seg05Text 'Strong a) where blen = blenGeneric BR.cNoSum
-instance Put  a => Put  (Seg05Text 'Strong a) where put  = putGeneric  BR.cNoSum
-instance Get  a => Get  (Seg05Text 'Strong a) where get  = getGeneric  BR.cNoSum
--}
+deriving via (GenericallyNonSum (Seg05Text Strong a))
+    instance BLen a => BLen (Seg05Text Strong a)
+deriving via (GenericallyNonSum (Seg05Text Strong a))
+    instance  Put a =>  Put (Seg05Text Strong a)
+deriving via (GenericallyNonSum (Seg05Text Strong a))
+    instance  Get a =>  Get (Seg05Text Strong a)
 
 instance ToJSON   a => ToJSON   (Seg05Text 'Weak a) where
     toJSON     = gtjg "seg05Text"
@@ -348,14 +348,26 @@ deriving stock instance Eq   a => Eq   (Seg 'Weak a)
 deriving stock instance Show a => Show (Seg 'Strong a)
 deriving stock instance Eq   a => Eq   (Seg 'Strong a)
 
-{-
-brCfgSeg :: BR.Cfg W8
-brCfgSeg = BR.cfg $ BR.cSumTagHex $ take 2 . drop (length ("Seg" :: String))
+-- parse SegXX
+type ParseSeg =
+                   Symparsec.Literal "Seg"
+    Symparsec.:*>: Symparsec.Isolate 2 Symparsec.NatHex
 
-instance BLen a => BLen (Seg 'Strong a) where blen = blenGeneric brCfgSeg
-instance Put  a => Put  (Seg 'Strong a) where put  = putGeneric  brCfgSeg
-instance Get  a => Get  (Seg 'Strong a) where get  = getGeneric  brCfgSeg
--}
+-- REMEMBER THIS HAS TO GO ABOVE BINREP
+instance CstrParser' Seg where
+    type CstrParseResult Seg = Natural
+$(pure [])
+instance CstrParser  Seg where
+    type ReifyCstrParseResult Seg n = KnownNat n
+    type ParseCstr Seg cstr =
+        Symparsec.Run'_ ParseSeg cstr
+
+instance BLen a => BLen (Seg 'Strong a) where
+    blen = blenGenericSum @Seg (\_p -> 1)
+instance Put  a => Put  (Seg 'Strong a) where
+     put =  putGenericSum @Seg (\p -> put @Word8 (fromIntegral (natVal' p)))
+instance Get  a => Get  (Seg 'Strong a) where
+     get =  getGenericSum @Seg @Word8 (\p -> fromIntegral (natVal' p)) (==)
 
 jcSeg :: Aeson.Options
 jcSeg = Aeson.defaultOptions
