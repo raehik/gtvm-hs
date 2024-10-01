@@ -7,6 +7,8 @@
     binrep.flake = false;
     bytezap.url   = "github:raehik/bytezap";
     bytezap.flake = false;
+    strongweak.url   = "github:raehik/strongweak";
+    strongweak.flake = false;
   };
   outputs = inputs:
   let
@@ -59,6 +61,7 @@
           settings.strongweak.broken = false;
           packages.binrep.source = inputs.binrep;
           packages.bytezap.source = inputs.bytezap;
+          packages.strongweak.source = inputs.strongweak;
         };
       };
     };
