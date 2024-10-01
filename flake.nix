@@ -99,7 +99,7 @@
           packages.strongweak.source = inputs.strongweak;
         };
 
-        packages.gtvm-hs-image-ghc96 = pkgs.dockerTools.streamLayeredImage {
+        packages.gtvm-hs-image-ghc910 = pkgs.dockerTools.streamLayeredImage {
           name = "gtvm-hs";
           # `git rev-parse HEAD` on clean, "dev" on dirty
           tag = inputs.self.rev or "dev";
