@@ -30,8 +30,8 @@
       systems = inputs.nixpkgs.lib.systems.flakeExposed;
       imports = [ inputs.haskell-flake.flakeModule ];
       perSystem = { self', pkgs, config, ... }: {
-        packages.default  = self'.packages.ghc96-gtvm-hs;
-        devShells.default = self'.devShells.ghc96;
+        packages.default  = self'.packages.ghc910-gtvm-hs;
+        devShells.default = self'.devShells.ghc910;
         haskellProjects.ghc910 = {
           basePackages = pkgs.haskell.packages.ghc910;
           devShell = defDevShell "ghc910";
@@ -48,8 +48,6 @@
           # https://hub.darcs.net/vmchale/sak/issue/2 (unmerged 2024-09-28)
           settings.lzo.check = false;
 
-          #settings.text-icu.check = false; # 2024-09-25: one test fails???
-
           packages.binrep.source = inputs.binrep;
 
           # waiting for nixpkgs update
@@ -61,17 +59,7 @@
 
         haskellProjects.ghc98 = {
           basePackages = pkgs.haskell.packages.ghc98;
-          #devShell = defDevShell "ghc98";
-          devShell = compiler: {
-            mkShellArgs.name = "ghc98";
-            hoogle = false;
-            tools = _: {
-              cabal-install = pkgs.cabal-install; # TODO TMP
-              haskell-language-server = null;
-              hlint = null;
-              ghcid = null;
-            };
-          };
+          devShell = defDevShell "ghc98";
 
           # 2024-10-01 raehik: broken due to blake3-0.3 not working (idk why)
 
