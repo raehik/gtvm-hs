@@ -47,14 +47,13 @@ dependencies:
 - base
 
 - binrep
-- bytezap
-- strongweak
-- rerefined
+- strongweak ^>= 0.9.1
+- rerefined ^>= 0.6.0
 - generic-data-functions
 - symparsec
 
 - bytestring
-- text ^>= 2.0.1
+- text >= 2.0.1 && <2.2
 - mtl
 - transformers
 - either

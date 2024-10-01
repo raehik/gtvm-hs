@@ -3,11 +3,11 @@
     "binrep": {
       "flake": false,
       "locked": {
-        "lastModified": 1727747623,
-        "narHash": "sha256-6xdYNV1d+x1x3Kj9r7s42eQdV67fGfuGxGzIhdilJow=",
+        "lastModified": 1727798728,
+        "narHash": "sha256-C0EzUOGKEn3BhIMOgn1sQ7X99wgbd4qPcVRuabYB8K0=",
         "owner": "raehik",
         "repo": "binrep",
-        "rev": "622f3a59b9a11eeea128d633bf0c90cce818a050",
+        "rev": "f6d082cafa4c86fef0f5e8628fdf8da1fb19b5a6",
         "type": "github"
       },
       "original": {
@@ -93,6 +93,22 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/356624c12086a18f2ea2825fed34523d60ccc4e3.tar.gz"
       }
     },
+    "rerefined": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1727796801,
+        "narHash": "sha256-UKkK0PmBg4lLCbc9IKDJggpBwq3Wx2P9gb/897KAsuY=",
+        "owner": "raehik",
+        "repo": "rerefined",
+        "rev": "a1df4c118a97ff2efc538301fe62980e72921fe1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "raehik",
+        "repo": "rerefined",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "binrep": "binrep",
@@ -100,17 +116,18 @@
         "flake-parts": "flake-parts",
         "haskell-flake": "haskell-flake",
         "nixpkgs": "nixpkgs",
+        "rerefined": "rerefined",
         "strongweak": "strongweak"
       }
     },
     "strongweak": {
       "flake": false,
       "locked": {
-        "lastModified": 1727748490,
-        "narHash": "sha256-3eHXRYOi29Xl8ZHi/RZkjIJ6Q4bOLt7MrD9WqdJJhJw=",
+        "lastModified": 1727797408,
+        "narHash": "sha256-Iv+7IW7bIDYCSd3c3l6o39VqTYXxO3wy94+pqm064hA=",
         "owner": "raehik",
         "repo": "strongweak",
-        "rev": "9c50a19f914e418e6cc2b0a7f11f4c26eb86ce83",
+        "rev": "74496ba01af8de3933b5fd09e39dd1084defc7ab",
         "type": "github"
       },
       "original": {
