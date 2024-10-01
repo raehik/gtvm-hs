@@ -53,7 +53,7 @@
 
           # 0.1.1.3 is last version before backpack overhaul
           # Nix doesn't support backpack
-          packages.lzo.source = "0.1.1.3"; # TODO last non-bp
+          packages.lzo.source = "0.1.1.3";
           # 2023-02-20: tests broken b/c a file got left out of sdist
           # https://hub.darcs.net/vmchale/sak/issue/2 (unmerged 2024-09-28)
           settings.lzo.check = false;
@@ -63,22 +63,14 @@
           packages.bytezap.source = inputs.bytezap;
           packages.strongweak.source = inputs.strongweak;
         };
+
+        packages.gtvm-hs-image-ghc96 = pkgs.dockerTools.streamLayeredImage {
+          name = "gtvm-hs";
+          # `git rev-parse HEAD` on clean, "dev" on dirty
+          tag = inputs.self.rev or "dev";
+          config.Entrypoint = [ "${pkgs.lib.getExe self'.packages.ghc96-gtvm-hs}" ];
+          maxLayers = 120; # less than Docker max layers to allow extending
+        };
       };
     };
 }
-
-          # packages.example.root = ./.;  # This value is detected based on .cabal files
-          #overrides = self: super: with pkgs.haskell.lib; {
-            # 2023-02-20: tests broken on GHC 9.4
-            # https://github.com/well-typed/optics/issues/478
-            #optics = dontCheck super.optics;
-
-            #lzo = overrideCabal super.lzo (oa: {
-              # 0.1.1.3 is last version before backpack overhaul; Nix doesn't
-              # support backpack
-              #version = "0.1.1.3";
-              #sha256 = "sha256-98R5APzOBIscMi5SgYvjMXO0qEd8jCv2HT9gz/d3iY4=";
-              # 2023-02-20: tests broken b/c a file got left out of sdist
-              # https://hub.darcs.net/vmchale/sak/issue/2
-              #doCheck = false;
-              #broken = false;
