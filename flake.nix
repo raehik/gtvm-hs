@@ -103,7 +103,7 @@
           name = "gtvm-hs";
           # `git rev-parse HEAD` on clean, "dev" on dirty
           tag = inputs.self.rev or "dev";
-          config.Entrypoint = [ "${pkgs.lib.getExe self'.packages.ghc96-gtvm-hs}" ];
+          config.Entrypoint = [ "${pkgs.lib.getExe self'.packages.ghc910-gtvm-hs}" ];
           maxLayers = 120; # less than Docker max layers to allow extending
         };
       };
