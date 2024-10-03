@@ -1,10 +1,17 @@
 name: gtvm-hs
 version: 1.0.0
 synopsis: "Various tools for reversing and using assets from Golden Time: Vivid Memories."
-github: raehik/gtvm-hs
+description: Please see README.md.
 extra-source-files:
 - README.md
 - CHANGELOG.md
+category: Data
+license: MIT
+license-file: LICENSE
+
+github: raehik/gtvm-hs
+maintainer: Ben Orchard <thefirstmuffinman@gmail.com>
+author: Ben Orchard
 
 # raehik's extensions (GHC 9.2; last updated: 2022-10-09)
 language: GHC2021

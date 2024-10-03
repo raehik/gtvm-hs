@@ -7,8 +7,14 @@ cabal-version: 1.12
 name:           gtvm-hs
 version:        1.0.0
 synopsis:       Various tools for reversing and using assets from Golden Time: Vivid Memories.
+description:    Please see README.md.
+category:       Data
 homepage:       https://github.com/raehik/gtvm-hs#readme
 bug-reports:    https://github.com/raehik/gtvm-hs/issues
+author:         Ben Orchard
+maintainer:     Ben Orchard <thefirstmuffinman@gmail.com>
+license:        MIT
+license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
