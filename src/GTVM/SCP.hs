@@ -1,34 +1,28 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE OverloadedStrings #-} -- for some strings
+{-# LANGUAGE ApplicativeDo #-} -- for a Traversable instance
 {-# LANGUAGE TemplateHaskell #-} -- for g-d-f workaround (search `$(pure [])`)
 {-# LANGUAGE UndecidableInstances #-} -- for Symparsec
 
 module GTVM.SCP where
 
-import GTVM.Internal.Json
-
-import GHC.Generics ( Generic )
-import Data.Typeable ( Typeable )
-
-import Data.Aeson qualified as Aeson
 import Binrep
 import Binrep.Util.ByteOrder
 import Binrep.Common.Via.Generically.NonSum
 import Binrep.Type.Prefix.Count ( CountPrefixed )
-
+import Numeric.Natural ( Natural )
+import Data.Text ( Text )
+import Data.Word ( Word8, Word32 )
+import GHC.Generics ( Generic )
 import Strongweak
 import Strongweak.Generic
 
 import Symparsec.Parsers qualified as Symparsec
 import Symparsec.Run     qualified as Symparsec
-import Generic.Data.MetaParse.Cstr -- TODO what to import
+import Generic.Data.MetaParse.Cstr
+  ( CstrParser'(CstrParseResult), CstrParser(ParseCstr, ReifyCstrParseResult) )
 import GHC.TypeLits ( KnownNat, natVal' )
 
-import Optics
-
-import Numeric.Natural ( Natural )
-import Data.Text ( Text )
-import Data.Word ( Word8, Word32 )
+import Data.Aeson qualified as Aeson
 
 type W8  = Word8
 type W32 = ByteOrdered LittleEndian Word32
@@ -45,7 +39,7 @@ deriving stock instance Show a => Show (AW32Pairs 'Strong a)
 deriving stock instance Eq   a => Eq   (AW32Pairs 'Strong a)
 
 instance Functor (AW32Pairs 'Weak) where
-    fmap f = AW32Pairs . map (over _1 f) . unAW32Pairs
+    fmap f = AW32Pairs . map (\(a, b) -> (f a, b)) . unAW32Pairs
 
 instance Foldable (AW32Pairs 'Weak) where
     foldMap f = mconcat . map (f . fst) . unAW32Pairs
@@ -64,7 +58,7 @@ instance Weaken (AW32Pairs 'Strong a) where
     type Weak   (AW32Pairs 'Strong a) = AW32Pairs 'Weak a
     weaken (AW32Pairs x) = AW32Pairs $ map (\(l, r) -> (l, weaken r)) $ weaken x
 
-instance (Typeable a, Show a) => Strengthen (AW32Pairs 'Strong a) where
+instance Strengthen (AW32Pairs 'Strong a) where
     strengthen (AW32Pairs a) = do
         case traverse go a of
           Left  e -> Left e
@@ -83,12 +77,12 @@ deriving via (PfxLenW8 (a, W32)) instance Put  a => Put  (AW32Pairs 'Strong a)
 deriving via (PfxLenW8 (a, W32)) instance Get  a => Get  (AW32Pairs 'Strong a)
 
 -- TODO wtf do these look like? and shouldn't I do deriving via?
-instance ToJSON   a => ToJSON   (AW32Pairs 'Weak a)
-instance FromJSON a => FromJSON (AW32Pairs 'Weak a)
+instance Aeson.ToJSON   a => Aeson.ToJSON   (AW32Pairs 'Weak a)
+instance Aeson.FromJSON a => Aeson.FromJSON (AW32Pairs 'Weak a)
 
 newtype W322Block (s :: Strength) = W322Block
     { unW322Block :: SW s (PfxLenW8 (SW s (PfxLenW8 (SW s W32)))) }
-    deriving (Generic)
+    deriving stock Generic
 
 deriving stock instance Show (W322Block 'Weak)
 deriving stock instance Eq   (W322Block 'Weak)
@@ -100,8 +94,8 @@ deriving via (PfxLenW8 (PfxLenW8 W32)) instance BLen (W322Block 'Strong)
 deriving via (PfxLenW8 (PfxLenW8 W32)) instance Put  (W322Block 'Strong)
 deriving via (PfxLenW8 (PfxLenW8 W32)) instance Get  (W322Block 'Strong)
 
-deriving via [[Natural]] instance ToJSON   (W322Block 'Weak)
-deriving via [[Natural]] instance FromJSON (W322Block 'Weak)
+deriving via [[Natural]] instance Aeson.ToJSON   (W322Block 'Weak)
+deriving via [[Natural]] instance Aeson.FromJSON (W322Block 'Weak)
 
 instance Weaken (W322Block 'Strong) where
     type Weak   (W322Block 'Strong) = W322Block 'Weak
@@ -125,29 +119,10 @@ data Seg05Text (s :: Strength) a = Seg05Text
   , seg05TextText :: a
   , seg05TextVoiceLine :: a
   , seg05TextCounter :: SW s W32
-  } deriving stock (Generic)
-
-deriving stock instance Show a => Show (Seg05Text 'Weak a)
-deriving stock instance Eq   a => Eq   (Seg05Text 'Weak a)
-deriving stock instance Functor     (Seg05Text 'Weak)
-deriving stock instance Foldable    (Seg05Text 'Weak)
-deriving stock instance Traversable (Seg05Text 'Weak)
+  } deriving stock Generic
 
 deriving stock instance Show a => Show (Seg05Text 'Strong a)
 deriving stock instance Eq   a => Eq   (Seg05Text 'Strong a)
-
-deriving via (GenericallyNonSum (Seg05Text Strong a))
-    instance BLen a => BLen (Seg05Text Strong a)
-deriving via (GenericallyNonSum (Seg05Text Strong a))
-    instance  Put a =>  Put (Seg05Text Strong a)
-deriving via (GenericallyNonSum (Seg05Text Strong a))
-    instance  Get a =>  Get (Seg05Text Strong a)
-
-instance ToJSON   a => ToJSON   (Seg05Text 'Weak a) where
-    toJSON     = gtjg "seg05Text"
-    toEncoding = gteg "seg05Text"
-instance FromJSON a => FromJSON (Seg05Text 'Weak a) where
-    parseJSON  = gpjg "seg05Text"
 
 instance Weaken (Seg05Text 'Strong a) where
     type Weak   (Seg05Text 'Strong a) = Seg05Text 'Weak a
@@ -155,6 +130,73 @@ instance Weaken (Seg05Text 'Strong a) where
 instance Strengthen (Seg05Text 'Strong a) where
     strengthen = strengthenGeneric
 
+deriving stock instance Show a => Show (Seg05Text 'Weak a)
+deriving stock instance Eq   a => Eq   (Seg05Text 'Weak a)
+deriving stock instance Functor     (Seg05Text 'Weak)
+deriving stock instance Foldable    (Seg05Text 'Weak)
+deriving stock instance Traversable (Seg05Text 'Weak)
+
+-- These generic instances assert that the type has 1 constructor.
+-- Try adding another constructor to enjoy an appropriate type error.
+deriving via (GenericallyNonSum (Seg05Text Strong a))
+    instance BLen a => BLen (Seg05Text Strong a)
+deriving via (GenericallyNonSum (Seg05Text Strong a))
+    instance  Put a =>  Put (Seg05Text Strong a)
+deriving via (GenericallyNonSum (Seg05Text Strong a))
+    instance  Get a =>  Get (Seg05Text Strong a)
+
+instance Aeson.ToJSON   a => Aeson.ToJSON   (Seg05Text 'Weak a) where
+    toJSON     = Aeson.genericToJSON     jcSeg05
+    toEncoding = Aeson.genericToEncoding jcSeg05
+instance Aeson.FromJSON a => Aeson.FromJSON (Seg05Text 'Weak a) where
+    parseJSON  = Aeson.genericParseJSON  jcSeg05
+
+-- | 'Seg05Text' JSON config.
+--
+-- If aeson were better, we would do this in types like binrep, but alas.
+jcSeg05 :: Aeson.Options
+jcSeg05 = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier =
+        Aeson.camelTo2 '_' . drop (length ("seg05Text" :: String))
+  , Aeson.rejectUnknownFields = True
+  }
+
+{- | A single SCP segment, or command.
+
+In the binary schema, SCP segments are formed with a byte prefix, indicating
+what segment follows, followed by the appropriate segment contents.
+Further, segments are often made of individual fields, concatenated.
+This is extremely convenient to define using a Haskell ADT!
+
+* A single constructor defines a single segment type.
+* Constructors encode their segment byte prefix in their name.
+* Constructor fields indicate their contents, and field order.
+
+binrep can use all of this information to derive generic serializers and parsers
+with minimal extra effort, provided that /every type used inside defines a
+precise binary schema/. For example, sized words like 'Word32' must be
+accompanied by an endianness.
+
+This is great... but now our type is rather unwieldy for using in Haskell land,
+where endianness is irrelevant and we perhaps prefer to ignore word sizes.
+This is where the 'SW' wrapper comes in. Wrap every type with extra, "unwanted"
+information in a @'SW' (s :: 'Strength') a@:
+
+* When @s ~ 'Strong'@, @a@ is used directly. This is the "exact" mode. Use this
+  one for binrep instances.
+* When @s ~ 'Weak'@, @'Weak' a@ is used. Use this one for aeson instances, easy
+  transformation, and generally working with in handwritten Haskell.
+
+The strongweak package is used to determine how types are weakened. Usually it's
+stuff like removing newtype wrappers, turning words to 'Natural's (and signed
+words to 'Integer's).
+
+Furthermore, we can then derive our /own/ weakeners and strengtheners.
+Provided you write the type as above, strongweak's generics simply do all the
+work for you. With all this, a command-line interface for coding between JSON
+and binary versions of the schema can be written in like 5 lines.
+(Really. See "Tool.SCP.Code".)
+-}
 data Seg (s :: Strength) a
   = Seg00
   | Seg01BG a (SW s W8) (SW s W8)
@@ -340,7 +382,7 @@ data Seg (s :: Strength) a
   | Seg75 (SW s W8)
   | Seg76
   | Seg77SCP (SW s W8)
-    deriving stock (Generic)
+    deriving stock Generic
 
 deriving stock instance Show a => Show (Seg 'Weak a)
 deriving stock instance Eq   a => Eq   (Seg 'Weak a)
@@ -348,20 +390,64 @@ deriving stock instance Eq   a => Eq   (Seg 'Weak a)
 deriving stock instance Show a => Show (Seg 'Strong a)
 deriving stock instance Eq   a => Eq   (Seg 'Strong a)
 
--- parse SegXX
+{- | Parse @SegXX@, where @XX@ is a hexadecimal number.
+
+This is a Symparsec type-level string parser.
+We use it to parse the 'Seg' constructors on the type level,
+when deriving generic binrep instances.
+See the symparsec package for more details.
+-}
 type ParseSeg =
                    Symparsec.Literal "Seg"
     Symparsec.:*>: Symparsec.Isolate 2 Symparsec.NatHex
 
--- REMEMBER THIS HAS TO GO ABOVE BINREP
+-- | First part of the 'Seg' constructor parser instance.
 instance CstrParser' Seg where
     type CstrParseResult Seg = Natural
+
+{- The below instance is dependent on the above instance.
+As of GHC 9.10, this is a problem for GHC and hits a known bug:
+https://gitlab.haskell.org/ghc/ghc/-/issues/22257
+https://gitlab.haskell.org/ghc/ghc/-/issues/12088 underlying long-standing bug
+A solution is to insert an empty Template Haskell splice between the instances.
+-}
 $(pure [])
+
+-- | Second part of the 'Seg' constructor parser instance.
 instance CstrParser  Seg where
     type ReifyCstrParseResult Seg n = KnownNat n
     type ParseCstr Seg cstr =
         Symparsec.Run'_ ParseSeg cstr
 
+{- These instances derive performant binary codings for 'Seg'.
+Unlike 'Seg05Text', 'Seg' is a sum type, having multiple constructors.
+binrep's sum generics only support one method for handling sum types: a prefix
+"constructor tag", which unambiguously defines which constructor follows.
+The SCP schema follows this pattern, so we can leverage the sum generics.
+
+But how do we tell binrep what to use for the constructor tag?
+Using the constructor name seems sensible, and can be seen in e.g. aeson.
+So we encode the constructor tag in the Haskell constructor name.
+But now we have to /decode/ the constructor name to get at the tag!
+We could do this at runtime with a 'String' parser, but we lose type safety
+(what if the parser fails?), and have to rely on GHC to inline all that work.
+
+binrep permits passing a /type-level string parser/ which is used to parse the
+constructor to some types, which are then reified down to a binrep-compatible
+value. The user must put in a little more work:
+
+* we pass this parser via a type class
+  * I suggest using the type itself 'Seg' as the instance, because why not?
+    The type class is only for enumeration, and we stay simple & clean that way.
+* we need to use a Template Haskell hack to work around a GHC limitation
+  (existing as of GHC 9.10)
+* the interface is currently messy, probably 'BLen' and 'Put' should look more
+  like 'Get'
+
+But in return, we receive a guarantee that our constructors are well-formed, and
+likely better runtime performance (as GHC will have less code to inline and thus
+hopefully an easier time to get it right).
+-}
 instance BLen a => BLen (Seg 'Strong a) where
     blen = blenGenericSum @Seg (\_p -> 1)
 instance Put  a => Put  (Seg 'Strong a) where
@@ -369,6 +455,9 @@ instance Put  a => Put  (Seg 'Strong a) where
 instance Get  a => Get  (Seg 'Strong a) where
      get =  getGenericSum @Seg @Word8 (\p -> fromIntegral (natVal' p)) (==)
 
+-- | 'Seg' JSON config.
+--
+-- If aeson were better, we would do this in types like binrep, but alas.
 jcSeg :: Aeson.Options
 jcSeg = Aeson.defaultOptions
   { Aeson.constructorTagModifier  = take 2 . drop (length ("Seg" :: String))
@@ -379,12 +468,20 @@ jcSeg = Aeson.defaultOptions
     }
   }
 
-instance ToJSON   a => ToJSON   (Seg 'Weak a) where
-    toJSON     = genericToJSON     jcSeg
-    toEncoding = genericToEncoding jcSeg
-instance FromJSON a => FromJSON (Seg 'Weak a) where
-    parseJSON  = genericParseJSON  jcSeg
+instance Aeson.ToJSON   a => Aeson.ToJSON   (Seg 'Weak a) where
+    toJSON     = Aeson.genericToJSON     jcSeg
+    toEncoding = Aeson.genericToEncoding jcSeg
+instance Aeson.FromJSON a => Aeson.FromJSON (Seg 'Weak a) where
+    parseJSON  = Aeson.genericParseJSON  jcSeg
 
+
+
+{- | The SCP format.
+
+The SCP format is very simple: it is a concatenated list of segments.
+There is no length indicator; EOF is used to indicate no more segments.
+This is precisely how the binrep 'List' instance works, so we leverage it.
+-}
 type SCP s a = [Seg s a]
 
 scpFmap :: (a -> b) -> SCP 'Weak a -> SCP 'Weak b
@@ -407,5 +504,5 @@ deriving stock instance Traversable (Seg 'Weak)
 instance Weaken (Seg 'Strong a) where
     type Weak   (Seg 'Strong a) = Seg 'Weak a
     weaken = weakenGeneric
-instance (Typeable a, Show a) => Strengthen (Seg 'Strong a) where
+instance Strengthen (Seg 'Strong a) where
     strengthen = strengthenGeneric
