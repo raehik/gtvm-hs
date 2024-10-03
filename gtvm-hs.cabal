@@ -40,40 +40,21 @@ library
       TypeFamilies
       DataKinds
       MagicHash
-  ghc-options: -Wall
+  ghc-options: -Wall -Wno-unticked-promoted-constructors
   build-depends:
-      aeson
-    , barbies
-    , base
-    , binrep
-    , blake3
-    , bytestring
-    , cassava
-    , containers
-    , directory
-    , either
-    , exceptions
-    , filemanip
-    , filepath
-    , generic-data-functions
-    , generic-optics
-    , lzo
-    , memory
-    , mtl
-    , optics
-    , path
-    , polysemy
-    , prettyprinter
-    , rerefined >=0.6.0 && <0.7
+      aeson >=2.1 && <2.3
+    , base >=4.18 && <5
+    , binrep >=1.0.0 && <1.1
+    , containers >=0.6 && <0.8
+    , exceptions >=0.10.7 && <0.11
+    , generic-data-functions >=0.6.0 && <0.7
+    , mtl >=2.3.1 && <2.4
+    , path >=0.9.5 && <0.10
+    , polysemy >=1.9.2.0 && <1.10
     , strongweak >=0.9.1 && <0.10
-    , symparsec
+    , symparsec >=1.1.1 && <1.2
     , text >=2.0.1 && <2.2
-    , text-latin1
-    , transformers
-    , unicode-show
-    , unordered-containers
-    , vector-sized
-    , yaml
+    , yaml >=0.11.11.2 && <0.12
   default-language: GHC2021
 
 executable gtvm-hs
@@ -100,40 +81,23 @@ executable gtvm-hs
       TypeFamilies
       DataKinds
       MagicHash
-  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unticked-promoted-constructors -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
-    , barbies
-    , base
-    , binrep
-    , blake3
-    , bytestring
-    , cassava
-    , containers
-    , directory
-    , either
-    , exceptions
-    , filemanip
-    , filepath
-    , generic-data-functions
-    , generic-optics
+      aeson >=2.1 && <2.3
+    , base >=4.18 && <5
+    , binrep >=1.0.0 && <1.1
+    , bytestring >=0.11 && <0.13
+    , containers >=0.6 && <0.8
+    , exceptions >=0.10.7 && <0.11
+    , generic-data-functions >=0.6.0 && <0.7
     , gtvm-hs
-    , lzo
-    , memory
-    , mtl
-    , optics
-    , optparse-applicative
-    , path
-    , polysemy
-    , prettyprinter
+    , mtl >=2.3.1 && <2.4
+    , optparse-applicative >=0.18.1.0 && <0.19
+    , path >=0.9.5 && <0.10
+    , polysemy >=1.9.2.0 && <1.10
     , rerefined >=0.6.0 && <0.7
     , strongweak >=0.9.1 && <0.10
-    , symparsec
+    , symparsec >=1.1.1 && <1.2
     , text >=2.0.1 && <2.2
-    , text-latin1
-    , transformers
-    , unicode-show
-    , unordered-containers
-    , vector-sized
-    , yaml
+    , yaml >=0.11.11.2 && <0.12
   default-language: GHC2021

@@ -1,5 +1,5 @@
 name: gtvm-hs
-version: "0.9.0"
+version: 0.9.0
 synopsis: "Various tools for reversing and using assets from Golden Time: Vivid Memories."
 github: raehik/gtvm-hs
 extra-source-files:
@@ -43,44 +43,46 @@ default-extensions:
 ghc-options:
 - -Wall
 
+# omitting ticks is good; see https://gitlab.haskell.org/ghc/ghc/-/issues/20531
+# (off by default since GHC 9.4)
+- -Wno-unticked-promoted-constructors
+
 dependencies:
-- base
+- base >= 4.18 && < 5
+- text >= 2.0.1 && < 2.2
 
-- binrep
+# SCP
+- binrep ^>= 1.0.0
 - strongweak ^>= 0.9.1
-- rerefined ^>= 0.6.0
-- generic-data-functions
-- symparsec
+- generic-data-functions ^>= 0.6.0
+- symparsec ^>= 1.1.1
+- aeson >= 2.1 && < 2.3
 
-- bytestring
-- text >= 2.0.1 && <2.2
-- mtl
-- transformers
-- either
-- directory
-- unicode-show
-- aeson
-- lzo
-- filemanip
-- cassava
-- barbies
-- text-latin1
-- blake3
-- memory
-- optics
-- generic-optics
-- filepath
-- containers
-- unordered-containers
-- vector-sized
-- prettyprinter
+# SCPTL (TODO)
+- mtl ^>= 2.3.1
+- containers >= 0.6 && < 0.8 # TODO need to permit 0.6 for polysemy
+
+# studio (TODO)
+- polysemy ^>= 1.9.2.0 # TODO move to bluefin :)
+- path ^>= 0.9.5
+- yaml ^>= 0.11.11.2
+- exceptions ^>= 0.10.7
+
+# old (TODO)
+#- directory
+#- unicode-show
+#- lzo
+#- filemanip
+#- cassava
+#- barbies
+#- text-latin1
+#- blake3
+#- memory
+#- optics
+#- generic-optics
+#- filepath
+#- unordered-containers
 #- aeson-pretty
-
-# studio
-- polysemy
-- path
-- yaml
-- exceptions
 
 library:
   source-dirs: src
@@ -95,5 +97,7 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - gtvm-hs
-    - optparse-applicative
-    - yaml
+    - optparse-applicative ^>= 0.18.1.0
+    - yaml ^>= 0.11.11.2
+    - rerefined ^>= 0.6.0
+    - bytestring >= 0.11 && < 0.13

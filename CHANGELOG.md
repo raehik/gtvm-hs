@@ -1,7 +1,13 @@
-## 0.10.0 (Unreleased)
-  * large binary representation refactor: SCP, flowchart now handled generically
-    via binrep, strongweak, refined
-  * work on graphing SCP links
+## 1.0.0 (unreleased)
+* get building with my new libraries
+  * specifically rewrite SCP
+* disable flowchart & SL01 features (need a bit more work)
+
+Previously unreleased changes, now possibly disabled or irrelevant:
+
+* large binary representation refactor: SCP, flowchart now handled generically
+  via binrep, strongweak, refined
+* work on graphing SCP links
 
 ## 0.9.0 (2022-03-22)
   * new tool: SCP text replace (for translation)

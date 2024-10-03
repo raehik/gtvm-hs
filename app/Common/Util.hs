@@ -2,39 +2,37 @@ module Common.Util where
 
 import Common.Config
 import Control.Monad.IO.Class
-import Data.ByteString qualified as BS
-import System.Exit
-import Prettyprinter
-import Data.Either.Validation
+import Data.ByteString qualified as B
+import System.Exit ( exitWith, ExitCode(ExitFailure) )
 import Strongweak
 
-readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m BS.ByteString
+readStreamBytes :: MonadIO m => Stream 'StreamIn s -> m B.ByteString
 readStreamBytes = \case
   StreamFile' sf -> readStreamFileBytes sf
   StreamStd      -> readStdinBytes
 
-readStreamFileBytes :: MonadIO m => StreamFile 'StreamIn s -> m BS.ByteString
-readStreamFileBytes = liftIO . BS.readFile . streamFilePath
+readStreamFileBytes :: MonadIO m => StreamFile 'StreamIn s -> m B.ByteString
+readStreamFileBytes = liftIO . B.readFile . streamFilePath
 
-readStdinBytes :: MonadIO m => m BS.ByteString
-readStdinBytes = liftIO BS.getContents
+readStdinBytes :: MonadIO m => m B.ByteString
+readStdinBytes = liftIO B.getContents
 
 print' :: (MonadIO m, Show a) => a -> m ()
 print' = liftIO . print
 
-writeStreamTextualBytes :: MonadIO m => Stream 'StreamOut s -> BS.ByteString -> m ()
+writeStreamTextualBytes :: MonadIO m => Stream 'StreamOut s -> B.ByteString -> m ()
 writeStreamTextualBytes s bs =
     case s of
-      StreamFile' sf -> liftIO $ BS.writeFile (streamFilePath sf) bs
-      StreamStd      -> liftIO $ BS.putStr bs
+      StreamFile' sf -> liftIO $ B.writeFile (streamFilePath sf) bs
+      StreamStd      -> liftIO $ B.putStr bs
 
-writeStreamBin :: MonadIO m => PrintBin -> Stream 'StreamOut s -> BS.ByteString -> m ()
+writeStreamBin :: MonadIO m => PrintBin -> Stream 'StreamOut s -> B.ByteString -> m ()
 writeStreamBin pb s bs =
     case s of
-      StreamFile' sf -> liftIO $ BS.writeFile (streamFilePath sf) bs
+      StreamFile' sf -> liftIO $ B.writeFile (streamFilePath sf) bs
       StreamStd      ->
         case pb of
-          PrintBin   -> liftIO $ BS.putStr bs
+          PrintBin   -> liftIO $ B.putStr bs
           NoPrintBin -> do
             liftIO $ putStrLn "warning: refusing to print binary to stdout"
             liftIO $ putStrLn "(write to a file with --out-file FILE, or use --print-binary flag to override)"
@@ -54,7 +52,7 @@ exit s = do liftIO $ putStrLn $ "error: "<>s
 
 badParseStream
     :: MonadIO m
-    => (FilePath -> BS.ByteString -> Either String a)
+    => (FilePath -> B.ByteString -> Either String a)
     -> Stream 'StreamIn s
     -> m a
 badParseStream f = \case

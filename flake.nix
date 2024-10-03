@@ -70,9 +70,8 @@
           # https://hub.darcs.net/vmchale/sak/issue/2 (unmerged 2024-09-28)
           settings.lzo.check = false;
 
-          packages.binrep.source = inputs.binrep;
-
           # waiting for nixpkgs update
+          packages.binrep.source = inputs.binrep;
           packages.rerefined.source = inputs.rerefined;
           settings.strongweak.broken = false;
           packages.strongweak.source = inputs.strongweak;
@@ -90,9 +89,8 @@
           # https://hub.darcs.net/vmchale/sak/issue/2 (unmerged 2024-09-28)
           settings.lzo.check = false;
 
-          packages.binrep.source = inputs.binrep;
-
           # waiting for nixpkgs update
+          packages.binrep.source = inputs.binrep;
           packages.rerefined.source = inputs.rerefined;
           packages.bytezap.source = inputs.bytezap;
           settings.strongweak.broken = false;
