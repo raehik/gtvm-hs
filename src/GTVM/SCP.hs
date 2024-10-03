@@ -3,6 +3,15 @@
 {-# LANGUAGE TemplateHaskell #-} -- for g-d-f workaround (search `$(pure [])`)
 {-# LANGUAGE UndecidableInstances #-} -- for Symparsec
 
+{- | Definitions for the SCP schema used in Golden Time: Vivid Memories.
+
+This module doubles as a sort of showcase for raehik's zoo of high-performance
+binary and generics libraries, and how one might use them to do some reverse
+engineering.
+
+The 'Seg' type and definitions following it are of primary interest.
+-}
+
 module GTVM.SCP where
 
 import Binrep
@@ -24,8 +33,14 @@ import GHC.TypeLits ( KnownNat, natVal' )
 
 import Data.Aeson qualified as Aeson
 
+-- | Shorthand for a single byte.
 type W8  = Word8
+
+-- | Shorthand for a little-endian 4-byte word. (The SCP format solely uses
+--   little-endian, so we simply hard-code it here.)
 type W32 = ByteOrdered LittleEndian Word32
+
+-- | Shorthand for a list of something, prefixed by its length as a single byte.
 type PfxLenW8 = CountPrefixed Word8 []
 
 newtype AW32Pairs s a = AW32Pairs
@@ -447,6 +462,11 @@ value. The user must put in a little more work:
 But in return, we receive a guarantee that our constructors are well-formed, and
 likely better runtime performance (as GHC will have less code to inline and thus
 hopefully an easier time to get it right).
+
+Note how we don't write /anything else/ about how to parse or serialize the
+type. That is fully described by the type itself. I have confidence that writing
+the 'Put' and 'Get' instances in most other programming languages would take
+some hundreds of lines, a couple for each constructor. Here, it's... one.
 -}
 instance BLen a => BLen (Seg 'Strong a) where
     blen = blenGenericSum @Seg (\_p -> 1)
