@@ -1,4 +1,11 @@
 # To-dos
+## 2024 overhaul
+* re-enable disabled code:
+  * flowchart (very easy, just binrep changes)
+  * SL01 (shouldn't be hard)
+  * hash/check stuff (? delete? vestigial bytepatch remnants?)
+* related, get bytepatch rewrite working xd
+
 ## SCPTL
   * Load flowchart in too, tell about script type (utage, kaiwa, ...)
 
