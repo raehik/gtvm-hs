@@ -1,9 +1,12 @@
-## 1.0.0 (unreleased)
+## 1.0.0 (2024-10-03)
+First Hackage release.
+
 * get building with my new libraries
   * specifically rewrite SCP
 * disable flowchart & SL01 features (need a bit more work)
 
-Previously unreleased changes, now possibly disabled or irrelevant:
+Previously unreleased changes, now possibly (temporarily) disabled or
+irrelevant:
 
 * large binary representation refactor: SCP, flowchart now handled generically
   via binrep, strongweak, refined
