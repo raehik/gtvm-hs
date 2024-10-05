@@ -24,8 +24,6 @@ jobs:
     - uses: DeterminateSystems/magic-nix-cache-action@main
     - uses: DeterminateSystems/flake-checker-action@main
 
-    - run: nix build .#ghc910-gtvm-hs
-
     - run: nix build .#ghc910-gtvm-hs-image
     - run: ./result | podman load
 
