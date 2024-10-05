@@ -15,7 +15,7 @@ jobs:
     name: nix build .#ghc910-gtvm-hs-image; push image
     runs-on: ubuntu-latest
     permissions:
-      packages: write # for pushing to image registry
+      packages: write # for pushing to container registry
       #id-token: write # ? requested by magic-nix-cache
       #contents: read # ? requested by magic-nix-cache
     steps:
@@ -41,5 +41,11 @@ jobs:
     # still true as of 2024-10-05... guys...
 
     # your repo needs write permission to push to the registry for this to work!
-    # configured in Packages (tab at user/org level)
+    # unsure how to configure. maybe in Packages tab at user/org level?
+    # maybe job permissions is good enough? (seemed to work here)
+    # the built image is expected to be tagged with `${{ env.image_tag }}`;
+    # push to that, and `${{ github.ref_name }}` (= tag, else branch)
+    # unsure how this works with fork PRs-- probably write permissions fail.
+    # light TODO.
     - run: 'podman push localhost/${{ env.image_name }}:${{ env.image_tag }} ${{ env.IMAGE_REGISTRY }}/${{ env.image_name }}:${{ env.image_tag }}'
+    - run: 'podman push localhost/${{ env.image_name }}:${{ env.image_tag }} ${{ env.IMAGE_REGISTRY }}/${{ env.image_name }}:${{ github.ref_name }}'
