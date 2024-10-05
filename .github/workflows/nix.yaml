@@ -3,20 +3,43 @@ name: Nix
 on:
   push:
 
+env:
+  REGISTRY_USER: ${{ github.actor }}
+  REGISTRY_PASSWORD: ${{ github.token }}
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  image_name: gtvm-hs
+  image_tag: ${{ github.sha }}
+
 jobs:
   nix-build:
-    name: nix build .#${{ matrix.ghc }}-gtvm-hs
-    strategy:
-      fail-fast: false
-      matrix:
-        ghc: [ghc910, ghc96]
+    name: nix build .#ghc910-gtvm-hs-image; push image
     runs-on: ubuntu-latest
     permissions:
-      id-token: "write"
-      contents: "read"
+      packages: write # for pushing to image registry
+      #id-token: write # ? requested by magic-nix-cache
+      #contents: read # ? requested by magic-nix-cache
     steps:
     - uses: actions/checkout@v4
     - uses: DeterminateSystems/nix-installer-action@main
     - uses: DeterminateSystems/magic-nix-cache-action@main
     - uses: DeterminateSystems/flake-checker-action@main
-    - run: nix build .#${{ matrix.ghc }}-gtvm-hs
+
+    - run: nix build .#ghc910-gtvm-hs
+
+    - run: nix build .#ghc910-gtvm-hs-image
+    - run: ./result | podman load
+
+    - uses: redhat-actions/podman-login@v1
+      with:
+        username: ${{ env.REGISTRY_USER }}
+        password: ${{ env.REGISTRY_PASSWORD }}
+        registry: ${{ env.IMAGE_REGISTRY }}
+
+    # 2023-06-28: redhat-actions/push-to-registry doesn't let you qualify your
+    # target image, so it's pretty much useless. lmao
+    # https://github.com/redhat-actions/push-to-registry/issues/66
+    # still true as of 2024-10-05... guys...
+
+    # your repo needs write permission to push to the registry for this to work!
+    # configured in Packages (tab at user/org level)
+    - run: 'podman push localhost/${{ env.image_name }}:${{ env.image_tag }} ${{ env.IMAGE_REGISTRY }}/${{ env.image_name }}:${{ env.image_tag }}'
