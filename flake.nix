@@ -97,11 +97,16 @@
           packages.strongweak.source = inputs.strongweak;
         };
 
+        # executable-only derivation for image
+        # (why does this require re-building?)
+        packages.ghc910-gtvm-hs-jse =
+          pkgs.haskell.lib.justStaticExecutables self'.packages.ghc910-gtvm-hs;
         packages.ghc910-gtvm-hs-image = pkgs.dockerTools.streamLayeredImage {
           name = "gtvm-hs";
           # `git rev-parse HEAD` on clean, "dev" on dirty
           tag = inputs.self.rev or "dev";
-          config.Entrypoint = [ "${pkgs.lib.getExe self'.packages.ghc910-gtvm-hs}" ];
+          config.Entrypoint =
+            [ "${pkgs.lib.getExe self'.packages.ghc910-gtvm-hs-jse}" ];
           maxLayers = 120; # less than Docker max layers to allow extending
         };
       };
