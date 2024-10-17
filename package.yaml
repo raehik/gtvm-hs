@@ -60,7 +60,7 @@ dependencies:
 
 # SCP
 - binrep ^>= 1.0.0
-- strongweak ^>= 0.9.1
+- strongweak ^>= 0.10.0
 - generic-data-functions ^>= 0.6.0
 - symparsec ^>= 1.1.1
 - aeson >= 2.1 && < 2.3
@@ -106,5 +106,5 @@ executables:
     - gtvm-hs
     - optparse-applicative ^>= 0.18.1.0
     - yaml ^>= 0.11.11.2
-    - rerefined ^>= 0.6.0
+    - rerefined ^>= 0.8.0
     - bytestring >= 0.11 && < 0.13

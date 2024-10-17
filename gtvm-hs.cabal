@@ -57,7 +57,7 @@ library
     , mtl >=2.3.1 && <2.4
     , path >=0.9.5 && <0.10
     , polysemy >=1.9.2.0 && <1.10
-    , strongweak >=0.9.1 && <0.10
+    , strongweak >=0.10.0 && <0.11
     , symparsec >=1.1.1 && <1.2
     , text >=2.0.1 && <2.2
     , yaml >=0.11.11.2 && <0.12
@@ -101,8 +101,8 @@ executable gtvm-hs
     , optparse-applicative >=0.18.1.0 && <0.19
     , path >=0.9.5 && <0.10
     , polysemy >=1.9.2.0 && <1.10
-    , rerefined >=0.6.0 && <0.7
-    , strongweak >=0.9.1 && <0.10
+    , rerefined >=0.8.0 && <0.9
+    , strongweak >=0.10.0 && <0.11
     , symparsec >=1.1.1 && <1.2
     , text >=2.0.1 && <2.2
     , yaml >=0.11.11.2 && <0.12

@@ -38,7 +38,7 @@ type W8  = Word8
 
 -- | Shorthand for a little-endian 4-byte word. (The SCP format solely uses
 --   little-endian, so we simply hard-code it here.)
-type W32 = ByteOrdered LittleEndian Word32
+type W32 = WeakenN 2 (ByteOrdered LittleEndian Word32)
 
 -- | Shorthand for a list of something, prefixed by its length as a single byte.
 type PfxLenW8 = CountPrefixed Word8 []
@@ -47,19 +47,19 @@ newtype AW32Pairs s a = AW32Pairs
   { unAW32Pairs :: SW s (PfxLenW8 (a, SW s W32)) }
     deriving stock Generic
 
-deriving stock instance Show a => Show (AW32Pairs 'Weak a)
-deriving stock instance Eq   a => Eq   (AW32Pairs 'Weak a)
+deriving stock instance Show a => Show (AW32Pairs Weak a)
+deriving stock instance Eq   a => Eq   (AW32Pairs Weak a)
 
-deriving stock instance Show a => Show (AW32Pairs 'Strong a)
-deriving stock instance Eq   a => Eq   (AW32Pairs 'Strong a)
+deriving stock instance Show a => Show (AW32Pairs Strong a)
+deriving stock instance Eq   a => Eq   (AW32Pairs Strong a)
 
-instance Functor (AW32Pairs 'Weak) where
+instance Functor (AW32Pairs Weak) where
     fmap f = AW32Pairs . map (\(a, b) -> (f a, b)) . unAW32Pairs
 
-instance Foldable (AW32Pairs 'Weak) where
+instance Foldable (AW32Pairs Weak) where
     foldMap f = mconcat . map (f . fst) . unAW32Pairs
 
-instance Traversable (AW32Pairs 'Weak) where
+instance Traversable (AW32Pairs Weak) where
     traverse f (AW32Pairs xs) = do
         xs' <- traverse (traverseFst f) xs
         return $ AW32Pairs xs'
@@ -69,11 +69,11 @@ traverseFst f (a, x) = do
     b <- f a
     return (b, x)
 
-instance Weaken (AW32Pairs 'Strong a) where
-    type Weak   (AW32Pairs 'Strong a) = AW32Pairs 'Weak a
+instance Weaken (AW32Pairs Strong a) where
+    type Weakened (AW32Pairs Strong a) = AW32Pairs Weak a
     weaken (AW32Pairs x) = AW32Pairs $ map (\(l, r) -> (l, weaken r)) $ weaken x
 
-instance Strengthen (AW32Pairs 'Strong a) where
+instance Strengthen (AW32Pairs Strong a) where
     strengthen (AW32Pairs a) = do
         case traverse go a of
           Left  e -> Left e
@@ -87,36 +87,36 @@ instance Strengthen (AW32Pairs 'Strong a) where
               Left  e  -> Left e
               Right r' -> Right (l, r')
 
-deriving via (PfxLenW8 (a, W32)) instance BLen a => BLen (AW32Pairs 'Strong a)
-deriving via (PfxLenW8 (a, W32)) instance Put  a => Put  (AW32Pairs 'Strong a)
-deriving via (PfxLenW8 (a, W32)) instance Get  a => Get  (AW32Pairs 'Strong a)
+deriving via (PfxLenW8 (a, W32)) instance BLen a => BLen (AW32Pairs Strong a)
+deriving via (PfxLenW8 (a, W32)) instance Put  a => Put  (AW32Pairs Strong a)
+deriving via (PfxLenW8 (a, W32)) instance Get  a => Get  (AW32Pairs Strong a)
 
 -- TODO wtf do these look like? and shouldn't I do deriving via?
-instance Aeson.ToJSON   a => Aeson.ToJSON   (AW32Pairs 'Weak a)
-instance Aeson.FromJSON a => Aeson.FromJSON (AW32Pairs 'Weak a)
+instance Aeson.ToJSON   a => Aeson.ToJSON   (AW32Pairs Weak a)
+instance Aeson.FromJSON a => Aeson.FromJSON (AW32Pairs Weak a)
 
 newtype W322Block (s :: Strength) = W322Block
     { unW322Block :: SW s (PfxLenW8 (SW s (PfxLenW8 (SW s W32)))) }
     deriving stock Generic
 
-deriving stock instance Show (W322Block 'Weak)
-deriving stock instance Eq   (W322Block 'Weak)
+deriving stock instance Show (W322Block Weak)
+deriving stock instance Eq   (W322Block Weak)
 
-deriving stock instance Show (W322Block 'Strong)
-deriving stock instance Eq   (W322Block 'Strong)
+deriving stock instance Show (W322Block Strong)
+deriving stock instance Eq   (W322Block Strong)
 
-deriving via (PfxLenW8 (PfxLenW8 W32)) instance BLen (W322Block 'Strong)
-deriving via (PfxLenW8 (PfxLenW8 W32)) instance Put  (W322Block 'Strong)
-deriving via (PfxLenW8 (PfxLenW8 W32)) instance Get  (W322Block 'Strong)
+deriving via (PfxLenW8 (PfxLenW8 W32)) instance BLen (W322Block Strong)
+deriving via (PfxLenW8 (PfxLenW8 W32)) instance Put  (W322Block Strong)
+deriving via (PfxLenW8 (PfxLenW8 W32)) instance Get  (W322Block Strong)
 
-deriving via [[Natural]] instance Aeson.ToJSON   (W322Block 'Weak)
-deriving via [[Natural]] instance Aeson.FromJSON (W322Block 'Weak)
+deriving via [[Natural]] instance Aeson.ToJSON   (W322Block Weak)
+deriving via [[Natural]] instance Aeson.FromJSON (W322Block Weak)
 
-instance Weaken (W322Block 'Strong) where
-    type Weak   (W322Block 'Strong) = W322Block 'Weak
+instance Weaken (W322Block Strong) where
+    type Weakened (W322Block Strong) = W322Block Weak
     weaken (W322Block a) = W322Block $ map (map weaken . weaken) $ weaken a
 
-instance Strengthen (W322Block 'Strong) where
+instance Strengthen (W322Block Strong) where
     strengthen (W322Block a) = do
         case traverse (traverse strengthen) a of -- strengthen ints
           Left  e -> Left e
@@ -136,20 +136,20 @@ data Seg05Text (s :: Strength) a = Seg05Text
   , seg05TextCounter :: SW s W32
   } deriving stock Generic
 
-deriving stock instance Show a => Show (Seg05Text 'Strong a)
-deriving stock instance Eq   a => Eq   (Seg05Text 'Strong a)
+deriving stock instance Show a => Show (Seg05Text Strong a)
+deriving stock instance Eq   a => Eq   (Seg05Text Strong a)
 
-instance Weaken (Seg05Text 'Strong a) where
-    type Weak   (Seg05Text 'Strong a) = Seg05Text 'Weak a
+instance Weaken (Seg05Text Strong a) where
+    type Weakened (Seg05Text Strong a) = Seg05Text Weak a
     weaken = weakenGeneric
-instance Strengthen (Seg05Text 'Strong a) where
+instance Strengthen (Seg05Text Strong a) where
     strengthen = strengthenGeneric
 
-deriving stock instance Show a => Show (Seg05Text 'Weak a)
-deriving stock instance Eq   a => Eq   (Seg05Text 'Weak a)
-deriving stock instance Functor     (Seg05Text 'Weak)
-deriving stock instance Foldable    (Seg05Text 'Weak)
-deriving stock instance Traversable (Seg05Text 'Weak)
+deriving stock instance Show a => Show (Seg05Text Weak a)
+deriving stock instance Eq   a => Eq   (Seg05Text Weak a)
+deriving stock instance Functor     (Seg05Text Weak)
+deriving stock instance Foldable    (Seg05Text Weak)
+deriving stock instance Traversable (Seg05Text Weak)
 
 -- These generic instances assert that the type has 1 constructor.
 -- Try adding another constructor to enjoy an appropriate type error.
@@ -160,10 +160,10 @@ deriving via (GenericallyNonSum (Seg05Text Strong a))
 deriving via (GenericallyNonSum (Seg05Text Strong a))
     instance  Get a =>  Get (Seg05Text Strong a)
 
-instance Aeson.ToJSON   a => Aeson.ToJSON   (Seg05Text 'Weak a) where
+instance Aeson.ToJSON   a => Aeson.ToJSON   (Seg05Text Weak a) where
     toJSON     = Aeson.genericToJSON     jcSeg05
     toEncoding = Aeson.genericToEncoding jcSeg05
-instance Aeson.FromJSON a => Aeson.FromJSON (Seg05Text 'Weak a) where
+instance Aeson.FromJSON a => Aeson.FromJSON (Seg05Text Weak a) where
     parseJSON  = Aeson.genericParseJSON  jcSeg05
 
 -- | 'Seg05Text' JSON config.
@@ -399,11 +399,11 @@ data Seg (s :: Strength) a
   | Seg77SCP (SW s W8)
     deriving stock Generic
 
-deriving stock instance Show a => Show (Seg 'Weak a)
-deriving stock instance Eq   a => Eq   (Seg 'Weak a)
+deriving stock instance Show a => Show (Seg Weak a)
+deriving stock instance Eq   a => Eq   (Seg Weak a)
 
-deriving stock instance Show a => Show (Seg 'Strong a)
-deriving stock instance Eq   a => Eq   (Seg 'Strong a)
+deriving stock instance Show a => Show (Seg Strong a)
+deriving stock instance Eq   a => Eq   (Seg Strong a)
 
 {- | Parse @SegXX@, where @XX@ is a hexadecimal number.
 
@@ -468,11 +468,11 @@ type. That is fully described by the type itself. I have confidence that writing
 the 'Put' and 'Get' instances in most other programming languages would take
 some hundreds of lines, a couple for each constructor. Here, it's... one.
 -}
-instance BLen a => BLen (Seg 'Strong a) where
+instance BLen a => BLen (Seg Strong a) where
     blen = blenGenericSum @Seg (\_p -> 1)
-instance Put  a => Put  (Seg 'Strong a) where
+instance Put  a => Put  (Seg Strong a) where
      put =  putGenericSum @Seg (\p -> put @Word8 (fromIntegral (natVal' p)))
-instance Get  a => Get  (Seg 'Strong a) where
+instance Get  a => Get  (Seg Strong a) where
      get =  getGenericSum @Seg @Word8 (\p -> fromIntegral (natVal' p)) (==)
 
 -- | 'Seg' JSON config.
@@ -488,13 +488,11 @@ jcSeg = Aeson.defaultOptions
     }
   }
 
-instance Aeson.ToJSON   a => Aeson.ToJSON   (Seg 'Weak a) where
+instance Aeson.ToJSON   a => Aeson.ToJSON   (Seg Weak a) where
     toJSON     = Aeson.genericToJSON     jcSeg
     toEncoding = Aeson.genericToEncoding jcSeg
-instance Aeson.FromJSON a => Aeson.FromJSON (Seg 'Weak a) where
+instance Aeson.FromJSON a => Aeson.FromJSON (Seg Weak a) where
     parseJSON  = Aeson.genericParseJSON  jcSeg
-
-
 
 {- | The SCP format.
 
@@ -504,10 +502,10 @@ This is precisely how the binrep 'List' instance works, so we leverage it.
 -}
 type SCP s a = [Seg s a]
 
-scpFmap :: (a -> b) -> SCP 'Weak a -> SCP 'Weak b
+scpFmap :: (a -> b) -> SCP Weak a -> SCP Weak b
 scpFmap = fmap . fmap
 
-scpTraverse :: Applicative f => (a -> f b) -> SCP 'Weak a -> f (SCP 'Weak b)
+scpTraverse :: Applicative f => (a -> f b) -> SCP Weak a -> f (SCP Weak b)
 scpTraverse = traverse . traverse
 
 scpSegFieldOrdering :: Text -> Text -> Ordering
@@ -517,12 +515,12 @@ scpSegFieldOrdering = go
     go _ "command_byte" = GT
     go k1 k2 = compare k1 k2
 
-deriving stock instance Functor     (Seg 'Weak)
-deriving stock instance Foldable    (Seg 'Weak)
-deriving stock instance Traversable (Seg 'Weak)
+deriving stock instance Functor     (Seg Weak)
+deriving stock instance Foldable    (Seg Weak)
+deriving stock instance Traversable (Seg Weak)
 
-instance Weaken (Seg 'Strong a) where
-    type Weak   (Seg 'Strong a) = Seg 'Weak a
+instance Weaken (Seg Strong a) where
+    type Weakened (Seg Strong a) = Seg Weak a
     weaken = weakenGeneric
-instance Strengthen (Seg 'Strong a) where
+instance Strengthen (Seg Strong a) where
     strengthen = strengthenGeneric
