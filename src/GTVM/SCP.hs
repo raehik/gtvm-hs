@@ -43,6 +43,8 @@ type W32 = WeakenN 2 (ByteOrdered LittleEndian Word32)
 -- | Shorthand for a list of something, prefixed by its length as a single byte.
 type PfxLenW8 = CountPrefixed Word8 []
 
+-- even with new 'WeakenN', we have to write this out manually because we're
+-- weakening only one side of a tuple. that's fine, just life :)
 newtype AW32Pairs s a = AW32Pairs
   { unAW32Pairs :: SW s (PfxLenW8 (a, SW s W32)) }
     deriving stock Generic

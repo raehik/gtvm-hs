@@ -67,7 +67,7 @@ badParseStream f = \case
       Left  err -> badExit "parsing input" err
       Right out -> return out
 
-liftStrengthen :: (MonadIO m, Strengthen a) => Weak a -> m a
+liftStrengthen :: (MonadIO m, Strengthen a) => Weakened a -> m a
 liftStrengthen wa =
     case strengthen wa of
       Right sa  -> pure sa
